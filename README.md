@@ -6,6 +6,7 @@ I currently own 2 MIDI 4X4 from Miditech/Miduplus manufacturer.
 I thought it was possible to stack the 2 on the same PC to get 8x2 ports IN/Out.
 But as theses devices have exactly the same product and vendor ID, and no serial, it is in fact impossible to do that.
 So the only alternative was to buy a 8x8 interface with the same manufacturer, for the three times the price of the MIDI 4x4 that I did not.
+<img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
 More, recently, one of my interface started to work incorrectly, invoking to me a corrupted firmware. 
 I asked to the Miditech and Midiplus support and they were enough kind to provide to me an updated firmware kit, but for the NEW version...
@@ -16,7 +17,6 @@ I could'nt accept that a device (almost) still in order with USB,  8 ports 4IN -
 Nothing to loose, I opened the box, and inside I discovered that the microcontroller was a STMF103RC, a very common uC on musical gears 
 (the Arturia Minilab and the Novation launchkey and launchpad are using it for example). 
 Here start the idea of a possible hack....
-<a href="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  /></a>
 
 => I have a board available with a programmable and powerfull chip,  native USB, plus all the circuitry for 4 MIDI IN / 4OUT. 
 Why not rewriting a new firmware from scratch as I did for other uC like of the AVR family ?
