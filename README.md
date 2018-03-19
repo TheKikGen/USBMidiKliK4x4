@@ -5,7 +5,7 @@ A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface
 I currently own 2 MIDI 4X4 from Miditech/Miduplus manufacturer. 
 I thought it was possible to stack the 2 on the same PC to get 8x2 ports IN/Out.
 But as theses devices have exactly the same product and vendor ID, and no serial, it is in fact impossible to do that.
-So the only alternative was to buy a 8x8 interface with the same manufacturer, for the three times the price of the MIDI 4x4 that I did not.
+So the only alternative was to buy a 8x8 interface to the same manufacturer, for the three times the price of the MIDI 4x4 that I did not.
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
 More, recently, one of my interface started to work incorrectly, invoking to me a corrupted firmware. 
