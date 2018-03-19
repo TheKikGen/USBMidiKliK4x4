@@ -31,12 +31,13 @@ the Boot0 pin to HIGH and the Boot1 pin to LOW.  So I desoldered 2 resitors on t
 made a small reset / boot1 HIGH circuit, and soldered the boot 0 to ground.  
 
 I also connected TX and RX of the serial 1 to a small plug. That was easy because some large labelled TXn / RXn pads exist on the MIDI4x4 board.  I connected that plug to an USB Serial TTL, and 2 H later, I was ready to upload a new firmware in the thing.
+I discoverred that the original Miditech / Midiplus firmware was protected against read. I had to accept the "The chip will be entirely erased if you continue.." warning.  
 
-I started with a basic demo UART firmware "Hello world" sending a text on the Serial port 1 at 115200.  
-And guess what : that worked at the first time  !  So, it was really a firmare corruption issue...hardware is clean.
+Then, I started with a basic firmware sending "note on" to the serial port.  And guess what : that worked at the first time  !  
+yes ! hardware is ok.
 
 To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32F 
-ARM architecture.  I  downloaded the STMDuino bootloader2.0 to the board, and tested the 4x4 board as a generic STMF103RC in the Arduino IDE... Again, my MIDI demo sketch worked at the first compilation...And I can adress the 4 serial port connected to midi jack.
+ARM architecture.  I  uploaded the STMDuino bootloader2.0 to the board with STMFLASH, and tested the 4x4 board as a generic STMF103RC in the Arduino IDE... Again, my MIDI demo sketch worked at the first compilation...And I could adress the 4 serial port connected to midi jacks.
 
 
     void setup() {
@@ -87,6 +88,7 @@ Now ready to go !
 Features I plan to develop :
 
 - Reproduce the standard behaviuour of the MIDI 4X4 original interface
+- USB Midi 2x4 cables
 - Full MIDI compliance (Running status, SYSEX...).
 - Dual Bootloader supporting USB MIDI and DFU Mode to upgrade firmware easily
 - Routing function via SYSEX :
