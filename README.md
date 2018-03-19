@@ -20,25 +20,68 @@ Here start the idea of a possible hack....
 
 => I have a board available with a programmable and powerfull chip,  native USB, plus all the circuitry for 4 MIDI IN / 4OUT. 
 Why not rewriting a new firmware from scratch as I did for other uC like of the AVR family ?
-I could even extend thtat firmware to enable merge mode, thru mode, specific routing and filtering modes. 
+I could even extend that firmware to enable merge mode, thru mode, specific routing and filtering modes. 
 So, building an ultimate USB MIDI interface better than the original....
 
 ## First steps
 
-The question : deso the interface issue was really a firmware corruption problem or a more serious one ?
+The question : does the interface issue was really a firmware corruption problem or a more serious one ?
 The STMF103 has an internal bootloader working with the UART Serial 1. The bootloader mode is activated by mainting 
 the Boot0 pin to HIGH and the Boot1 pin to LOW.  So I desoldered 2 resitors on the board because they were disabling that mode, 
 made a small reset / boot1 HIGH circuit, and soldered the boot 0 to ground.  
 
-I also connected TX and RX from the serial 1 to a small plug. That was easy because some large labelled TXn // RXnpads pads exist on the board.
-MIDI4x4 board.  I connected that plug to an USB Serial TTL, and 2 H later, i was ready to upload a new firmware in the thing.
+I also connected TX and RX of the serial 1 to a small plug. That was easy because some large labelled TXn / RXn pads exist on the MIDI4x4 board.  I connected that plug to an USB Serial TTL, and 2 H later, I was ready to upload a new firmware in the thing.
 
 I started with a basic demo UART firmware "Hello world" sending a text on the Serial port 1 at 115200.  
-And guess what : that worked at the first time  !
+And guess what : that worked at the first time  !  So, it was really a firmare corruption issue...hardware is clean.
 
-To preserve and reuse my existing software libraries, I choose to use STMDUINO, a very clever port of the STM32F 
-ARM architecture to the Arduino.  I  have downlaoded the STMDuino bootloader2.0 and tested the 4x4 board as a STMF103RC with 
-the Arduino IDE... Again, my MIDI demo sketch worked at the first compilation.
+To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32F 
+ARM architecture.  I  downloaded the STMDuino bootloader2.0 to the board, and tested the 4x4 board as a generic STMF103RC in the Arduino IDE... Again, my MIDI demo sketch worked at the first compilation...And I can adress the 4 serial port connected to midi jack.
+
+
+    void setup() {
+        // Set MIDI baud rate:
+        Serial1.begin(31250);
+        Serial2.begin(31250);
+        Serial3.begin(31250);
+        Serial4.begin(31250);
+
+    }
+
+    void loop() {
+        // Play notes from F#-0 (0x1E) to F#-5 (0x5A):
+        for (int note = 0x1E; note < 0x5A; note++) {
+            // Note on channel 1 (0x90), some note value (note), middle
+            // velocity (0x45):
+            noteOn(0x90, note, 0x45);
+            delay(100);
+            // Note on channel 1 (0x90), some note value (note), silent
+            // velocity (0x00):
+            noteOn(0x90, note, 0x00);
+            delay(100);
+        }
+    }
+
+    // Plays a MIDI note.  Doesn't check to see that cmd is greater than
+    // 127, or that data values are less than 127:
+    void noteOn(int cmd, int pitch, int velocity) {
+        Serial1.write(cmd);
+        Serial1.write(pitch);
+        Serial1.write(velocity);
+
+        Serial2.write(cmd);
+        Serial2.write(pitch);
+        Serial2.write(velocity);
+
+        Serial3.write(cmd);
+        Serial3.write(pitch);
+        Serial3.write(velocity);
+
+        Serial4.write(cmd);
+        Serial4.write(pitch);
+        Serial4.write(velocity);
+
+    }
 
 Now ready to go ! 
 Features I plan to develop :
