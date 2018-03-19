@@ -16,6 +16,7 @@ I could'nt accept that a device (almost) still in order with USB,  8 ports 4IN -
 Nothing to loose, I opened the box, and inside I discovered that the microcontroller was a STMF103RC, a very common uC on musical gears 
 (the Arturia Minilab and the Novation launchkey and launchpad are using it for example). 
 Here start the idea of a possible hack....
+<a href="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  /></a>
 
 => I have a board available with a programmable and powerfull chip,  native USB, plus all the circuitry for 4 MIDI IN / 4OUT. 
 Why not rewriting a new firmware from scratch as I did for other uC like of the AVR family ?
