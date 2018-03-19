@@ -7,7 +7,7 @@ I thought it was possible to stack the 2 on the same PC to get 8x2 ports IN/Out.
 But as theses devices have exactly the same product and vendor ID, and no serial, it is in fact impossible to do that.
 So the only alternative was to buy a 8x8 interface with the same manufacturer, for the three times the price of the MIDI 4x4 that I did not.
 
-More, recently, one of my interface started to work correctly, invoking to me a corrupted firmware. 
+More, recently, one of my interface started to work incorrectly, invoking to me a corrupted firmware. 
 I asked to the Miditech and Midiplus support and they were enough kind to provide to me an updated firmware kit, but for the NEW version...
 Happy to learn that my interface was the "old" one, however still sold on many web sites today...I tested that update package 
 without any success...My version was not updatable at all they said.
