@@ -73,11 +73,11 @@ static void usbSetDeviceAddress(void);
 /* I/O state */
 
 /* Received data */
-static volatile uint32 midiBufferRx[USB_MIDI_RX_EPSIZE/4];
+static volatile uint32 midiBufferRx[MIDI_STREAM_EPSIZE/4];
 /* Read index into midiBufferRx */
 static volatile uint32 rx_offset = 0;
 /* Transmit data */
-static volatile uint32 midiBufferTx[USB_MIDI_TX_EPSIZE/4];
+static volatile uint32 midiBufferTx[MIDI_STREAM_EPSIZE/4];
 /* Write index into midiBufferTx */
 static volatile uint32 tx_offset = 0;
 /* Number of bytes left to transmit */
@@ -93,20 +93,20 @@ static volatile uint32 n_unread_packets = 0;
  * Endpoint callbacks
  */
 
-static void (*ep_int_in[7])(void) =
+void (*ep_int_in[7])(void) =
     {midiDataTxCb,
-     NOP_Process,
-     NOP_Process,
-     NOP_Process,
+     midiDataTxCb,
+     midiDataTxCb,
+     midiDataTxCb,
      NOP_Process,
      NOP_Process,
      NOP_Process};
 
-static void (*ep_int_out[7])(void) =
-    {NOP_Process,
+void (*ep_int_out[7])(void) =
+    {midiDataRxCb,
      midiDataRxCb,
-     NOP_Process,
-     NOP_Process,
+     midiDataRxCb,
+     midiDataRxCb,
      NOP_Process,
      NOP_Process,
      NOP_Process};
@@ -123,7 +123,7 @@ DEVICE Device_Table = {
     .Total_Configuration = 1
 };
 
-#define MAX_PACKET_SIZE            0x40  /* 64B, maximum for USB FS Devices */
+#define MAX_PACKET_SIZE            0x10  /* 64B, maximum for USB FS Devices */
 DEVICE_PROP Device_Property = {
     .Init                        = usbInit,
     .Reset                       = usbReset,
@@ -236,22 +236,22 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
     }
 
     /* We can only put USB_MIDI_TX_EPSIZE bytes in the buffer. */
-    if (bytes > USB_MIDI_TX_EPSIZE) {
-        bytes = USB_MIDI_TX_EPSIZE;
+    if (bytes > MIDI_STREAM_EPSIZE) {
+        bytes = MIDI_STREAM_EPSIZE;
         packets=bytes/4;
     }
 
     /* Queue bytes for sending. */
     if (packets) {
-        usb_copy_to_pma((uint8 *)buf, bytes, USB_MIDI_TX_ADDR);
+        usb_copy_to_pma((uint8 *)buf, bytes, MIDI_STREAM_IN_EPADDR);
     }
     // We still need to wait for the interrupt, even if we're sending
     // zero bytes. (Sending zero-size packets is useful for flushing
     // host-side buffers.)
-    usb_set_ep_tx_count(USB_MIDI_TX_ENDP, bytes);
+    usb_set_ep_tx_count(MIDI_STREAM_IN_ENDP, bytes);
     n_unsent_packets = packets;
     transmitting = 1;
-    usb_set_ep_tx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_TX_VALID);
+    usb_set_ep_tx_stat(MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_VALID);
 
     return packets;
 }
@@ -283,8 +283,8 @@ uint32 usb_midi_rx(uint32* buf, uint32 packets) {
     /* If all bytes have been read, re-enable the RX endpoint, which
      * was set to NAK when the current batch of bytes was received. */
     if (n_unread_packets == 0) {
-        usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
-        usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+        usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
+        usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
         rx_offset = 0;
     }
 
@@ -317,20 +317,20 @@ static void midiDataTxCb(void) {
 }
 
 static void midiDataRxCb(void) {
-    usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_NAK);
-    n_unread_packets = usb_get_ep_rx_count(USB_MIDI_RX_ENDP) / 4;
+    usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_NAK);
+    n_unread_packets = usb_get_ep_rx_count(MIDI_STREAM_OUT_ENDP) / 4;
     /* This copy won't overwrite unread bytes, since we've set the RX
      * endpoint to NAK, and will only set it to VALID when all bytes
      * have been read. */
 
     usb_copy_from_pma((uint8*)midiBufferRx, n_unread_packets * 4,
-                      USB_MIDI_RX_ADDR);
+                      MIDI_STREAM_OUT_EPADDR);
 
     //LglSysexHandler(midiBufferRx,&rx_offset,&n_unread_packets);
 
     if (n_unread_packets == 0) {
-        usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
-        usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+        usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
+        usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
         rx_offset = 0;
     }
 
@@ -356,7 +356,7 @@ static void usbInit(void) {
     USBLIB->state = USB_UNCONNECTED;
 }
 
-#define BTABLE_ADDRESS        0x00
+
 static void usbReset(void) {
     pInformation->Current_Configuration = 0;
 
@@ -366,29 +366,37 @@ static void usbReset(void) {
 
     USB_BASE->BTABLE = BTABLE_ADDRESS;
 
-    /* setup control endpoint 0 */
-    usb_set_ep_type(USB_EP0, USB_EP_EP_TYPE_CONTROL);
-    usb_set_ep_tx_stat(USB_EP0, USB_EP_STAT_TX_STALL);
-    usb_set_ep_rx_addr(USB_EP0, USB_MIDI_CTRL_RX_ADDR);
-    usb_set_ep_tx_addr(USB_EP0, USB_MIDI_CTRL_TX_ADDR);
-    usb_clear_status_out(USB_EP0);
-
-    usb_set_ep_rx_count(USB_EP0, pProperty->MaxPacketSize);
-    usb_set_ep_rx_stat(USB_EP0, USB_EP_STAT_RX_VALID);
+    // Setup control endpoint  */
+    usb_set_ep_type     (USB_MIDI_CTRL_ENDP, USB_EP_EP_TYPE_CONTROL);
+    usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );
+   
+   // Let the Host set endpoint adresses. This is the USB normal behaviour.   
+    usb_set_ep_rx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_RX_ADDR );
+    usb_set_ep_tx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_TX_ADDR );
+   
+    usb_clear_status_out(USB_MIDI_CTRL_ENDP                        );
+    usb_set_ep_rx_count (USB_MIDI_CTRL_ENDP, pProperty->MaxPacketSize);
+    usb_set_ep_rx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_RX_VALID);
 
     /* TODO figure out differences in style between RX/TX EP setup */
 
-    /* set up data endpoint OUT (RX) */
-    usb_set_ep_type(USB_MIDI_RX_ENDP, USB_EP_EP_TYPE_BULK);
-    usb_set_ep_rx_addr(USB_MIDI_RX_ENDP, USB_MIDI_RX_ADDR);
-    usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
-    usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+   /* set up data endpoint OUT (RX) */
+    usb_set_ep_type       (MIDI_STREAM_OUT_ENDP, USB_EP_EP_TYPE_BULK   );
+   
+   // Let the Host set endpioint adresses. This is the USB normal behaviour.
+    usb_set_ep_rx_addr    (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_OUT_EPADDR);
+
+    usb_set_ep_rx_count   (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE    );
+    usb_set_ep_rx_stat    (MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID  );
 
     /* set up data endpoint IN (TX)  */
-    usb_set_ep_type(USB_MIDI_TX_ENDP, USB_EP_EP_TYPE_BULK);
-    usb_set_ep_tx_addr(USB_MIDI_TX_ENDP, USB_MIDI_TX_ADDR);
-    usb_set_ep_tx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_TX_NAK);
-    usb_set_ep_rx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_RX_DISABLED);
+    usb_set_ep_type       (MIDI_STREAM_IN_ENDP, USB_EP_EP_TYPE_BULK   );
+
+   // Let the Host set endpoint adresses. This is the USB normal behaviour.
+    usb_set_ep_tx_addr    (MIDI_STREAM_IN_ENDP, MIDI_STREAM_IN_EPADDR );
+
+    usb_set_ep_tx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_NAK    );
+    usb_set_ep_rx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_RX_DISABLED);
 
     USBLIB->state = USB_ATTACHED;
     SetDeviceAddress(0);

@@ -72,7 +72,6 @@
  */
 
 
-
 USBMidi::USBMidi(void) {
 
 }
@@ -82,23 +81,18 @@ USBMidi::USBMidi(void) {
 
 void USBMidi::begin(unsigned int channel) {
 
+		  			
+		//Reset the USB interface on the MIDITECH 4x4 board
+		gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
+    gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
+    for(volatile unsigned int i=0;i<512;i++);
+		gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
 
+    // Configure USB and Endpoints 
+    extern void (*ep_int_in[])(void);
+    extern void (*ep_int_out[])(void);
 
-//#ifdef GENERIC_BOOTLOADER2
-			  			
-			//Reset the USB interface on generic boards - developed by Victor PV
-			gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
-     //gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
-     
-			gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
-
-       for(volatile unsigned int i=0;i<4096;i++);// Only small delay seems to be needed, and USB pins will get configured in Serial.begin
-      
-      // Start the USB Clock
-			//gpio_set_mode(PIN_MAP[PA12].gpio_device, PIN_MAP[PA12].gpio_bit, GPIO_INPUT_FLOATING);
-
-
-//#endif
+    //usb_init_usblib(USBLIB, ep_int_in, ep_int_out);
 
 
     usb_midi_enable(BOARD_USB_DISC_DEV, BOARD_USB_DISC_BIT);
@@ -150,7 +144,7 @@ void USBMidi::writePackets(const void *buf, uint32 len) {
     }
 
 
-    if (sent == USB_MIDI_TX_EPSIZE) {
+    if (sent == MIDI_STREAM_EPSIZE) {
         while (usb_midi_is_transmitting() != 0) {
         }
         /* flush out to avoid having the pc wait for more data */

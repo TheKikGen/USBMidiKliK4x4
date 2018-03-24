@@ -58,7 +58,7 @@ void handler_led(void) {
 
 void setup() {
     // Set MIDI baud rate:
-    Serial.begin(115200);
+    //Serial.begin(115200);
     
     Serial1.begin(31250);
     Serial2.begin(31250);

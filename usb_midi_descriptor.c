@@ -66,9 +66,9 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_7;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_8;
             
-    usb_descriptor_endpoint            DataOutEndpoint;
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataOutEndpoint;
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataOutEndpoint;
-    usb_descriptor_endpoint            DataInEndpoint;
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataInEndpoint;
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataInEndpoint;
 } __packed usb_descriptor_config;
 
@@ -213,8 +213,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_1 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x01,
         .iJack              = 0x04,
     },
@@ -222,8 +222,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_2 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x02,
         .iJack              = 0x00,
     },
@@ -231,8 +231,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_3 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x05,
         .iJack              = 0x06,
     },
@@ -240,8 +240,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_4 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x06,
         .iJack              = 0x00,
     },
@@ -249,8 +249,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_5 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x09,
         .iJack              = 0x08,
     },
@@ -258,8 +258,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_6 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x0A,
         .iJack              = 0x00,
     },
@@ -267,8 +267,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_7 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x0D,
         .iJack              = 0x0A,
     },
@@ -276,8 +276,8 @@ Offset  Field Size  Value Description
     .MIDI_IN_JACK_8 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x02,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_IN_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x0E,
         .iJack              = 0x00,
     },
@@ -287,8 +287,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_1 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x03,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x02},
@@ -299,8 +299,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_2 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x04,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x01},
@@ -312,8 +312,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_3 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x07,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x06},
@@ -324,8 +324,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_4 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x08,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x05},
@@ -336,8 +336,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_5 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x0B,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x0A},
@@ -348,8 +348,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_6 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x0C,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x09},
@@ -360,8 +360,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_7 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x01,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x0F,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x0E},
@@ -372,8 +372,8 @@ Offset  Field Size  Value Description
     .MIDI_OUT_JACK_8 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
-        .SubType            = 0x03,
-        .bJackType          = 0x02,
+        .SubType            = MIDI_OUT_JACK,
+        .bJackType          = MIDI_JACK_EXTERNAL,
         .bJackId            = 0x10,
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x0D},
@@ -385,18 +385,20 @@ Offset  Field Size  Value Description
     // OUT Endpoint Descriptor
    
     .DataOutEndpoint = {
-        .bLength            = sizeof(usb_descriptor_endpoint),
+        .bLength            = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_ENDPOINT,
-        .bEndpointAddress   = 0x01,
+        .bEndpointAddress   = MIDI_STREAM_OUT_EPADDR,
         .bmAttributes       = USB_EP_TYPE_BULK,
-        .wMaxPacketSize     = 0x0010, // 16 Bytes
+        .wMaxPacketSize     = MIDI_STREAM_EPSIZE, 
         .bInterval          = 0x00,
+        .bRefresh           = 0x00,
+        .bSynchAddress      = 0x00,
     },
 
     .MS_CS_DataOutEndpoint = {
       .bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4),
       .bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
-      .SubType              = 0x01,
+      .SubType              = USB_INTERFACE_AUDIOCONTROL,
       .bNumEmbMIDIJack      = 0x04,
       .baAssocJackID        = {0x01,0x05,0x09,0x0D},
 	  },
@@ -404,18 +406,20 @@ Offset  Field Size  Value Description
     // IN Endpoint Descriptor
 
     .DataInEndpoint = {
-        .bLength          = sizeof(usb_descriptor_endpoint),
+        .bLength          = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
         .bDescriptorType  = USB_DESCRIPTOR_TYPE_ENDPOINT,
-        .bEndpointAddress = 0x81,
+        .bEndpointAddress = MIDI_STREAM_IN_EPADDR,
         .bmAttributes     = USB_EP_TYPE_BULK,
-        .wMaxPacketSize   = 0x0010, // 16 Bytes 
+        .wMaxPacketSize   = MIDI_STREAM_EPSIZE,
         .bInterval        = 0x00,
+        .bRefresh         = 0x00,
+        .bSynchAddress    = 0x00,
     },
 
     .MS_CS_DataInEndpoint = {
       .bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4),
       .bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
-      .SubType              = 0x01,
+      .SubType              = USB_INTERFACE_AUDIOCONTROL,
       .bNumEmbMIDIJack      = 0x04,
       .baAssocJackID        = {0x03,0x07,0x0B,0x0F},
 	},
