@@ -88,34 +88,27 @@ static volatile uint8 transmitting = 0;
 static volatile uint32 n_unread_packets = 0;
 
 
-
-/*
- * Endpoint callbacks
- */
-
+// --------------------------------------------------------------------------------------
+// ENDPOINTS CALLBACKS TABLE
+// --------------------------------------------------------------------------------------
 void (*ep_int_in[7])(void) =
-    {midiDataTxCb,
-     midiDataTxCb,
-     midiDataTxCb,
-     midiDataTxCb,
+    {midiDataTxCb,midiDataTxCb,midiDataTxCb,
+     NOP_Process,          
      NOP_Process,
      NOP_Process,
      NOP_Process};
 
 void (*ep_int_out[7])(void) =
-    {midiDataRxCb,
-     midiDataRxCb,
-     midiDataRxCb,
-     midiDataRxCb,
+    {midiDataRxCb,midiDataRxCb,midiDataRxCb,
      NOP_Process,
      NOP_Process,
+     NOP_Process,         
      NOP_Process};
 
-/*
- * Globals required by usb_lib/
- *
- * These override core USB functionality which was declared __weak.
- */
+// --------------------------------------------------------------------------------------
+// Globals required by usb_lib.
+// These override core USB functionality which was declared __weak.
+// --------------------------------------------------------------------------------------
 
 #define NUM_ENDPTS                0x04
 DEVICE Device_Table = {
@@ -123,7 +116,7 @@ DEVICE Device_Table = {
     .Total_Configuration = 1
 };
 
-#define MAX_PACKET_SIZE            0x10  /* 64B, maximum for USB FS Devices */
+
 DEVICE_PROP Device_Property = {
     .Init                        = usbInit,
     .Reset                       = usbReset,
@@ -151,50 +144,57 @@ USER_STANDARD_REQUESTS User_Standard_Requests = {
     .User_SetDeviceAddress   = usbSetDeviceAddress
 };
 
-/*
- * MIDI interface
- */
-
-void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit) {
+// --------------------------------------------------------------------------------------
+// ENABLE / DISABLE / POWERDOWN   MIDI DEVICE
+// --------------------------------------------------------------------------------------
+void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     /* Present ourselves to the host. Writing 0 to "disc" pin must
      * pull USB_DP pin up while leaving USB_DM pulled down by the
-     * transceiver. See USB 2.0 spec, section 7.1.7.3. */
+     * transceiver. See USB 2.0 spec, section 7.1.7.3.           
+     * 
+     * FT : The function was modified to support a new "level" parameter,
+     * to set the 0 or 1 regarding the logic level used by the DISC pin.
+     * 
+     */
 
      if (disc_dev != NULL) {
         gpio_set_mode(disc_dev, disc_bit, GPIO_OUTPUT_PP);
-        gpio_write_bit(disc_dev, disc_bit, 0);
+        gpio_write_bit(disc_dev, disc_bit, level);
     }
 
     /* Initialize the USB peripheral. */
     usb_init_usblib(USBLIB, ep_int_in, ep_int_out);
 }
 
-static void usb_power_down() {
+void usb_power_down() {
     USB_BASE->CNTR = USB_CNTR_FRES;
     USB_BASE->ISTR = 0;
     USB_BASE->CNTR = USB_CNTR_FRES + USB_CNTR_PDWN;
 }
 
-void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit) {
+void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     /* Turn off the interrupt and signal disconnect (see e.g. USB 2.0
-     * spec, section 7.1.7.3). */
+     * spec, section 7.1.7.3). 
+     * 
+     * FT : The function was modified to support a new "level" parameter,
+     * to set the 0 or 1 regarding the logic level used by the DISC pin.
+     */
+     
     nvic_irq_disable(NVIC_USB_LP_CAN_RX0);
     if (disc_dev != NULL) {
-        gpio_write_bit(disc_dev, disc_bit, 1);
+        gpio_write_bit(disc_dev, disc_bit, level);
     }
     usb_power_down();
 }
 
-//void usb_midi_putc(char ch) {
-//    while (!usb_midi_tx((uint8*)&ch, 1))
-//        ;
-//}
 
- /* TODO these could use some improvement; they're fairly
+// --------------------------------------------------------------------------------------
+// USB BUFFERS I/O
+// --------------------------------------------------------------------------------------
+/* TODO these could use some improvement; they're fairly
  * straightforward ports of the analogous ST code.  The PMA blit
  * routines in particular are obvious targets for performance
  * measurement and tuning. */
-
 static void usb_copy_to_pma(const uint8 *buf, uint16 len, uint16 pma_offset) {
     uint16 *dst = (uint16*)usb_pma_ptr(pma_offset);
     uint16 n = len >> 1;
@@ -221,6 +221,15 @@ static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
         *dst = *src & 0xFF;
     }
 }
+
+//void usb_midi_putc(char ch) {
+//    while (!usb_midi_tx((uint8*)&ch, 1))
+//        ;
+//}
+
+// --------------------------------------------------------------------------------------
+// USB TX / RX / PEEK
+// --------------------------------------------------------------------------------------
 
 /* This function is non-blocking.
  *
@@ -254,18 +263,6 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
     usb_set_ep_tx_stat(MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_VALID);
 
     return packets;
-}
-
-uint32 usb_midi_data_available(void) {
-    return n_unread_packets;
-}
-
-uint8 usb_midi_is_transmitting(void) {
-    return transmitting;
-}
-
-uint16 usb_midi_get_pending(void) {
-    return n_unsent_packets;
 }
 
 /* Nonblocking byte receive.
@@ -307,9 +304,25 @@ uint32 usb_midi_peek(uint32* buf, uint32 packets) {
     return packets;
 }
 
-/*
- * Callbacks
- */
+// --------------------------------------------------------------------------------------
+// USB MIDI STATE 
+// --------------------------------------------------------------------------------------
+
+uint32 usb_midi_data_available(void) {
+    return n_unread_packets;
+}
+
+uint8 usb_midi_is_transmitting(void) {
+    return transmitting;
+}
+
+uint16 usb_midi_get_pending(void) {
+    return n_unsent_packets;
+}
+
+// --------------------------------------------------------------------------------------
+// ENDPOINTS CALLBACKS
+// --------------------------------------------------------------------------------------
 
 static void midiDataTxCb(void) {
     n_unsent_packets = 0;
@@ -368,9 +381,7 @@ static void usbReset(void) {
 
     // Setup control endpoint  */
     usb_set_ep_type     (USB_MIDI_CTRL_ENDP, USB_EP_EP_TYPE_CONTROL);
-    usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );
-   
-   // Let the Host set endpoint adresses. This is the USB normal behaviour.   
+    usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );     
     usb_set_ep_rx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_RX_ADDR );
     usb_set_ep_tx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_TX_ADDR );
    
@@ -381,20 +392,14 @@ static void usbReset(void) {
     /* TODO figure out differences in style between RX/TX EP setup */
 
    /* set up data endpoint OUT (RX) */
-    usb_set_ep_type       (MIDI_STREAM_OUT_ENDP, USB_EP_EP_TYPE_BULK   );
-   
-   // Let the Host set endpioint adresses. This is the USB normal behaviour.
+    usb_set_ep_type       (MIDI_STREAM_OUT_ENDP, USB_EP_EP_TYPE_BULK   );      
     usb_set_ep_rx_addr    (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_OUT_EPADDR);
-
     usb_set_ep_rx_count   (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE    );
     usb_set_ep_rx_stat    (MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID  );
 
     /* set up data endpoint IN (TX)  */
-    usb_set_ep_type       (MIDI_STREAM_IN_ENDP, USB_EP_EP_TYPE_BULK   );
-
-   // Let the Host set endpoint adresses. This is the USB normal behaviour.
+    usb_set_ep_type       (MIDI_STREAM_IN_ENDP, USB_EP_EP_TYPE_BULK   );   
     usb_set_ep_tx_addr    (MIDI_STREAM_IN_ENDP, MIDI_STREAM_IN_EPADDR );
-
     usb_set_ep_tx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_NAK    );
     usb_set_ep_rx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_RX_DISABLED);
 

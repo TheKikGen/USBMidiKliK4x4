@@ -65,37 +65,26 @@
 
 #include <wirish.h>
 
+// --------------------------------------------------------------------------------------
+// USB MIDI Class
+// --------------------------------------------------------------------------------------
+// This class was adapted and CLEANED from the USBMidi library 
+// It can work for any device, but was optimized for the MIDI 4X4 board from Miditech
+// based on a STM32F103RC.
 
-
-/*
- * USBMidi interface
- */
-
-
+// Constructor
 USBMidi::USBMidi(void) {
 
 }
 
-// Constructor -- set up defaults for variables, get ready for use (but don't
-//  take over serial port yet)
-
+// BEGIN - Call that function in SETUP 
 void USBMidi::begin(unsigned int channel) {
-
 		  			
-		//Reset the USB interface on the MIDITECH 4x4 board
-		gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
-    gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
-    for(volatile unsigned int i=0;i<512;i++);
-		gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
+		// Reset the USB interface on the MIDITECH 4x4 board.
+    // The MIDI 4X4 has a DISC command, but the level logic is inverted 
+    // Then configure USB and Endpoints callbacks
+    usb_midi_enable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
 
-    // Configure USB and Endpoints 
-    extern void (*ep_int_in[])(void);
-    extern void (*ep_int_out[])(void);
-
-    //usb_init_usblib(USBLIB, ep_int_in, ep_int_out);
-
-
-    usb_midi_enable(BOARD_USB_DISC_DEV, BOARD_USB_DISC_BIT);
     /* Not in proprietary stream */
     recvMode_ = 0;
     /* No bytes recevied */
@@ -115,7 +104,7 @@ void USBMidi::begin(unsigned int channel) {
 
 void USBMidi::end(void) {
 
-    usb_midi_disable(BOARD_USB_DISC_DEV, BOARD_USB_DISC_BIT);
+    usb_midi_disable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
 
 }
 
@@ -293,9 +282,9 @@ void USBMidi::poll(void)
 static union EVENT_t outPacket; // since we only use one at a time no point in reallocating it
 
 // Send Midi NOTE OFF message to a given channel, with note 0-127 and velocity 0-127
-void USBMidi::sendNoteOff(unsigned int channel, unsigned int note, unsigned int velocity)
+void USBMidi::sendNoteOff(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity)
 {
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    outPacket.p.cable=cable;
     outPacket.p.cin=CIN_NOTE_OFF;
     outPacket.p.midi0=MIDIv1_NOTE_OFF|(channel & 0x0f);
     outPacket.p.midi1=note;
@@ -306,9 +295,9 @@ void USBMidi::sendNoteOff(unsigned int channel, unsigned int note, unsigned int 
 
 
 // Send Midi NOTE ON message to a given channel, with note 0-127 and velocity 0-127
-void USBMidi::sendNoteOn(unsigned int channel, unsigned int note, unsigned int velocity)
+void USBMidi::sendNoteOn(uint8 cable, unsigned int channel, unsigned int note, unsigned int velocity)
 {
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    outPacket.p.cable=cable;
     outPacket.p.cin=CIN_NOTE_ON;
     outPacket.p.midi0=MIDIv1_NOTE_ON|(channel & 0x0f);
     outPacket.p.midi1=note;
@@ -321,9 +310,9 @@ void USBMidi::sendNoteOn(unsigned int channel, unsigned int note, unsigned int v
 // and new velocity 0-127
 // Note velocity change == polyphonic aftertouch.
 // Note aftertouch == channel pressure.
-void USBMidi::sendVelocityChange(unsigned int channel, unsigned int note, unsigned int velocity)
+void USBMidi::sendVelocityChange(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity)
 {
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
+    outPacket.p.cable=cable;
     outPacket.p.cin=CIN_AFTER_TOUCH;
     outPacket.p.midi0=MIDIv1_AFTER_TOUCH |(channel & 0x0f);
     outPacket.p.midi1=note;

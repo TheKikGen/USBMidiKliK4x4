@@ -1,8 +1,8 @@
 /******************************************************************************
  * The MIT License
  *
- * Copyright (c) 2011 LeafLabs LLC.
- * Copyright (c) 2013 Magnus Lundin.
+ * Adapted by TheKikGenLab. 
+ * From USB LeafLabs LLC. USB API / Magnus Lundin.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -25,12 +25,6 @@
  * SOFTWARE.
  *****************************************************************************/
 
-/**
- * @file libmaple/include/libmaple/usb_midi.h
- * @brief USB MIDI support
- *
- * IMPORTANT: this API is unstable, and may change without notice.
- */
 
 #pragma once
 
@@ -63,11 +57,11 @@ typedef union {
  * USB MIDI Requests
  */
 
-#define LEAFLABS_ID_VENDOR                0x1EAF
+#define LEAFLABS_ID_VENDOR                0x1EAA
 #define MAPLE_ID_PRODUCT                  0x0014
 
 
-#define DEFAULT_MIDI_CHANNEL    0x0A
+#define DEFAULT_MIDI_CHANNEL    0x00
 
 #define DEFAULT_MIDI_CABLE      0x00
 
@@ -82,12 +76,12 @@ extern volatile uint8 myMidiID[];
 /* 0x7D = ED/FREE next two DIGITS MUST BE LESS THAN 0x7f */
 
 
-/*
- * Descriptors, etc.
- */
-#define USB_DESCRIPTOR_TYPE_CS_INTERFACE     0x24
-#define USB_DESCRIPTOR_TYPE_CS_ENDPOINT      0x25
+// --------------------------------------------------------------------------------------
+// DESCRIPTORS TYPES
+// --------------------------------------------------------------------------------------
 
+#define USB_DESCRIPTOR_TYPE_CS_INTERFACE  0x24
+#define USB_DESCRIPTOR_TYPE_CS_ENDPOINT   0x25
 
 #define USB_DEVICE_CLASS_UNDEFINED        0x00
 #define USB_DEVICE_CLASS_CDC              0x02
@@ -113,51 +107,8 @@ extern volatile uint8 myMidiID[];
 // ENDPOINTS 
 // --------------------------------------------------------------------------------------
 
-
-/*
-#define USB_MIDI_CTRL_ENDP            0
-#define USB_MIDI_CTRL_RX_ADDR         0x40
-#define USB_MIDI_CTRL_TX_ADDR         0x80
-#define USB_MIDI_CTRL_EPSIZE          0x40
-
-#define USB_MIDI_TX_ENDP              1
-#define USB_MIDI_TX_ADDR              0xC0
-#define USB_MIDI_TX_EPSIZE            0x40
-
-#define USB_MIDI_RX_ENDP              2
-#define USB_MIDI_RX_ADDR              0x100
-#define USB_MIDI_RX_EPSIZE            0x40
-
-   // usb_set_ep_rx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_RX_ADDR );
-   // usb_set_ep_tx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_TX_ADDR );
-
-      // Let the Host set endpioint adresses. This is the USB normal behaviour.
-   // usb_set_ep_rx_addr    (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_OUT_EPADDR);
-
-
-*/
-
-#define   BTABLE_ADDRESS      0x00
-#define   ENDPOINT_DIR_MASK   0x80
-// Direction (bit 7)
-#define   ENDPOINT_DIR_OUT    0x00 
-#define   ENDPOINT_DIR_IN     0x80
-
-#define   MIDI_STREAM_EPSIZE  0x16
-
-
-// MIDI data endpoints are used for transferring data. They are unidirectional, 
-// has a type (control, interrupt, bulk, isochronous) and other properties. 
-// All those properties are described in an endpoint descriptor.
-// The direction of an endpoint is based on the host. Thus, IN always refers 
-// to transfers to the host from a device and OUT always refers to transfers 
-// from the host to a device. 
-
-#define MIDI_STREAM_IN_ENDP      USB_EP1
-#define MIDI_STREAM_IN_EPADDR    (MIDI_STREAM_IN_ENDP | ENDPOINT_DIR_IN)
-
-#define MIDI_STREAM_OUT_ENDP     USB_EP2
-#define MIDI_STREAM_OUT_EPADDR   (MIDI_STREAM_OUT_ENDP | ENDPOINT_DIR_OUT)
+// buffer table base address
+#define   BTABLE_ADDRESS      0x0000
 
 // Every USB device must provide at least one control endpoint at address 0 called the 
 // default endpoint or Endpoint0. This endpoint is bidirectional. 
@@ -166,16 +117,32 @@ extern volatile uint8 myMidiID[];
 // configure the device, or perform control operations that are unique to the device.
 // Control Endpoint
 
-#define USB_MIDI_CTRL_ENDP        USB_EP0
-#define USB_MIDI_CTRL_RX_ADDR    0x100
-#define USB_MIDI_CTRL_TX_ADDR    0x140
+#define MAX_PACKET_SIZE          0x10  /* 64B, maximum for USB FS Devices */
 
+#define USB_MIDI_CTRL_ENDP       USB_EP0
+#define USB_MIDI_CTRL_RX_ADDR    0x40
+#define USB_MIDI_CTRL_TX_ADDR    0x80
 
-// --------------------------------------------
+// MIDI data endpoints are used for transferring data. They are unidirectional, 
+// has a type (control, interrupt, bulk, isochronous) and other properties. 
+// All those properties are described in an endpoint descriptor.
+// The direction of an endpoint is based on the host. Thus, IN always refers 
+// to transfers to the host from a device and OUT always refers to transfers 
+// from the host to a device. 
 
+#define MIDI_STREAM_EPSIZE       0x40
+
+#define MIDI_STREAM_IN_ENDP      USB_EP1
+#define MIDI_STREAM_IN_EPADDR    0xC0
+
+#define MIDI_STREAM_OUT_ENDP     USB_EP2
+#define MIDI_STREAM_OUT_EPADDR   0x100
+
+// --------------------------------------------------------------------------------------
+// MIDI DEVICE DESCRIPTOR STRUCTURES
+// --------------------------------------------------------------------------------------
 
 #define AC_CS_INTERFACE_DESCRIPTOR_SIZE(DataSize) (8 + DataSize)
-
 #define AC_CS_INTERFACE_DESCRIPTOR(DataSize)        \
  struct {                                           \
       uint8  bLength;                               \
@@ -211,8 +178,8 @@ typedef struct  {
     uint8  bmAttributes;
     uint16 wMaxPacketSize;
     uint8  bInterval;
-    uint8  bRefresh;
-    uint8  bSynchAddress;
+//    uint8  bRefresh;
+//    uint8  bSynchAddress;
 } __packed MIDI_USB_DESCRIPTOR_ENDPOINT;  
 
 #define MIDI_OUT_JACK_DESCRIPTOR_SIZE(DataSize) (7 + 2*DataSize)
@@ -243,7 +210,6 @@ typedef struct  {
 
 #ifndef __cplusplus
 
-
 #define USB_MIDI_DECLARE_DEV_DESC(vid, pid)                           \
   {                                                                     \
       .bLength            = sizeof(usb_descriptor_device),              \
@@ -252,7 +218,7 @@ typedef struct  {
       .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,                 \
       .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,              \
       .bDeviceProtocol    = 0x00,                                       \
-      .bMaxPacketSize0    = 0x10,                                       \
+      .bMaxPacketSize0    = MAX_PACKET_SIZE,                            \
       .idVendor           = vid,                                        \
       .idProduct          = pid,                                        \
       .bcdDevice          = 0x0200,                                     \
@@ -263,19 +229,12 @@ typedef struct  {
  }
 #endif
 
-/*
- * Sysex Stuff.
- */
 
-#define SYSEX_BUFFER_LENGTH 256
-
-
- /*
- * MIDI interface
- */
-
-    void usb_midi_enable(gpio_dev*, uint8);
-    void usb_midi_disable(gpio_dev*, uint8);
+// --------------------------------------------------------------------------------------
+// MIDI API Functions prototypes
+// --------------------------------------------------------------------------------------
+    void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level); 
+    void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
 
     void usb_midi_putc(char ch);
     uint32 usb_midi_tx(const uint32* buf, uint32 len);
@@ -285,8 +244,6 @@ typedef struct  {
     uint32 usb_midi_data_available(void); /* in RX buffer */
     uint16 usb_midi_get_pending(void);
     uint8 usb_midi_is_transmitting(void);
-
-    void sendThroughSysex(char *printbuffer, int bufferlength);
 
 #ifdef __cplusplus
 }

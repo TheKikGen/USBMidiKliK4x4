@@ -84,8 +84,6 @@ void setup() {
 //      for(volatile unsigned int i=0;i<512;i++);// Only small delay seems to be needed, and USB pins will get configured in Serial.begin
 //      
 //pinMode(D12,INPUT);
-
-
     
     // Pause the timer while we're configuring it
     timer.pause();
@@ -103,49 +101,37 @@ void setup() {
 
     // Start the timer counting
     timer.resume();
+   
 
-    
-     //delay(15000);
     MidiUSB.begin();
-    delay(2000);
 
-
-// GPIOC->regs->CRL = (GPIOC->regs->CRL & 
-// 0x00000F00) | 
-// 0x88000080 |
-// 0x00333003;
-//0x00000F00 is bitmask to retain value of pins 2 and 5 in original state
-//0x88000080 is bitmask to set inputs
-//0x00333003 is bitmask to set outputs
     
 }
-
-
-
 
 
 
 
 void loop() {
-  for (int i=0;i<numNotes;i++) {
-    MidiUSB.sendNoteOn(0, notes[i], 127);
-    delay(200);
-    MidiUSB.sendNoteOff(0, notes[i], 127);
  
-    // Play notes from F#-0 (0x1E) to F#-5 (0x5A):
-    for (int note = 0x1E; note < 0x5A; note++) {
-        // Note on channel 1 (0x90), some note value (note), middle
-        // velocity (0x45):
-
-        noteOn(0x90, note, 0x45);        
-        delay(100);
-        // Note on channel 1 (0x90), some note value (note), silent
-        // velocity (0x00):
-        noteOn(0x90, note, 0x00);
-        delay(500);
-        
-    }
-}
+//    // Play notes from F#-0 (0x1E) to F#-5 (0x5A):
+//    for (int note = 0x1E; note < 0x5A; note++) {
+//        // Note on channel 1 (0x90), some note value (note), middle
+//        // velocity (0x45):
+//        
+//      for (int c=0; c<4 ; c++ ) {
+//            MidiUSB.sendNoteOn(c,0, note, 0x45);
+//            delay(100);
+//            MidiUSB.sendNoteOff(c,0, note, 0x00);
+//      }
+//
+//      noteOn(0x90, note, 0x45);                
+//      delay(100);
+//      noteOn(0x90, note, 0x00);  
+//                
+//      delay(500);
+//        
+//    }
+    MidiUSB.poll();
 }
 // Plays a MIDI note.  Doesn't check to see that cmd is greater than
 // 127, or that data values are less than 127:
@@ -175,7 +161,5 @@ void noteOn(int cmd, int pitch, int velocity) {
     FlashLED10->start();
     FlashLED11->start();
     
-
-
 }
 

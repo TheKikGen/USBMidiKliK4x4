@@ -183,9 +183,9 @@ public:
     void poll();
 
     // Call these to send MIDI messages of the given types
-    void sendNoteOff(unsigned int channel, unsigned int note, unsigned int velocity);
-    void sendNoteOn(unsigned int channel, unsigned int note, unsigned int velocity);
-    void sendVelocityChange(unsigned int channel, unsigned int note, unsigned int velocity);
+    void sendNoteOff(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
+    void sendNoteOn(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
+    void sendVelocityChange(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
     void sendControlChange(unsigned int channel, unsigned int controller, unsigned int value);
     void sendProgramChange(unsigned int channel, unsigned int program);
     void sendAfterTouch(unsigned int channel, unsigned int velocity);
