@@ -73,11 +73,19 @@ static void usbSetDeviceAddress(void);
 /* I/O state */
 
 /* Received data */
+<<<<<<< HEAD
 static volatile uint32 midiBufferRx[MIDI_STREAM_EPSIZE/4];
 /* Read index into midiBufferRx */
 static volatile uint32 rx_offset = 0;
 /* Transmit data */
 static volatile uint32 midiBufferTx[MIDI_STREAM_EPSIZE/4];
+=======
+static volatile uint32 midiBufferRx[USB_MIDI_RX_EPSIZE/4];
+/* Read index into midiBufferRx */
+static volatile uint32 rx_offset = 0;
+/* Transmit data */
+static volatile uint32 midiBufferTx[USB_MIDI_TX_EPSIZE/4];
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 /* Write index into midiBufferTx */
 static volatile uint32 tx_offset = 0;
 /* Number of bytes left to transmit */
@@ -88,16 +96,30 @@ static volatile uint8 transmitting = 0;
 static volatile uint32 n_unread_packets = 0;
 
 
+<<<<<<< HEAD
 // --------------------------------------------------------------------------------------
 // ENDPOINTS CALLBACKS TABLE
 // --------------------------------------------------------------------------------------
 void (*ep_int_in[7])(void) =
     {midiDataTxCb,midiDataTxCb,midiDataTxCb,
      NOP_Process,          
+=======
+
+/*
+ * Endpoint callbacks
+ */
+
+static void (*ep_int_in[7])(void) =
+    {midiDataTxCb,
+     NOP_Process,
+     NOP_Process,
+     NOP_Process,
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
      NOP_Process,
      NOP_Process,
      NOP_Process};
 
+<<<<<<< HEAD
 void (*ep_int_out[7])(void) =
     {midiDataRxCb,midiDataRxCb,midiDataRxCb,
      NOP_Process,
@@ -111,12 +133,34 @@ void (*ep_int_out[7])(void) =
 // --------------------------------------------------------------------------------------
 
 
+=======
+static void (*ep_int_out[7])(void) =
+    {NOP_Process,
+     midiDataRxCb,
+     NOP_Process,
+     NOP_Process,
+     NOP_Process,
+     NOP_Process,
+     NOP_Process};
+
+/*
+ * Globals required by usb_lib/
+ *
+ * These override core USB functionality which was declared __weak.
+ */
+
+#define NUM_ENDPTS                0x04
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 DEVICE Device_Table = {
     .Total_Endpoint      = NUM_ENDPTS,
     .Total_Configuration = 1
 };
 
+<<<<<<< HEAD
 
+=======
+#define MAX_PACKET_SIZE            0x40  /* 64B, maximum for USB FS Devices */
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 DEVICE_PROP Device_Property = {
     .Init                        = usbInit,
     .Reset                       = usbReset,
@@ -144,6 +188,7 @@ USER_STANDARD_REQUESTS User_Standard_Requests = {
     .User_SetDeviceAddress   = usbSetDeviceAddress
 };
 
+<<<<<<< HEAD
 // --------------------------------------------------------------------------------------
 // ENABLE / DISABLE / POWERDOWN   MIDI DEVICE
 // --------------------------------------------------------------------------------------
@@ -160,18 +205,37 @@ void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
      if (disc_dev != NULL) {
         gpio_set_mode(disc_dev, disc_bit, GPIO_OUTPUT_PP);
         gpio_write_bit(disc_dev, disc_bit, level);
+=======
+/*
+ * MIDI interface
+ */
+
+void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit) {
+    /* Present ourselves to the host. Writing 0 to "disc" pin must
+     * pull USB_DP pin up while leaving USB_DM pulled down by the
+     * transceiver. See USB 2.0 spec, section 7.1.7.3. */
+
+     if (disc_dev != NULL) {
+        gpio_set_mode(disc_dev, disc_bit, GPIO_OUTPUT_PP);
+        gpio_write_bit(disc_dev, disc_bit, 0);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     }
 
     /* Initialize the USB peripheral. */
     usb_init_usblib(USBLIB, ep_int_in, ep_int_out);
 }
 
+<<<<<<< HEAD
 void usb_power_down() {
+=======
+static void usb_power_down() {
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     USB_BASE->CNTR = USB_CNTR_FRES;
     USB_BASE->ISTR = 0;
     USB_BASE->CNTR = USB_CNTR_FRES + USB_CNTR_PDWN;
 }
 
+<<<<<<< HEAD
 void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     /* Turn off the interrupt and signal disconnect (see e.g. USB 2.0
      * spec, section 7.1.7.3). 
@@ -183,10 +247,19 @@ void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     nvic_irq_disable(NVIC_USB_LP_CAN_RX0);
     if (disc_dev != NULL) {
         gpio_write_bit(disc_dev, disc_bit, level);
+=======
+void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit) {
+    /* Turn off the interrupt and signal disconnect (see e.g. USB 2.0
+     * spec, section 7.1.7.3). */
+    nvic_irq_disable(NVIC_USB_LP_CAN_RX0);
+    if (disc_dev != NULL) {
+        gpio_write_bit(disc_dev, disc_bit, 1);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     }
     usb_power_down();
 }
 
+<<<<<<< HEAD
 
 // --------------------------------------------------------------------------------------
 // USB BUFFERS I/O
@@ -195,6 +268,18 @@ void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
  * straightforward ports of the analogous ST code.  The PMA blit
  * routines in particular are obvious targets for performance
  * measurement and tuning. */
+=======
+//void usb_midi_putc(char ch) {
+//    while (!usb_midi_tx((uint8*)&ch, 1))
+//        ;
+//}
+
+ /* TODO these could use some improvement; they're fairly
+ * straightforward ports of the analogous ST code.  The PMA blit
+ * routines in particular are obvious targets for performance
+ * measurement and tuning. */
+
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 static void usb_copy_to_pma(const uint8 *buf, uint16 len, uint16 pma_offset) {
     uint16 *dst = (uint16*)usb_pma_ptr(pma_offset);
     uint16 n = len >> 1;
@@ -222,6 +307,7 @@ static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
     }
 }
 
+<<<<<<< HEAD
 //void usb_midi_putc(char ch) {
 //    while (!usb_midi_tx((uint8*)&ch, 1))
 //        ;
@@ -231,6 +317,8 @@ static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
 // USB TX / RX / PEEK
 // --------------------------------------------------------------------------------------
 
+=======
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 /* This function is non-blocking.
  *
  * It copies data from a usercode buffer into the USB peripheral TX
@@ -245,26 +333,57 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
     }
 
     /* We can only put USB_MIDI_TX_EPSIZE bytes in the buffer. */
+<<<<<<< HEAD
     if (bytes > MIDI_STREAM_EPSIZE) {
         bytes = MIDI_STREAM_EPSIZE;
+=======
+    if (bytes > USB_MIDI_TX_EPSIZE) {
+        bytes = USB_MIDI_TX_EPSIZE;
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
         packets=bytes/4;
     }
 
     /* Queue bytes for sending. */
     if (packets) {
+<<<<<<< HEAD
         usb_copy_to_pma((uint8 *)buf, bytes, MIDI_STREAM_IN_EPADDR);
+=======
+        usb_copy_to_pma((uint8 *)buf, bytes, USB_MIDI_TX_ADDR);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     }
     // We still need to wait for the interrupt, even if we're sending
     // zero bytes. (Sending zero-size packets is useful for flushing
     // host-side buffers.)
+<<<<<<< HEAD
     usb_set_ep_tx_count(MIDI_STREAM_IN_ENDP, bytes);
     n_unsent_packets = packets;
     transmitting = 1;
     usb_set_ep_tx_stat(MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_VALID);
+=======
+    usb_set_ep_tx_count(USB_MIDI_TX_ENDP, bytes);
+    n_unsent_packets = packets;
+    transmitting = 1;
+    usb_set_ep_tx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_TX_VALID);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
     return packets;
 }
 
+<<<<<<< HEAD
+=======
+uint32 usb_midi_data_available(void) {
+    return n_unread_packets;
+}
+
+uint8 usb_midi_is_transmitting(void) {
+    return transmitting;
+}
+
+uint16 usb_midi_get_pending(void) {
+    return n_unsent_packets;
+}
+
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 /* Nonblocking byte receive.
  *
  * Copies up to len bytes from our private data buffer (*NOT* the PMA)
@@ -280,8 +399,13 @@ uint32 usb_midi_rx(uint32* buf, uint32 packets) {
     /* If all bytes have been read, re-enable the RX endpoint, which
      * was set to NAK when the current batch of bytes was received. */
     if (n_unread_packets == 0) {
+<<<<<<< HEAD
         usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
         usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
+=======
+        usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
+        usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
         rx_offset = 0;
     }
 
@@ -304,6 +428,7 @@ uint32 usb_midi_peek(uint32* buf, uint32 packets) {
     return packets;
 }
 
+<<<<<<< HEAD
 // --------------------------------------------------------------------------------------
 // USB MIDI STATE 
 // --------------------------------------------------------------------------------------
@@ -323,6 +448,11 @@ uint16 usb_midi_get_pending(void) {
 // --------------------------------------------------------------------------------------
 // ENDPOINTS CALLBACKS
 // --------------------------------------------------------------------------------------
+=======
+/*
+ * Callbacks
+ */
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 static void midiDataTxCb(void) {
     n_unsent_packets = 0;
@@ -330,18 +460,33 @@ static void midiDataTxCb(void) {
 }
 
 static void midiDataRxCb(void) {
+<<<<<<< HEAD
     usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_NAK);
     n_unread_packets = usb_get_ep_rx_count(MIDI_STREAM_OUT_ENDP) / 4;
+=======
+    usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_NAK);
+    n_unread_packets = usb_get_ep_rx_count(USB_MIDI_RX_ENDP) / 4;
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     /* This copy won't overwrite unread bytes, since we've set the RX
      * endpoint to NAK, and will only set it to VALID when all bytes
      * have been read. */
 
     usb_copy_from_pma((uint8*)midiBufferRx, n_unread_packets * 4,
+<<<<<<< HEAD
                       MIDI_STREAM_OUT_EPADDR);
 
     if (n_unread_packets == 0) {
         usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
         usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
+=======
+                      USB_MIDI_RX_ADDR);
+
+    //LglSysexHandler(midiBufferRx,&rx_offset,&n_unread_packets);
+
+    if (n_unread_packets == 0) {
+        usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
+        usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
         rx_offset = 0;
     }
 
@@ -367,7 +512,11 @@ static void usbInit(void) {
     USBLIB->state = USB_UNCONNECTED;
 }
 
+<<<<<<< HEAD
 
+=======
+#define BTABLE_ADDRESS        0x00
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 static void usbReset(void) {
     pInformation->Current_Configuration = 0;
 
@@ -377,6 +526,7 @@ static void usbReset(void) {
 
     USB_BASE->BTABLE = BTABLE_ADDRESS;
 
+<<<<<<< HEAD
     // Setup control endpoint  */
     usb_set_ep_type     (USB_MIDI_CTRL_ENDP, USB_EP_EP_TYPE_CONTROL);
     usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );     
@@ -400,6 +550,31 @@ static void usbReset(void) {
     usb_set_ep_tx_addr    (MIDI_STREAM_IN_ENDP, MIDI_STREAM_IN_EPADDR );
     usb_set_ep_tx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_NAK    );
     usb_set_ep_rx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_RX_DISABLED);
+=======
+    /* setup control endpoint 0 */
+    usb_set_ep_type(USB_EP0, USB_EP_EP_TYPE_CONTROL);
+    usb_set_ep_tx_stat(USB_EP0, USB_EP_STAT_TX_STALL);
+    usb_set_ep_rx_addr(USB_EP0, USB_MIDI_CTRL_RX_ADDR);
+    usb_set_ep_tx_addr(USB_EP0, USB_MIDI_CTRL_TX_ADDR);
+    usb_clear_status_out(USB_EP0);
+
+    usb_set_ep_rx_count(USB_EP0, pProperty->MaxPacketSize);
+    usb_set_ep_rx_stat(USB_EP0, USB_EP_STAT_RX_VALID);
+
+    /* TODO figure out differences in style between RX/TX EP setup */
+
+    /* set up data endpoint OUT (RX) */
+    usb_set_ep_type(USB_MIDI_RX_ENDP, USB_EP_EP_TYPE_BULK);
+    usb_set_ep_rx_addr(USB_MIDI_RX_ENDP, USB_MIDI_RX_ADDR);
+    usb_set_ep_rx_count(USB_MIDI_RX_ENDP, USB_MIDI_RX_EPSIZE);
+    usb_set_ep_rx_stat(USB_MIDI_RX_ENDP, USB_EP_STAT_RX_VALID);
+
+    /* set up data endpoint IN (TX)  */
+    usb_set_ep_type(USB_MIDI_TX_ENDP, USB_EP_EP_TYPE_BULK);
+    usb_set_ep_tx_addr(USB_MIDI_TX_ENDP, USB_MIDI_TX_ADDR);
+    usb_set_ep_tx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_TX_NAK);
+    usb_set_ep_rx_stat(USB_MIDI_TX_ENDP, USB_EP_STAT_RX_DISABLED);
+>>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
     USBLIB->state = USB_ATTACHED;
     SetDeviceAddress(0);
