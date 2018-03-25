@@ -29,6 +29,10 @@ static const usb_descriptor_device usbMIDIDescriptor_Device = {
     
 */
 
+// ---------------------------------------------------------------
+// CONFIGURATION DESCRIPTOR
+// ---------------------------------------------------------------
+
 typedef struct {
     usb_descriptor_config_header       Config_Header;
     /* Control Interface */
@@ -56,9 +60,9 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_F;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_10;
 
-    usb_descriptor_endpoint            DataOutEndpoint;
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataOutEndpoint;
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataOutEndpoint;
-    usb_descriptor_endpoint            DataInEndpoint;
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataInEndpoint;
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataInEndpoint;
 } __packed usb_descriptor_config;
 
@@ -135,9 +139,9 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
                               +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
                               +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
 
-                              +sizeof(usb_descriptor_endpoint)
+                              +sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
                               +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4)
-                              +sizeof(usb_descriptor_endpoint)
+                              +sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
                               +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4)                             
                                  /* 0x41-4 */,
     },
@@ -525,13 +529,15 @@ MIDIStreaming Endpoint Descriptor:
 
 
     .DataOutEndpoint = {
-        .bLength            = sizeof(usb_descriptor_endpoint),
+        .bLength            = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_ENDPOINT,
         .bEndpointAddress   = (USB_DESCRIPTOR_ENDPOINT_OUT |
                              MIDI_STREAM_OUT_ENDP),
         .bmAttributes       = USB_EP_TYPE_BULK,
         .wMaxPacketSize     = MIDI_STREAM_EPSIZE,
         .bInterval          = 0x00,
+        .bRefresh           = 0x00,
+        .bSynchAddress      = 0x00,
     },
 
     .MS_CS_DataOutEndpoint = {
@@ -568,12 +574,14 @@ MIDIStreaming Endpoint Descriptor:
 */
 
     .DataInEndpoint = {
-        .bLength          = sizeof(usb_descriptor_endpoint),
+        .bLength          = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
         .bDescriptorType  = USB_DESCRIPTOR_TYPE_ENDPOINT,
         .bEndpointAddress = (USB_DESCRIPTOR_ENDPOINT_IN | MIDI_STREAM_IN_ENDP),
         .bmAttributes     = USB_EP_TYPE_BULK,
         .wMaxPacketSize   = MIDI_STREAM_EPSIZE,
         .bInterval        = 0x00,
+        .bRefresh         = 0x00,
+        .bSynchAddress    = 0x00,
     },
 
     .MS_CS_DataInEndpoint = {

@@ -130,7 +130,7 @@ extern volatile uint8 myMidiID[];
 // to transfers to the host from a device and OUT always refers to transfers 
 // from the host to a device. 
 
-#define MIDI_STREAM_EPSIZE       0x40
+#define MIDI_STREAM_EPSIZE       0x10
 
 #define MIDI_STREAM_IN_ENDP      USB_EP1
 #define MIDI_STREAM_IN_EPADDR    0xC0
@@ -178,8 +178,8 @@ typedef struct  {
     uint8  bmAttributes;
     uint16 wMaxPacketSize;
     uint8  bInterval;
-//    uint8  bRefresh;
-//    uint8  bSynchAddress;
+    uint8  bRefresh;
+    uint8  bSynchAddress;
 } __packed MIDI_USB_DESCRIPTOR_ENDPOINT;  
 
 #define MIDI_OUT_JACK_DESCRIPTOR_SIZE(DataSize) (7 + 2*DataSize)
