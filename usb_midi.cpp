@@ -65,7 +65,6 @@
 
 #include <wirish.h>
 
-<<<<<<< HEAD
 // --------------------------------------------------------------------------------------
 // USB MIDI Class
 // --------------------------------------------------------------------------------------
@@ -74,21 +73,10 @@
 // based on a STM32F103RC.
 
 // Constructor
-=======
-
-
-/*
- * USBMidi interface
- */
-
-
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 USBMidi::USBMidi(void) {
 
 }
 
-<<<<<<< HEAD
 // BEGIN - Call that function in SETUP 
 void USBMidi::begin(unsigned int channel) {
 		  			
@@ -97,33 +85,6 @@ void USBMidi::begin(unsigned int channel) {
     // Then configure USB and Endpoints callbacks
     usb_midi_enable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
 
-=======
-// Constructor -- set up defaults for variables, get ready for use (but don't
-//  take over serial port yet)
-
-void USBMidi::begin(unsigned int channel) {
-
-
-
-//#ifdef GENERIC_BOOTLOADER2
-			  			
-			//Reset the USB interface on generic boards - developed by Victor PV
-			gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
-     //gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
-     
-			gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
-
-       for(volatile unsigned int i=0;i<4096;i++);// Only small delay seems to be needed, and USB pins will get configured in Serial.begin
-      
-      // Start the USB Clock
-			//gpio_set_mode(PIN_MAP[PA12].gpio_device, PIN_MAP[PA12].gpio_bit, GPIO_INPUT_FLOATING);
-
-
-//#endif
-
-
-    usb_midi_enable(BOARD_USB_DISC_DEV, BOARD_USB_DISC_BIT);
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     /* Not in proprietary stream */
     recvMode_ = 0;
     /* No bytes recevied */
@@ -143,11 +104,7 @@ void USBMidi::begin(unsigned int channel) {
 
 void USBMidi::end(void) {
 
-<<<<<<< HEAD
     usb_midi_disable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
-=======
-    usb_midi_disable(BOARD_USB_DISC_DEV, BOARD_USB_DISC_BIT);
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 }
 
@@ -176,11 +133,7 @@ void USBMidi::writePackets(const void *buf, uint32 len) {
     }
 
 
-<<<<<<< HEAD
     if (sent == MIDI_STREAM_EPSIZE) {
-=======
-    if (sent == USB_MIDI_TX_EPSIZE) {
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
         while (usb_midi_is_transmitting() != 0) {
         }
         /* flush out to avoid having the pc wait for more data */
@@ -225,17 +178,7 @@ USBMidi MidiUSB;
 
 
 
-<<<<<<< HEAD
 
-=======
-// These are midi status message types are defined in MidiSpec.h
-
-union EVENT_t {
-    uint32 i;
-    uint8 b[4];
-    MIDI_EVENT_PACKET_t p;
-};
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 // Handle decoding incoming MIDI traffic a byte at a time -- remembers
 //  what it needs to from one call to the next.
@@ -333,15 +276,9 @@ void USBMidi::poll(void)
 static union EVENT_t outPacket; // since we only use one at a time no point in reallocating it
 
 // Send Midi NOTE OFF message to a given channel, with note 0-127 and velocity 0-127
-<<<<<<< HEAD
 void USBMidi::sendNoteOff(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity)
 {
     outPacket.p.cable=cable;
-=======
-void USBMidi::sendNoteOff(unsigned int channel, unsigned int note, unsigned int velocity)
-{
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     outPacket.p.cin=CIN_NOTE_OFF;
     outPacket.p.midi0=MIDIv1_NOTE_OFF|(channel & 0x0f);
     outPacket.p.midi1=note;
@@ -352,15 +289,9 @@ void USBMidi::sendNoteOff(unsigned int channel, unsigned int note, unsigned int 
 
 
 // Send Midi NOTE ON message to a given channel, with note 0-127 and velocity 0-127
-<<<<<<< HEAD
 void USBMidi::sendNoteOn(uint8 cable, unsigned int channel, unsigned int note, unsigned int velocity)
 {
     outPacket.p.cable=cable;
-=======
-void USBMidi::sendNoteOn(unsigned int channel, unsigned int note, unsigned int velocity)
-{
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     outPacket.p.cin=CIN_NOTE_ON;
     outPacket.p.midi0=MIDIv1_NOTE_ON|(channel & 0x0f);
     outPacket.p.midi1=note;
@@ -373,15 +304,9 @@ void USBMidi::sendNoteOn(unsigned int channel, unsigned int note, unsigned int v
 // and new velocity 0-127
 // Note velocity change == polyphonic aftertouch.
 // Note aftertouch == channel pressure.
-<<<<<<< HEAD
 void USBMidi::sendVelocityChange(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity)
 {
     outPacket.p.cable=cable;
-=======
-void USBMidi::sendVelocityChange(unsigned int channel, unsigned int note, unsigned int velocity)
-{
-    outPacket.p.cable=DEFAULT_MIDI_CABLE;
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     outPacket.p.cin=CIN_AFTER_TOUCH;
     outPacket.p.midi0=MIDIv1_AFTER_TOUCH |(channel & 0x0f);
     outPacket.p.midi1=note;

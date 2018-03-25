@@ -1,13 +1,8 @@
 /******************************************************************************
  * The MIT License
  *
-<<<<<<< HEAD
  * Adapted by TheKikGenLab. 
  * From USB LeafLabs LLC. USB API / Magnus Lundin.
-=======
- * Copyright (c) 2011 LeafLabs LLC.
- * Copyright (c) 2013 Magnus Lundin.
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -30,15 +25,6 @@
  * SOFTWARE.
  *****************************************************************************/
 
-<<<<<<< HEAD
-=======
-/**
- * @file libmaple/include/libmaple/usb_midi.h
- * @brief USB MIDI support
- *
- * IMPORTANT: this API is unstable, and may change without notice.
- */
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 #pragma once
 
@@ -61,32 +47,16 @@
 extern "C" { 
 #endif
 
-<<<<<<< HEAD
-=======
-// USB MIDI PACKET
-typedef union {
-	uint8  byte[4];
-	uint32 data;
-} USB_MIDI_Event_Packet;
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 /*
  * USB MIDI Requests
  */
 
-<<<<<<< HEAD
 #define LEAFLABS_ID_VENDOR                0x1EAA
 #define MAPLE_ID_PRODUCT                  0x0014
 
 
 #define DEFAULT_MIDI_CHANNEL    0x00
 
-=======
-#define LEAFLABS_ID_VENDOR                0x1EAF
-#define MAPLE_ID_PRODUCT                  0x0014
-#define DEFAULT_MIDI_CHANNEL    0x0A
-#define DEFAULT_MIDI_DEVICE     0x0A
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 #define DEFAULT_MIDI_CABLE      0x00
 
 // eventually all of this should be in a place for settings which can be written to flash.
@@ -100,21 +70,12 @@ extern volatile uint8 myMidiID[];
 /* 0x7D = ED/FREE next two DIGITS MUST BE LESS THAN 0x7f */
 
 
-<<<<<<< HEAD
 // --------------------------------------------------------------------------------------
 // DESCRIPTORS TYPES
 // --------------------------------------------------------------------------------------
 
 #define USB_DESCRIPTOR_TYPE_CS_INTERFACE  0x24
 #define USB_DESCRIPTOR_TYPE_CS_ENDPOINT   0x25
-=======
-/*
- * Descriptors, etc.
- */
-#define USB_DESCRIPTOR_TYPE_CS_INTERFACE     0x24
-#define USB_DESCRIPTOR_TYPE_CS_ENDPOINT      0x25
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 #define USB_DEVICE_CLASS_UNDEFINED        0x00
 #define USB_DEVICE_CLASS_CDC              0x02
@@ -135,7 +96,6 @@ extern volatile uint8 myMidiID[];
 
 #define MAX_POWER (100 >> 1)
 
-<<<<<<< HEAD
 
 // --------------------------------------------------------------------------------------
 // ENDPOINTS 
@@ -179,10 +139,6 @@ extern volatile uint8 myMidiID[];
 // --------------------------------------------------------------------------------------
 
 #define AC_CS_INTERFACE_DESCRIPTOR_SIZE(DataSize) (8 + DataSize)
-=======
-#define AC_CS_INTERFACE_DESCRIPTOR_SIZE(DataSize) (8 + DataSize)
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 #define AC_CS_INTERFACE_DESCRIPTOR(DataSize)        \
  struct {                                           \
       uint8  bLength;                               \
@@ -211,7 +167,6 @@ typedef struct {
       uint8  iJack;
   } __packed MIDI_IN_JACK_DESCRIPTOR;
 
-<<<<<<< HEAD
 typedef struct  {
     uint8  bLength;
     uint8  bDescriptorType;
@@ -223,8 +178,6 @@ typedef struct  {
     uint8  bSynchAddress;
 } __packed MIDI_USB_DESCRIPTOR_ENDPOINT;  
 
-=======
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 #define MIDI_OUT_JACK_DESCRIPTOR_SIZE(DataSize) (7 + 2*DataSize)
 #define MIDI_OUT_JACK_DESCRIPTOR(DataSize)        \
  struct {                                           \
@@ -250,32 +203,9 @@ typedef struct  {
       uint8  baAssocJackID[DataSize];               \
   } __packed
 
-<<<<<<< HEAD
 
 #ifndef __cplusplus
 
-=======
-/*
- * Endpoint configuration
- */
-
-#define USB_MIDI_CTRL_ENDP            0
-#define USB_MIDI_CTRL_RX_ADDR         0x40
-#define USB_MIDI_CTRL_TX_ADDR         0x80
-#define USB_MIDI_CTRL_EPSIZE          0x40
-
-#define USB_MIDI_TX_ENDP              1
-#define USB_MIDI_TX_ADDR              0xC0
-#define USB_MIDI_TX_EPSIZE            0x40
-
-#define USB_MIDI_RX_ENDP              2
-#define USB_MIDI_RX_ADDR              0x100
-#define USB_MIDI_RX_EPSIZE            0x40
-
-#ifndef __cplusplus
-
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 #define USB_MIDI_DECLARE_DEV_DESC(vid, pid)                           \
   {                                                                     \
       .bLength            = sizeof(usb_descriptor_device),              \
@@ -284,11 +214,7 @@ typedef struct  {
       .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,                 \
       .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,              \
       .bDeviceProtocol    = 0x00,                                       \
-<<<<<<< HEAD
       .bMaxPacketSize0    = MAX_PACKET_SIZE,                            \
-=======
-      .bMaxPacketSize0    = 0x40,                                       \
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
       .idVendor           = vid,                                        \
       .idProduct          = pid,                                        \
       .bcdDevice          = 0x0200,                                     \
@@ -299,28 +225,12 @@ typedef struct  {
  }
 #endif
 
-<<<<<<< HEAD
 
 // --------------------------------------------------------------------------------------
 // MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
     void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level); 
     void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
-=======
-/*
- * Sysex Stuff.
- */
-
-#define SYSEX_BUFFER_LENGTH 256
-
-
- /*
- * MIDI interface
- */
-
-    void usb_midi_enable(gpio_dev*, uint8);
-    void usb_midi_disable(gpio_dev*, uint8);
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
     void usb_midi_putc(char ch);
     uint32 usb_midi_tx(const uint32* buf, uint32 len);
@@ -331,11 +241,6 @@ typedef struct  {
     uint16 usb_midi_get_pending(void);
     uint8 usb_midi_is_transmitting(void);
 
-<<<<<<< HEAD
-=======
-    void sendThroughSysex(char *printbuffer, int bufferlength);
-
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 #ifdef __cplusplus
 }
 #endif

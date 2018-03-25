@@ -101,7 +101,6 @@
  *
  *   This causes the Midi class to read data from the serial port and process it.
  */
-<<<<<<< HEAD
 // These are midi status message types are defined in MidiSpec.h
 
 union EVENT_t {
@@ -109,8 +108,6 @@ union EVENT_t {
     uint8_t  b[4];
     MIDI_EVENT_PACKET_t p;
 };
-=======
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
 
 class USBMidi {
 private:
@@ -193,15 +190,9 @@ public:
     void poll();
 
     // Call these to send MIDI messages of the given types
-<<<<<<< HEAD
     void sendNoteOff(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
     void sendNoteOn(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
     void sendVelocityChange(uint8 cable,unsigned int channel, unsigned int note, unsigned int velocity);
-=======
-    void sendNoteOff(unsigned int channel, unsigned int note, unsigned int velocity);
-    void sendNoteOn(unsigned int channel, unsigned int note, unsigned int velocity);
-    void sendVelocityChange(unsigned int channel, unsigned int note, unsigned int velocity);
->>>>>>> e883d68b241c460204d25a35e46247e8f6e66d2d
     void sendControlChange(unsigned int channel, unsigned int controller, unsigned int value);
     void sendProgramChange(unsigned int channel, unsigned int program);
     void sendAfterTouch(unsigned int channel, unsigned int velocity);
