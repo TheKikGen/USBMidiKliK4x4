@@ -47,12 +47,6 @@
 extern "C" { 
 #endif
 
-// USB MIDI PACKET
-typedef union {
-	uint8  byte[4];
-	uint32 data;
-} USB_MIDI_Event_Packet;
-
 /*
  * USB MIDI Requests
  */
@@ -106,6 +100,8 @@ extern volatile uint8 myMidiID[];
 // --------------------------------------------------------------------------------------
 // ENDPOINTS 
 // --------------------------------------------------------------------------------------
+
+#define NUM_ENDPTS            0x04
 
 // buffer table base address
 #define   BTABLE_ADDRESS      0x0000

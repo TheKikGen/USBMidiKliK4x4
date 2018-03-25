@@ -110,7 +110,7 @@ void (*ep_int_out[7])(void) =
 // These override core USB functionality which was declared __weak.
 // --------------------------------------------------------------------------------------
 
-#define NUM_ENDPTS                0x04
+
 DEVICE Device_Table = {
     .Total_Endpoint      = NUM_ENDPTS,
     .Total_Configuration = 1
@@ -338,8 +338,6 @@ static void midiDataRxCb(void) {
 
     usb_copy_from_pma((uint8*)midiBufferRx, n_unread_packets * 4,
                       MIDI_STREAM_OUT_EPADDR);
-
-    //LglSysexHandler(midiBufferRx,&rx_offset,&n_unread_packets);
 
     if (n_unread_packets == 0) {
         usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);

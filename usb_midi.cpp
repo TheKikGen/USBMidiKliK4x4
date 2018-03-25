@@ -178,13 +178,7 @@ USBMidi MidiUSB;
 
 
 
-// These are midi status message types are defined in MidiSpec.h
 
-union EVENT_t {
-    uint32 i;
-    uint8 b[4];
-    MIDI_EVENT_PACKET_t p;
-};
 
 // Handle decoding incoming MIDI traffic a byte at a time -- remembers
 //  what it needs to from one call to the next.

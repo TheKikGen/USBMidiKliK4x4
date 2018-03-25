@@ -101,6 +101,13 @@
  *
  *   This causes the Midi class to read data from the serial port and process it.
  */
+// These are midi status message types are defined in MidiSpec.h
+
+union EVENT_t {
+    uint32_t i;
+    uint8_t  b[4];
+    MIDI_EVENT_PACKET_t p;
+};
 
 class USBMidi {
 private:
