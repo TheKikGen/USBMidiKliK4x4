@@ -109,6 +109,8 @@ union EVENT_t {
     MIDI_EVENT_PACKET_t p;
 };
 
+
+
 class USBMidi {
 private:
     // The serial port used by this Midi instance (it takes complete control over the port)
@@ -226,6 +228,6 @@ public:
     virtual void handleReset(void);
 };
 
-extern USBMidi MidiUSB;
+
 
 #endif

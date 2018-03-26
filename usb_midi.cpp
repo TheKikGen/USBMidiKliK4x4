@@ -65,6 +65,8 @@
 
 #include <wirish.h>
 
+extern USBMidi MidiUSB;
+
 // --------------------------------------------------------------------------------------
 // USB MIDI Class
 // --------------------------------------------------------------------------------------
@@ -174,7 +176,7 @@ uint8 USBMidi::isConnected(void) {
 }
 
 // TODO : CLEAN THAT
-USBMidi MidiUSB;
+//USBMidi MidiUSB;
 
 
 
