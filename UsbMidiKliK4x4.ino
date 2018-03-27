@@ -49,9 +49,6 @@ PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLI
 // USB Midi object
 USBMidi MidiUSB;
 
-// Working USB midi packet 
-static union EVENT_t usbMidiPacket;
-
 // MIDI Parsers for serial 1 to 4
 midiXparser serialMidiParser[4];
 
@@ -95,7 +92,7 @@ void setup() {
     flashLEDManager.begin();
 
     // MIDI SERIAL PORTS set Baud rates
-    // To compile with the the 4 serial ports, you must use the right variant : STMF103RC
+    // To compile with the 4 serial ports, you must use the right variant : STMF103RC
     // + Set parsers filters in the same loop.  All messages but SYSEX.
     
     for ( uint8_t s=0; s < SERIAL_INTERFACE_MAX ; s++ ) {
@@ -121,7 +118,7 @@ void setup() {
 
 
 
-void routeMidiUsbPacketToSerial(uint32_t packet) {
+void sendMidiUsbPacketToSerial(uint32_t packet) {
 
   union EVENT_t midiPacket = { .i = packet };
   if (midiPacket.p.cable > sizeof(serialInterface) ) return;
@@ -129,7 +126,6 @@ void routeMidiUsbPacketToSerial(uint32_t packet) {
   HardwareSerial *mySerial = serialInterface[midiPacket.p.cable];
   PulseOut* flashLED_O  = flashLED_OUT[(uint8_t)midiPacket.p.cable];
 
-  flashLED_IN[midiPacket.p.cable]->start();
 
   // Sendpacket to serial at the right size
   switch (midiPacket.p.cin) {
@@ -157,6 +153,48 @@ void routeMidiUsbPacketToSerial(uint32_t packet) {
   }
 }
 
+
+void sendMidiSerialMsgToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
+
+    union EVENT_t usbMidiPacket;
+
+    usbMidiPacket.p.cable = cable;          
+    usbMidiPacket.p.midi0 = serialMidiParser->getMidiMsg()[0];
+    usbMidiPacket.p.midi1 = 0;
+    usbMidiPacket.p.midi2 = 0;  
+      
+    // Single byte message CIN F->
+    if ( serialMidiParser->getMidiMsgLen()  == 1 ) {
+        usbMidiPacket.p.cin   = 0xF;  
+    } 
+    else 
+
+    // Channel voice message CIN A-E
+    if ( serialMidiParser->getMidiMsgType()  == midiXparser::channelVoiceMsgType ) {       
+        usbMidiPacket.p.cin   = ( (serialMidiParser->getMidiMsg()[0]) >> 4);  
+        usbMidiPacket.p.midi1 = serialMidiParser->getMidiMsg()[1];
+        if ( serialMidiParser->getMidiMsgLen()  == 3 ) {
+                  usbMidiPacket.p.midi2 = serialMidiParser->getMidiMsg()[2];
+        }
+    } 
+    else
+    
+    // System common message CIN 2-3
+    // 2/3 - two/three bytes system common message
+    if ( serialMidiParser->getMidiMsgType()  == midiXparser::systemCommonMsgType ) {
+        usbMidiPacket.p.cin = serialMidiParser->getMidiMsgLen();
+        usbMidiPacket.p.midi1 = serialMidiParser->getMidiMsg()[1];
+        if ( serialMidiParser->getMidiMsgLen()  == 3 ) {
+                  usbMidiPacket.p.midi2 = serialMidiParser->getMidiMsg()[2];
+        }
+    }    
+    
+    else return; // We should never be here !
+    
+    MidiUSB.writePacket(usbMidiPacket.i);    // Send to USB                                 
+    flashLED_IN[cable]->start();
+}
+          
 void loop() {
 
     // Reflect the USB connection status
@@ -165,7 +203,7 @@ void loop() {
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
       // Send Packet to the appropriate serial
-      routeMidiUsbPacketToSerial( MidiUSB.readPacket());
+      sendMidiUsbPacketToSerial( MidiUSB.readPacket());
     }
 
     // Do we have any MIDI msg on Serial 1 to 4 ?
@@ -173,41 +211,8 @@ void loop() {
 
         if ( serialInterface[s]->available() && serialMidiParser[s].parse( serialInterface[s]->read() ) ) {       
  
-          usbMidiPacket.p.cable = s;          
-          usbMidiPacket.p.midi0 = serialMidiParser[s].getMidiMsg()[0];
-          usbMidiPacket.p.midi1 = 0;
-          usbMidiPacket.p.midi2 = 0;  
-          
-          // Single byte message CIN F
-          if ( serialMidiParser[s].getMidiMsgLen()  == 1 ) {
-              usbMidiPacket.p.cin   = 0xF;  
-
-          } 
-          else 
-
-          // Channel voice message CIN A-E
-          if ( serialMidiParser[s].getMidiMsgType()  == midiXparser::channelVoiceMsgType ) {       
-              usbMidiPacket.p.cin   = ( (serialMidiParser[s].getMidiMsg()[0]) >> 4);  
-              usbMidiPacket.p.midi1 = serialMidiParser[s].getMidiMsg()[1];
-              if ( serialMidiParser[s].getMidiMsgLen()  == 3 ) {
-                        usbMidiPacket.p.midi2 = serialMidiParser[s].getMidiMsg()[2];
-              }
-          } 
-          else
-          
-          // System common message CIN 2-3
-          // 2/3 - two/three bytes system common message
-          if ( serialMidiParser[s].getMidiMsgType()  == midiXparser::systemCommonMsgType ) {
-              usbMidiPacket.p.cin = serialMidiParser[s].getMidiMsgLen();
-              usbMidiPacket.p.midi1 = serialMidiParser[s].getMidiMsg()[1];
-              if ( serialMidiParser[s].getMidiMsgLen()  == 3 ) 
-                        usbMidiPacket.p.midi2 = serialMidiParser[s].getMidiMsg()[2];                                           
-          }    
-          
-          else return; // We should never be here !
-          
-          MidiUSB.writePacket(usbMidiPacket.i);    // Send to USB                                 
-          
+          sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
+           
         }
         else if (!serialMidiParser[s].isByteCaptured() ) {
           
