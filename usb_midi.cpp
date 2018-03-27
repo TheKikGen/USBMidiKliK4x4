@@ -35,7 +35,7 @@
 
 
 
-#include "USBMIDI.h"
+#include "usb_midi.h"
 
 #include <string.h>
 #include <stdint.h>

@@ -9,7 +9,7 @@ It was entirely rewritten from the hardware study, based on the STM32F103RC MCU.
 
 #include <PulseOutManager.h>
 #include <midiXparser.h>
-#include "USBMIDI.h"
+#include "usb_midi.h"
 
 // Timer
 #define TIMER2_RATE_MICROS 1000
@@ -215,6 +215,12 @@ void loop() {
            
         }
         else if (!serialMidiParser[s].isByteCaptured() ) {
+
+          // Process SYSEX unbuffered on the fly
+
+          
+
+          
           
         }      
     } // for
