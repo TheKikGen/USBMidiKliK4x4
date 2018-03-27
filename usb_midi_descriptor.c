@@ -2,6 +2,7 @@
 // Full assembled USB Descriptor FOR MIDI 4X4 DEVICE
 // ---------------------------------------------------------------
 
+#pragma once
 #include "usb_midi_device.h"
 
 // ---------------------------------------------------------------

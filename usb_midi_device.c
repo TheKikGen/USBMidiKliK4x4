@@ -89,7 +89,7 @@ static volatile uint32 n_unread_packets = 0;
 
 
 // --------------------------------------------------------------------------------------
-// ENDPOINTS CALLBACKS TABLE
+// ENDPOINTS CALLBACKS TABLES
 // --------------------------------------------------------------------------------------
 void (*ep_int_in[7])(void) =
     {midiDataTxCb,midiDataTxCb,midiDataTxCb,
@@ -347,6 +347,10 @@ static void midiDataRxCb(void) {
 
 }
 
+// --------------------------------------------------------------------------------------
+// USB API
+// --------------------------------------------------------------------------------------
+
 /* NOTE: Nothing specific to this device class in this function, move to usb_lib */
 static void usbInit(void) {
     pInformation->Current_Configuration = 0;
@@ -471,3 +475,4 @@ static void usbSetConfiguration(void) {
 static void usbSetDeviceAddress(void) {
     USBLIB->state = USB_ADDRESSED;
 }
+
