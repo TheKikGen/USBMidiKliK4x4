@@ -1,9 +1,9 @@
 /******************************************************************************
  * The MIT License
  *
- * Copyright (c) 2010 Perry Hung.
- * Copyright (c) 2013 Magnus Lundin.
- * Copyright (c) 2013 Donald Delmar Davis, Suspect Devices.
+ * Adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+ * Perry Hung, Magnus Lundin,
+ * Donald Delmar Davis, Suspect Devices.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -50,7 +50,7 @@ extern USBMidi MidiUSB;
 // --------------------------------------------------------------------------------------
 // USB MIDI Class
 // --------------------------------------------------------------------------------------
-// This class was adapted and CLEANED from the USBMidi library 
+// This class was adapted and CLEANED from the USBMidi library
 // It can work for any device, but was optimized for the MIDI 4X4 board from Miditech
 // based on a STM32F103RC.
 
@@ -59,11 +59,11 @@ USBMidi::USBMidi(void) {
 
 }
 
-// BEGIN - Call that function in SETUP 
+// BEGIN - Call that function in SETUP
 void USBMidi::begin() {
-		  			
+
 		// Reset the USB interface on the MIDITECH 4x4 board.
-    // The MIDI 4X4 has a DISC command, but the level logic is inverted 
+    // The MIDI 4X4 has a DISC command, but the level logic is inverted
     // Then configure USB and Endpoints callbacks
     usb_midi_enable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
 
@@ -139,5 +139,3 @@ uint8 USBMidi::pending(void) {
 uint8 USBMidi::isConnected(void) {
     return usb_is_connected(USBLIB) && usb_is_configured(USBLIB);
 }
-
-

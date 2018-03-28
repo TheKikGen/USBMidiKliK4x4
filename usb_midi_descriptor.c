@@ -1,3 +1,45 @@
+/*
+  USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
+  Based on the MIDITECH / MIDIPLUS 4X4 harware.
+  Copyright (C) 2017/2018 by The KikGen labs.
+
+  DEVICE DESCRIPTOR
+
+  ------------------------   CAUTION  ----------------------------------
+  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.  
+  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT 
+  DISASSEMBLING ANY SOFTWARE FROM MIDITECH/MIDIPLUS.
+
+  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI 
+  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY. 
+  
+  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE 
+  WITH THE MIDITECH/MIDIPLUS TOOLS AND PROCEDURES. NO ROLLBACK.
+  
+  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE. 
+  YOU DO IT AT YOUR OWN RISKS. 
+  ---------------------------------------------------------------------
+
+  Permission to use, copy, modify, distribute, and sell this
+  software and its documentation for any purpose is hereby granted
+  without fee, provided that the above copyright notice appear in
+  all copies and that both that the copyright notice and this
+  permission notice and warranty disclaimer appear in supporting
+  documentation, and that the name of the author not be used in
+  advertising or publicity pertaining to distribution of the
+  software without specific, written prior permission.
+
+  The author disclaim all warranties with regard to this
+  software, including all implied warranties of merchantability
+  and fitness.  In no event shall the author be liable for any
+  special, indirect or consequential damages or any damages
+  whatsoever resulting from loss of use, data or profits, whether
+  in an action of contract, negligence or other tortious action,
+  arising out of or in connection with the use or performance of
+  this software.
+
+   Licence : MIT.
+*/
 // ---------------------------------------------------------------
 // Full assembled USB Descriptor FOR MIDI 4X4 DEVICE
 // ---------------------------------------------------------------
@@ -8,28 +50,23 @@
 // ---------------------------------------------------------------
 // DEVICE DESCRIPTOR
 // ---------------------------------------------------------------
-static const usb_descriptor_device usbMIDIDescriptor_Device =
-    USB_MIDI_DECLARE_DEV_DESC(LEAFLABS_ID_VENDOR, MAPLE_ID_PRODUCT);
-/*
 static const usb_descriptor_device usbMIDIDescriptor_Device = {
-      .bLength            = sizeof(usb_descriptor_device), 
-      .bDescriptorType    = 0x01, // Device
+      .bLength            = sizeof(usb_descriptor_device),
+      .bDescriptorType    = USB_DESCRIPTOR_TYPE_DEVICE,
       .bcdUSB             = 0x0110,
-      .bDeviceClass       = 0x00,
-      .bDeviceSubClass    = 0x00,
+      .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,
+      .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,
       .bDeviceProtocol    = 0x00,
-      .bMaxPacketSize0    = 0x10, // 16 bytes
-      .idVendor           = 0x2912, 
-      .idProduct          = 0x1970, 
-      .bcdDevice          = 0x0101,
-      .iManufacturer      = 0x01,  
+      .bMaxPacketSize0    = MAX_PACKET_SIZE,
+      .idVendor           = USB_VENDORID, 
+      .idProduct          = USB_PRODUCTID, 
+      .bcdDevice          = 0x0100,
+      .iManufacturer      = 0x01,
       .iProduct           = 0x02,
-      .iSerialNumber      = 0x00,
+      .iSerialNumber      = 0x03,
       .bNumConfigurations = 0x01,
-};      
-    
-*/
-
+ };
+     
 // ---------------------------------------------------------------
 // CONFIGURATION DESCRIPTOR
 // ---------------------------------------------------------------
@@ -112,7 +149,7 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
         .bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
         .bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
         .bInterfaceProtocol = 0x00,
-        .iInterface         = 0x04,
+        .iInterface         = 0x04, // Midi
     },
 
     .MS_CS_Interface = {
@@ -120,64 +157,23 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = 0x01,
         .bcdADC             = 0x0100,
-        .wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
-                              
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              +sizeof(MIDI_IN_JACK_DESCRIPTOR)
-                              
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-                              +MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
-
+        .wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)                             
+                              +8*sizeof(MIDI_IN_JACK_DESCRIPTOR)                              
+                              +8*MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
                               +sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
                               +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4)
                               +sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
-                              +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4)                             
-                                 /* 0x41-4 */,
+                              +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4),
     },
 
-//  Emb IN Jack 0x02   ---- Ext OUT Jack 0x01 
-//  
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               1 Embedded
-        bJackID                 1
-        iJack                   4 Midi Out 1
-
-*/
     .MIDI_IN_JACK_1 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = MIDI_IN_JACK,
         .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x01,
-        .iJack              = 0x00,  // MIDI OUT 1
+        .iJack              = 0x05,  // MIDI OUT 1
     },
-
-/*
-
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               2 External
-        bJackID                 2
-        iJack                   0 
-*/
 
     .MIDI_IN_JACK_2 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -188,33 +184,15 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               1 Embedded
-        bJackID                 5
-        iJack                   6 Midi Out 2
-*/
     .MIDI_IN_JACK_5 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = MIDI_IN_JACK,
         .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x05,
-        .iJack              = 0x00, // MIDI OUT 2
+        .iJack              = 0x06, // MIDI OUT 2
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               2 External
-        bJackID                 6
-        iJack                   0 
-*/
     .MIDI_IN_JACK_6 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -224,36 +202,14 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-    
-/*
-
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               1 Embedded
-        bJackID                 9
-        iJack                   8 Midi Out 3
-*/
-
     .MIDI_IN_JACK_9 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = MIDI_IN_JACK,
         .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x09,
-        .iJack              = 0x00, // MIDI OUT 3
+        .iJack              = 0x07, // MIDI OUT 3
     },
-
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               2 External
-        bJackID                10
-        iJack                   0 
-*/
            
     .MIDI_IN_JACK_A = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -264,33 +220,14 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               1 Embedded
-        bJackID                13
-        iJack                  10 Midi Out 4
-*/
-
     .MIDI_IN_JACK_D = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = MIDI_IN_JACK,
         .bJackType          = MIDI_JACK_EMBEDDED,
         .bJackId            = 0x0D,
-        .iJack              = 0x00, // MIDI OUT 4
+        .iJack              = 0x08, // MIDI OUT 4
     },
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 6
-        bDescriptorType        36
-        bDescriptorSubtype      2 (MIDI_IN_JACK)
-        bJackType               2 External
-        bJackID                14
-        iJack                   0
-*/
 
     .MIDI_IN_JACK_E = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -301,22 +238,6 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-
-        
-
-/*   
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               1 Embedded
-        bJackID                 3
-        bNrInputPins            1
-        baSourceID( 0)          2
-        BaSourcePin( 0)         1
-        iJack                   5 Midi In 1
-*/
-
     .MIDI_OUT_JACK_3 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -326,21 +247,8 @@ MIDIStreaming Interface Descriptor:
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x02},
         .baSourcePin        = {0x01},
-        .iJack              = 0x00, // MIDI IN 1
+        .iJack              = 0x09, // MIDI IN 1
     },
-
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               2 External
-        bJackID                 4
-        bNrInputPins            1
-        baSourceID( 0)          1
-        BaSourcePin( 0)         1
-        iJack                   0 
-*/
 
     .MIDI_OUT_JACK_4 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -354,19 +262,6 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               1 Embedded
-        bJackID                 7
-        bNrInputPins            1
-        baSourceID( 0)          6
-        BaSourcePin( 0)         1
-        iJack                   7 Midi In 2
-*/
-
     .MIDI_OUT_JACK_7 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -376,21 +271,9 @@ MIDIStreaming Interface Descriptor:
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x06},
         .baSourcePin        = {0x01},
-        .iJack              = 0x00, // MIDI IN 2
+        .iJack              = 0x0A, // MIDI IN 2
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               2 External
-        bJackID                 8
-        bNrInputPins            1
-        baSourceID( 0)          5
-        BaSourcePin( 0)         1
-        iJack                   0 
-*/
     .MIDI_OUT_JACK_8 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -403,19 +286,6 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               1 Embedded
-        bJackID                11
-        bNrInputPins            1
-        baSourceID( 0)         10
-        BaSourcePin( 0)         1
-        iJack                   9 Midi In 3
-*/
-
     .MIDI_OUT_JACK_B = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -425,22 +295,8 @@ MIDIStreaming Interface Descriptor:
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x0A},
         .baSourcePin        = {0x01},
-        .iJack              = 0x00, // MIDI IN 3
+        .iJack              = 0x0B, // MIDI IN 3
     },
-
-
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               2 External
-        bJackID                12
-        bNrInputPins            1
-        baSourceID( 0)          9
-        BaSourcePin( 0)         1
-        iJack                   0 
-*/
 
     .MIDI_OUT_JACK_C = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -454,18 +310,6 @@ MIDIStreaming Interface Descriptor:
         .iJack              = 0x00,
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               1 Embedded
-        bJackID                15
-        bNrInputPins            1
-        baSourceID( 0)         14
-        BaSourcePin( 0)         1
-        iJack                  11 Midi In 4
-*/
     .MIDI_OUT_JACK_F = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -475,21 +319,9 @@ MIDIStreaming Interface Descriptor:
         .bNrInputPins       = 0x01,
         .baSourceId         = {0x0E},
         .baSourcePin        = {0x01},
-        .iJack              = 0x00, // MIDI IN 4
+        .iJack              = 0x0C, // MIDI IN 4
     },
 
-/*
-MIDIStreaming Interface Descriptor:
-        bLength                 9
-        bDescriptorType        36
-        bDescriptorSubtype      3 (MIDI_OUT_JACK)
-        bJackType               2 External
-        bJackID                16
-        bNrInputPins            1
-        baSourceID( 0)         13
-        BaSourcePin( 0)         1
-        iJack                   0
-*/
     .MIDI_OUT_JACK_10 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -501,33 +333,6 @@ MIDIStreaming Interface Descriptor:
         .baSourcePin        = {0x01},
         .iJack              = 0x00,
     },
-
-
-/*
-Endpoint Descriptor:
-        bLength                 9
-        bDescriptorType         5
-        bEndpointAddress     0x01  EP 1 OUT
-        bmAttributes            2
-          Transfer Type            Bulk
-          Synch Type               None
-          Usage Type               Data
-        wMaxPacketSize     0x0010  1x 16 bytes
-        bInterval               0
-        bRefresh                0
-        bSynchAddress           0
-
-MIDIStreaming Endpoint Descriptor:
-          bLength                 8
-          bDescriptorType        37
-          bDescriptorSubtype      1 (GENERAL)
-          bNumEmbMIDIJack         4
-          baAssocJackID( 0)       1
-          baAssocJackID( 1)       5
-          baAssocJackID( 2)       9
-          baAssocJackID( 3)      13
-*/
-
 
     .DataOutEndpoint = {
         .bLength            = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
@@ -548,31 +353,6 @@ MIDIStreaming Endpoint Descriptor:
       .bNumEmbMIDIJack      = 0x04,
       .baAssocJackID        = {0x01,0x05,0X09,0X0D},
   },
-
-/*
-Endpoint Descriptor:
-        bLength                 9
-        bDescriptorType         5
-        bEndpointAddress     0x81  EP 1 IN
-        bmAttributes            2
-          Transfer Type            Bulk
-          Synch Type               None
-          Usage Type               Data
-        wMaxPacketSize     0x0010  1x 16 bytes
-        bInterval               0
-        bRefresh                0
-        bSynchAddress           0
-
-MIDIStreaming Endpoint Descriptor:
-          bLength                 8
-          bDescriptorType        37
-          bDescriptorSubtype      1 (GENERAL)
-          bNumEmbMIDIJack         4
-          baAssocJackID( 0)       3
-          baAssocJackID( 1)       7
-          baAssocJackID( 2)      11
-          baAssocJackID( 3)      15
-*/
 
     .DataInEndpoint = {
         .bLength          = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT),
@@ -616,29 +396,78 @@ static const usb_descriptor_string usbMIDIDescriptor_LangID = {
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(8),
+    .bLength = USB_DESCRIPTOR_STRING_LEN(14),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'M', 0, 'a', 0, 'p', 0, 'l', 0,
-                'e', 0, ' ', 0, ' ', 0, ' ', 0},
+    // TheKikGen Labs
+    .bString = {'T', 0, 'h', 0, 'e', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iProduct = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(10),
+    .bLength = USB_DESCRIPTOR_STRING_LEN(16),    
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'M', 0, 'I', 0, 'D', 0, 'I', 0, '4', 0, 'X', 0, '4', 0, ' ', 0, 'M', 0, 'O', 0},
-  //  .bString = {'D', 0, 'i', 0, 'r', 0, 'o', 0, ' ', 0, 'S', 0, 'y', 0, 'n', 0, 't', 0, 'h', 0},
+    // USB MIDIKliK 4X4
+    .bString = {'U', 0, 'S', 0, 'B', 0, ' ', 0, 'M', 0, 'i', 0, 'd', 0, 'i', 0, 'K', 0, 'l', 0, 'i', 0 ,'K', 0, ' ', 0, '4', 0, 'X', 0, '4', 0},   
+};
+
+static const usb_descriptor_string usbMIDIDescriptor_iSerial = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(8),    
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    // 07DA0908
+    .bString = {'0', 0, '7', 0, 'D', 0, 'A', 0, '0', 0, '9', 0, '0', 0, '8', 0},   
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iInterface = {
     .bLength = USB_DESCRIPTOR_STRING_LEN(4),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'M', 0, 'I', 0, 'D', 0, 'I', 0},
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0},    
 };
 
-static const usb_descriptor_string usbMIDIDescriptor_iJack1 = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(5),
+// Midi Out 1
+static const usb_descriptor_string usbMIDIDescriptor_iJackOut1 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(10),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'J', 0, 'a', 0, 'c', 0, 'k', 0, '1', 0},
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0, ' ', 0, '1', 0},
+};
+
+static const usb_descriptor_string usbMIDIDescriptor_iJackOut2 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(10),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0, ' ', 0, '2', 0},
+};
+static const usb_descriptor_string usbMIDIDescriptor_iJackOut3 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(10),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0, ' ', 0, '3', 0},
+};
+static const usb_descriptor_string usbMIDIDescriptor_iJackOut4 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(10),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0, ' ', 0, '4', 0},
+};
+
+// Midi In 1
+static const usb_descriptor_string usbMIDIDescriptor_iJackIn1 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(9),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0, ' ', 0, '1', 0},
+};
+
+static const usb_descriptor_string usbMIDIDescriptor_iJackIn2 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(9),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0, ' ', 0, '2', 0},
+};
+
+static const usb_descriptor_string usbMIDIDescriptor_iJackIn3 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(9),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0, ' ', 0, '3', 0},
+};
+
+static const usb_descriptor_string usbMIDIDescriptor_iJackIn4 = {
+    .bLength = USB_DESCRIPTOR_STRING_LEN(9),
+    .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0, ' ', 0, '4', 0},
 };
 
 
@@ -652,12 +481,20 @@ static ONE_DESCRIPTOR usbMidiConfig_Descriptor = {
     sizeof(usb_descriptor_config)
 };
 
-#define N_STRING_DESCRIPTORS 3
+#define N_STRING_DESCRIPTORS 13
 static ONE_DESCRIPTOR String_Descriptor[N_STRING_DESCRIPTORS] = {
-    {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1)},
-    {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(8)},
-    {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(10)},
-    //{(uint8*)&usbMIDIDescriptor_iInterface,     USB_DESCRIPTOR_STRING_LEN(4)},
-    
-    //{(uint8*)&usbMIDIDescriptor_iJack1,     USB_DESCRIPTOR_STRING_LEN(5)}
+    {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1) },
+    {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(14)},
+    {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(16)},
+    {(uint8*)&usbMIDIDescriptor_iSerial,      USB_DESCRIPTOR_STRING_LEN(8) },
+    {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(4) },  
+    {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },
+    {(uint8*)&usbMIDIDescriptor_iJackIn2,     USB_DESCRIPTOR_STRING_LEN(9) },
+    {(uint8*)&usbMIDIDescriptor_iJackIn3,     USB_DESCRIPTOR_STRING_LEN(9) },
+    {(uint8*)&usbMIDIDescriptor_iJackIn4,     USB_DESCRIPTOR_STRING_LEN(9) },
+    {(uint8*)&usbMIDIDescriptor_iJackOut1,    USB_DESCRIPTOR_STRING_LEN(10) },
+    {(uint8*)&usbMIDIDescriptor_iJackOut2,    USB_DESCRIPTOR_STRING_LEN(10) },
+    {(uint8*)&usbMIDIDescriptor_iJackOut3,    USB_DESCRIPTOR_STRING_LEN(10) },
+    {(uint8*)&usbMIDIDescriptor_iJackOut4,    USB_DESCRIPTOR_STRING_LEN(10) },
 };
+

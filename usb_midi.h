@@ -1,9 +1,10 @@
 /******************************************************************************
  * The MIT License
  *
- * Copyright (c) 2010 Perry Hung.
- * Copyright (c) 2013 Magnus Lundin.
- *
+ * Adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+ * Perry Hung, Magnus Lundin,
+ * Donald Delmar Davis, Suspect Devices.
+ ** 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -59,7 +60,7 @@ public:
     void writePackets(const void*, uint32);
     uint8 isConnected();
     uint8 pending();
- 
+
  };
 
 #endif

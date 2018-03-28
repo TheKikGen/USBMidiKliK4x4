@@ -1,9 +1,10 @@
 /******************************************************************************
  * The MIT License
  *
- * Adapted by TheKikGenLab. 
- * From USB LeafLabs LLC. USB API / Magnus Lundin.
- *
+ * Adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+ * Perry Hung, Magnus Lundin,
+ * Donald Delmar Davis, Suspect Devices.
+ * *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -43,14 +44,14 @@
 #include "usb_core.h"
 #include "usb_def.h"
 
-#ifdef __cplusplus 
-extern "C" { 
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 // --------------------------------------------------------------------------------------
 // USB MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
-    void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level); 
+    void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
     void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
 
     void usb_midi_putc(char ch);
@@ -67,29 +68,25 @@ extern "C" {
 // --------------------------------------------------------------------------------------
 #define USB_TIMEOUT 50
 
-
-#define LEAFLABS_ID_VENDOR                0x1EAA
-#define MAPLE_ID_PRODUCT                  0x0014
-
 // MIDI USB Packet
 #if defined(__GNUC__)
-  typedef struct 
+  typedef struct
   {
       unsigned cin : 4;  // this is the low nibble.
       unsigned cable  : 4;
       uint8_t  midi0;
-      uint8_t  midi1; 
-      uint8_t  midi2; 
+      uint8_t  midi1;
+      uint8_t  midi2;
   }  __attribute__ ((__packed__)) MIDI_EVENT_PACKET_t ;
 #else
 
   typedef struct // may need to be adjusted for other compilers and bitfield order...
   {
-      unsigned cable : 4; 
-      unsigned cin   : 4; 
-      uint8_t  midi0; 
-      uint8_t  midi1; 
-      uint8_t  midi2; 
+      unsigned cable : 4;
+      unsigned cin   : 4;
+      uint8_t  midi0;
+      uint8_t  midi1;
+      uint8_t  midi2;
   } MIDI_EVENT_PACKET_t ;
 #endif
 
@@ -100,6 +97,12 @@ union EVENT_t {
     MIDI_EVENT_PACKET_t p;
 };
 
+// --------------------------------------------------------------------------------------
+// DESCRIPTOR IDS
+// --------------------------------------------------------------------------------------
+
+#define USB_VENDORID                0x2912
+#define USB_PRODUCTID               0x1972
 
 // --------------------------------------------------------------------------------------
 // DESCRIPTORS TYPES
@@ -129,7 +132,7 @@ union EVENT_t {
 
 
 // --------------------------------------------------------------------------------------
-// ENDPOINTS 
+// ENDPOINTS
 // --------------------------------------------------------------------------------------
 
 #define NUM_ENDPTS            0x04
@@ -137,10 +140,10 @@ union EVENT_t {
 // buffer table base address
 #define   BTABLE_ADDRESS      0x0000
 
-// Every USB device must provide at least one control endpoint at address 0 called the 
-// default endpoint or Endpoint0. This endpoint is bidirectional. 
-// that is, the host can send data to the endpoint and receive data from it within one transfer. 
-// The purpose of a control transfer is to enable the host to obtain device information, 
+// Every USB device must provide at least one control endpoint at address 0 called the
+// default endpoint or Endpoint0. This endpoint is bidirectional.
+// that is, the host can send data to the endpoint and receive data from it within one transfer.
+// The purpose of a control transfer is to enable the host to obtain device information,
 // configure the device, or perform control operations that are unique to the device.
 // Control Endpoint
 
@@ -150,12 +153,12 @@ union EVENT_t {
 #define USB_MIDI_CTRL_RX_ADDR    0x40
 #define USB_MIDI_CTRL_TX_ADDR    0x80
 
-// MIDI data endpoints are used for transferring data. They are unidirectional, 
-// has a type (control, interrupt, bulk, isochronous) and other properties. 
+// MIDI data endpoints are used for transferring data. They are unidirectional,
+// has a type (control, interrupt, bulk, isochronous) and other properties.
 // All those properties are described in an endpoint descriptor.
-// The direction of an endpoint is based on the host. Thus, IN always refers 
-// to transfers to the host from a device and OUT always refers to transfers 
-// from the host to a device. 
+// The direction of an endpoint is based on the host. Thus, IN always refers
+// to transfers to the host from a device and OUT always refers to transfers
+// from the host to a device.
 
 #define MIDI_STREAM_EPSIZE       0x10
 
@@ -207,7 +210,7 @@ typedef struct  {
     uint8  bInterval;
     uint8  bRefresh;
     uint8  bSynchAddress;
-} __packed MIDI_USB_DESCRIPTOR_ENDPOINT;  
+} __packed MIDI_USB_DESCRIPTOR_ENDPOINT;
 
 #define MIDI_OUT_JACK_DESCRIPTOR_SIZE(DataSize) (7 + 2*DataSize)
 #define MIDI_OUT_JACK_DESCRIPTOR(DataSize)        \
@@ -235,32 +238,6 @@ typedef struct  {
   } __packed
 
 
-#ifndef __cplusplus
-
-#define USB_MIDI_DECLARE_DEV_DESC(vid, pid)                           \
-  {                                                                     \
-      .bLength            = sizeof(usb_descriptor_device),              \
-      .bDescriptorType    = USB_DESCRIPTOR_TYPE_DEVICE,                 \
-      .bcdUSB             = 0x0110,                                     \
-      .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,                 \
-      .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,              \
-      .bDeviceProtocol    = 0x00,                                       \
-      .bMaxPacketSize0    = MAX_PACKET_SIZE,                            \
-      .idVendor           = vid,                                        \
-      .idProduct          = pid,                                        \
-      .bcdDevice          = 0x0200,                                     \
-      .iManufacturer      = 0x01,                                       \
-      .iProduct           = 0x02,                                       \
-      .iSerialNumber      = 0x00,                                       \
-      .bNumConfigurations = 0x01,                                       \
- }
-#endif
-
-
 #ifdef __cplusplus
 }
 #endif
-
-
-
-

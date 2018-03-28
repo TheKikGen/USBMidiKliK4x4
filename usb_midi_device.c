@@ -1,8 +1,9 @@
 /******************************************************************************
  * The MIT License
  *
- * Copyright (c) 2011 LeafLabs LLC.
- * Copyright (c) 2013 Magnus Lundin.
+ * Adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+ * Perry Hung, Magnus Lundin,
+ * Donald Delmar Davis, Suspect Devices.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -93,7 +94,7 @@ static volatile uint32 n_unread_packets = 0;
 // --------------------------------------------------------------------------------------
 void (*ep_int_in[7])(void) =
     {midiDataTxCb,midiDataTxCb,midiDataTxCb,
-     NOP_Process,          
+     NOP_Process,
      NOP_Process,
      NOP_Process,
      NOP_Process};
@@ -102,7 +103,7 @@ void (*ep_int_out[7])(void) =
     {midiDataRxCb,midiDataRxCb,midiDataRxCb,
      NOP_Process,
      NOP_Process,
-     NOP_Process,         
+     NOP_Process,
      NOP_Process};
 
 // --------------------------------------------------------------------------------------
@@ -150,11 +151,11 @@ USER_STANDARD_REQUESTS User_Standard_Requests = {
 void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     /* Present ourselves to the host. Writing 0 to "disc" pin must
      * pull USB_DP pin up while leaving USB_DM pulled down by the
-     * transceiver. See USB 2.0 spec, section 7.1.7.3.           
-     * 
+     * transceiver. See USB 2.0 spec, section 7.1.7.3.
+     *
      * FT : The function was modified to support a new "level" parameter,
      * to set the 0 or 1 regarding the logic level used by the DISC pin.
-     * 
+     *
      */
 
      if (disc_dev != NULL) {
@@ -174,12 +175,12 @@ void usb_power_down() {
 
 void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     /* Turn off the interrupt and signal disconnect (see e.g. USB 2.0
-     * spec, section 7.1.7.3). 
-     * 
+     * spec, section 7.1.7.3).
+     *
      * FT : The function was modified to support a new "level" parameter,
      * to set the 0 or 1 regarding the logic level used by the DISC pin.
      */
-     
+
     nvic_irq_disable(NVIC_USB_LP_CAN_RX0);
     if (disc_dev != NULL) {
         gpio_write_bit(disc_dev, disc_bit, level);
@@ -305,7 +306,7 @@ uint32 usb_midi_peek(uint32* buf, uint32 packets) {
 }
 
 // --------------------------------------------------------------------------------------
-// USB MIDI STATE 
+// USB MIDI STATE
 // --------------------------------------------------------------------------------------
 
 uint32 usb_midi_data_available(void) {
@@ -383,10 +384,10 @@ static void usbReset(void) {
 
     // Setup control endpoint  */
     usb_set_ep_type     (USB_MIDI_CTRL_ENDP, USB_EP_EP_TYPE_CONTROL);
-    usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );     
+    usb_set_ep_tx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_TX_STALL  );
     usb_set_ep_rx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_RX_ADDR );
     usb_set_ep_tx_addr  (USB_MIDI_CTRL_ENDP, USB_MIDI_CTRL_TX_ADDR );
-   
+
     usb_clear_status_out(USB_MIDI_CTRL_ENDP                        );
     usb_set_ep_rx_count (USB_MIDI_CTRL_ENDP, pProperty->MaxPacketSize);
     usb_set_ep_rx_stat  (USB_MIDI_CTRL_ENDP, USB_EP_STAT_RX_VALID);
@@ -394,13 +395,13 @@ static void usbReset(void) {
     /* TODO figure out differences in style between RX/TX EP setup */
 
    /* set up data endpoint OUT (RX) */
-    usb_set_ep_type       (MIDI_STREAM_OUT_ENDP, USB_EP_EP_TYPE_BULK   );      
+    usb_set_ep_type       (MIDI_STREAM_OUT_ENDP, USB_EP_EP_TYPE_BULK   );
     usb_set_ep_rx_addr    (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_OUT_EPADDR);
     usb_set_ep_rx_count   (MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE    );
     usb_set_ep_rx_stat    (MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID  );
 
     /* set up data endpoint IN (TX)  */
-    usb_set_ep_type       (MIDI_STREAM_IN_ENDP, USB_EP_EP_TYPE_BULK   );   
+    usb_set_ep_type       (MIDI_STREAM_IN_ENDP, USB_EP_EP_TYPE_BULK   );
     usb_set_ep_tx_addr    (MIDI_STREAM_IN_ENDP, MIDI_STREAM_IN_EPADDR );
     usb_set_ep_tx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_TX_NAK    );
     usb_set_ep_rx_stat    (MIDI_STREAM_IN_ENDP, USB_EP_STAT_RX_DISABLED);
@@ -475,4 +476,3 @@ static void usbSetConfiguration(void) {
 static void usbSetDeviceAddress(void) {
     USBLIB->state = USB_ADDRESSED;
 }
-
