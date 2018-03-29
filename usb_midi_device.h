@@ -68,33 +68,33 @@ extern "C" {
 // --------------------------------------------------------------------------------------
 #define USB_TIMEOUT 50
 
-// MIDI USB Packet
-#if defined(__GNUC__)
-  typedef struct
-  {
-      unsigned cin : 4;  // this is the low nibble.
-      unsigned cable  : 4;
-      uint8_t  midi0;
-      uint8_t  midi1;
-      uint8_t  midi2;
-  }  __attribute__ ((__packed__)) MIDI_EVENT_PACKET_t ;
-#else
+//// MIDI USB Packet
+//#if defined(__GNUC__)
+//  typedef struct
+//  {
+//      unsigned cin : 4;  // this is the low nibble.
+//      unsigned cable  : 4;
+//      uint8_t  midi0;
+//      uint8_t  midi1;
+//      uint8_t  midi2;
+//  }  __attribute__ ((__packed__)) MIDI_EVENT_PACKET_t ;
+//#else
 
-  typedef struct // may need to be adjusted for other compilers and bitfield order...
-  {
-      unsigned cable : 4;
-      unsigned cin   : 4;
-      uint8_t  midi0;
-      uint8_t  midi1;
-      uint8_t  midi2;
-  } MIDI_EVENT_PACKET_t ;
-#endif
+//  typedef struct // may need to be adjusted for other compilers and bitfield order...
+//  {
+//      unsigned cable : 4;
+//      unsigned cin   : 4;
+//      uint8_t  midi0;
+//      uint8_t  midi1;
+//      uint8_t  midi2;
+//  } MIDI_EVENT_PACKET_t ;
+//#endif
 
 // Use this structure to send and receive packet to/from USB
 union EVENT_t {
     uint32_t i;
-    uint8_t  b[4];
-    MIDI_EVENT_PACKET_t p;
+    uint8_t  packet[4];
+    //MIDI_EVENT_PACKET_t p;
 };
 
 // --------------------------------------------------------------------------------------
