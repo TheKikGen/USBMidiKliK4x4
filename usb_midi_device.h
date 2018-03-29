@@ -51,50 +51,27 @@ extern "C" {
 // --------------------------------------------------------------------------------------
 // USB MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
-    void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
-    void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
+void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
+void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
 
-    void usb_midi_putc(char ch);
-    uint32 usb_midi_tx(const uint32* buf, uint32 len);
-    uint32 usb_midi_rx(uint32* buf, uint32 len);
-    uint32 usb_midi_peek(uint32* buf, uint32 len);
+void usb_midi_putc(char ch);
+uint32 usb_midi_tx(const uint32* buf, uint32 len);
+uint32 usb_midi_rx(uint32* buf, uint32 len);
+uint32 usb_midi_peek(uint32* buf, uint32 len);
 
-    uint32 usb_midi_data_available(void); /* in RX buffer */
-    uint16 usb_midi_get_pending(void);
-    uint8 usb_midi_is_transmitting(void);
+uint32 usb_midi_data_available(void); /* in RX buffer */
+uint16 usb_midi_get_pending(void);
+uint8 usb_midi_is_transmitting(void);
 
 // --------------------------------------------------------------------------------------
 // GLOBAL USB CONFIGURATION
 // --------------------------------------------------------------------------------------
 #define USB_TIMEOUT 50
 
-//// MIDI USB Packet
-//#if defined(__GNUC__)
-//  typedef struct
-//  {
-//      unsigned cin : 4;  // this is the low nibble.
-//      unsigned cable  : 4;
-//      uint8_t  midi0;
-//      uint8_t  midi1;
-//      uint8_t  midi2;
-//  }  __attribute__ ((__packed__)) MIDI_EVENT_PACKET_t ;
-//#else
-
-//  typedef struct // may need to be adjusted for other compilers and bitfield order...
-//  {
-//      unsigned cable : 4;
-//      unsigned cin   : 4;
-//      uint8_t  midi0;
-//      uint8_t  midi1;
-//      uint8_t  midi2;
-//  } MIDI_EVENT_PACKET_t ;
-//#endif
-
 // Use this structure to send and receive packet to/from USB
 union EVENT_t {
     uint32_t i;
     uint8_t  packet[4];
-    //MIDI_EVENT_PACKET_t p;
 };
 
 // --------------------------------------------------------------------------------------
