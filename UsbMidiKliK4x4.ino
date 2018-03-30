@@ -113,10 +113,30 @@ midiXparser serialMidiParser[4];
 ///////////////////////////////////////////////////////////////////////////////
 
 #define MIDI_ROUTING_TARGET_MAX 4
+#define FROM_SERIAL 0
+#define FROM_USB    1
+
 // Routing from an USB cable IN
 #define DEFAULT_MIDI_CABLE_ROUTING_TARGET  B00000001,B00000010,B00000100,B00001000
+
 // Routing from an serial MIDI IN
 #define DEFAULT_MIDI_SERIAL_ROUTING_TARGET B00010000,B00100000,B01000000,B10000000
+
+// 4 MIDI IN merged to MIDI OUT 1
+//#define MIDI_SERIAL_4MERGER B00000001,B00000001,B00000001,B00000001
+
+// 4 MIDI IN merged only to USB MIDI IN 4, 
+//#define MIDI_SERIAL_4MERGER B10000000,B10000000,B10000000,B10000000
+
+// 4 MIDI IN merged and splitted to MIDI OUT 1-4
+//#define MIDI_SERIAL_4MERGER B00001111,B00001111,B00001111,B00001111
+
+// 4 MIDI IN merged and splitted to MIDI OUT 1-4
+//#define MIDI_SERIAL_4MERGER B00001111,B00001111,B00001111,B00001111
+
+// 4 MIDI IN merged and splitted to MIDI OUT 1-4
+//#define MIDI_SERIAL_4MERGER B00001111,B00001111,B00001111,B00001111
+
 
 uint8_t midiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
 uint8_t midiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
@@ -134,39 +154,38 @@ void Timer2Handler(void) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send a USB midi packet to ad-hoc serial MIDI
 ///////////////////////////////////////////////////////////////////////////////
-void sendMidiUsbPacketToSerial(uint32_t packet) {
+void sendMidiUsbPacketToSerial(uint32_t packet, uint8_t serialNo) {
 
   union EVENT_t midiPacket = { .i = packet };
-  uint8_t cable = midiPacket.packet[0] >> 4;
+  //uint8_t cable = midiPacket.packet[0] >> 4;
+  
   uint8_t cin   = midiPacket.packet[0] & 0x0F ;
-
-  if (cable >= SERIAL_INTERFACE_MAX ) return;
-
-  HardwareSerial *mySerial = serialInterface[cable];
-  PulseOut* flashLED_O  = flashLED_OUT[cable];
+  //if (cable >= SERIAL_INTERFACE_MAX ) return;
+  
+  if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
   // Sendpacket to serial at the right size
   switch (cin) {
           // 1 byte
           case 0x05: case 0x0F:
-            mySerial->write(midiPacket.packet[1]);
-            flashLED_O->start();
+            serialInterface[serialNo]->write(midiPacket.packet[1]);
+            flashLED_OUT[serialNo]->start();
             break;
 
           // 2 bytes
           case 0x02: case 0x06: case 0x0C: case 0x0D:
-            mySerial->write(midiPacket.packet[1]);
-            mySerial->write(midiPacket.packet[2]);
-            flashLED_O->start();
+            serialInterface[serialNo]->write(midiPacket.packet[1]);
+            serialInterface[serialNo]->write(midiPacket.packet[2]);
+            flashLED_OUT[serialNo]->start();
             break;
 
           // 3 bytes
           case 0x03: case 0x07: case 0x04: case 0x08:
           case 0x09: case 0x0A: case 0x0B: case 0x0E:
-            mySerial->write(midiPacket.packet[1]);
-            mySerial->write(midiPacket.packet[2]);
-            mySerial->write(midiPacket.packet[3]);
-            flashLED_O->start();
+            serialInterface[serialNo]->write(midiPacket.packet[1]);
+            serialInterface[serialNo]->write(midiPacket.packet[2]);
+            serialInterface[serialNo]->write(midiPacket.packet[3]);
+            flashLED_OUT[serialNo]->start();
             break;
   }
 }
@@ -207,20 +226,20 @@ void sendMidiSerialMsgToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
 
     else return; // We should never be here !
 
-    MidiUSB.writePacket(usbMidiPacket.i);    // Send to USB
-    flashLED_IN[cable]->start();
+    //MidiUSB.writePacket(usbMidiPacket.i);    // Send to USB
+    routePacketToTarget( FROM_SERIAL,usbMidiPacket.i);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Scan and parse sysex flows
 // ----------------------------------------------------------------------------
-// We use the midiXparser 'on the fly' mode, allowing to mark bytes "captured"
+// We use the midiXparser 'on the fly' mode, allowing to tag bytes as "captured"
 // when they belong to a midi SYSEX message, without storing them in a buffer.
 // SYSEX Error (not correctly terminated by 0xF7 for example) are cleaned up,
 // to restore a correct parsing state.
 ///////////////////////////////////////////////////////////////////////////////
 
-void scanMidiSysExToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
+void scanMidiSerialSysExToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
   static union EVENT_t usbMidiSysExPacket[SERIAL_INTERFACE_MAX];
   static uint8_t packetLen[SERIAL_INTERFACE_MAX];
   static bool firstCall = true;
@@ -242,8 +261,9 @@ void scanMidiSysExToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
       usbMidiSysExPacket[cable].packet[ packetLen[cable] ] = midiXparser::eoxStatus;
       // CIN = 5/6/7  sysex ends with one/two/three bytes,
       usbMidiSysExPacket[cable].packet[0] = (cable << 4) + (packetLen[cable] + 4) ;
-      MidiUSB.writePacket(usbMidiSysExPacket[cable].i);    // Send to USB
-      flashLED_IN[cable]->start();
+      routePacketToTarget( FROM_SERIAL,usbMidiSysExPacket[cable].i);
+      //MidiUSB.writePacket(usbMidiSysExPacket[cable].i);    // Send to USB
+      //flashLED_IN[cable]->start();
       packetLen[cable] = 0;
       memset(&(usbMidiSysExPacket[cable].packet[0]),0,4);
   }
@@ -259,22 +279,54 @@ void scanMidiSysExToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
   // Packet complete ?
   if (packetLen[cable] == 3 ) {
       usbMidiSysExPacket[cable].packet[0] = (cable << 4) + 4 ; // Sysex start or continue
-      MidiUSB.writePacket(usbMidiSysExPacket[cable].i);    // Send to USB
-      flashLED_IN[cable]->start();
+      routePacketToTarget( FROM_SERIAL,usbMidiSysExPacket[cable].i);
+      //MidiUSB.writePacket(usbMidiSysExPacket[cable].i);    // Send to USB
+      //flashLED_IN[cable]->start();
       packetLen[cable] = 0;
       memset(&(usbMidiSysExPacket[cable].packet[0]),0,4);
   }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// midi packet Router
+//-----------------------------------------------------------------------------
+// Route a packet from one MIDI IN / USB OUT to n MIDI OUT/USB IN
+///////////////////////////////////////////////////////////////////////////////
 
+void routePacketToTarget(uint8_t source,uint32_t packet) {
 
-void RouteMidiUsbToTarget(uint32_t midiPacket) {
+  union EVENT_t midiPacket = { .i = packet };
+  uint8_t cable = midiPacket.packet[0] >> 4;  
+  if (cable >= SERIAL_INTERFACE_MAX ) return;
+  
+  uint8_t cin   = midiPacket.packet[0] & 0x0F ;
+  
+  uint8_t targets = 
+    ( source == FROM_SERIAL ? midiSerialRoutingTarget[cable]:midiCableRoutingTarget[cable]);
+  
+  // Find targets  
+  // Bit 0-3 : Serial 1 - Serial 4
+  // Bit 4-7 : Cable  0 - Cable 4
 
+  // Serial targets
+  for (uint8_t t=0; t<=3 ; t++) {
 
+      if (targets & ( 1 << t ) ) sendMidiUsbPacketToSerial(midiPacket.i,t );
+    
+  }
 
-}
+  targets = targets >> 4;
+  
+  // usb cable targets
+  for (uint8_t t=0; t<=3 ; t++) {
 
-void routeMidiSerialToTarget() {
+      if (targets & ( 1 << t ) ) { 
+        midiPacket.packet[0] = ( t << 4 ) + cin;
+        MidiUSB.writePacket(midiPacket.i);    // Send to USB
+        flashLED_IN[t]->start();
+      }
+    
+  }
 
 }
 
@@ -314,6 +366,8 @@ void setup() {
     for (uint8_t i=1; i<=5 &&  !MidiUSB.isConnected() ; i++ ) {
         flashLED_CONNECT->start(); delay(500);
         flashLED_CONNECT->start(); delay(500);
+        flashLED_CONNECT->start(); delay(500);
+        flashLED_CONNECT->start(); delay(100);
         flashLED_CONNECT->start(); delay(100);
         flashLED_CONNECT->start(); delay(100);
     }
@@ -328,38 +382,39 @@ void setup() {
 
 void loop() {
 
+    static uint8_t s=0;
+    
     // Reflect the USB connection status
     if ( ! MidiUSB.isConnected() ) digitalWrite(LED_CONNECT, HIGH);
 
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
 
-      // Send Packet to the appropriate serial
-      sendMidiUsbPacketToSerial( MidiUSB.readPacket());
+      // Route Packet to the appropriate cable and serial out
+      routePacketToTarget( FROM_USB,MidiUSB.readPacket());
 
     }
 
     // Do we have any MIDI msg on Serial 1 to 4 ?
-    for ( uint8_t s=0; s< SERIAL_INTERFACE_MAX ; s++ ) {
 
-       if ( serialInterface[s]->available() ) {
+    if ( serialInterface[s]->available() ) {
+    
+         if ( serialMidiParser[s].parse( serialInterface[s]->read() ) ) {
+              sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
+         }
+         else
+    
+         // Check if a SYSEX msg is currently sent or terminated
+         // as we proceed on the fly.
+         if ( serialMidiParser[s].isByteCaptured() &&
+              ( serialMidiParser[s].isSysExMode() ||
+                serialMidiParser[s].getByte() == midiXparser::eoxStatus ||
+                serialMidiParser[s].isSysExError()  ) )
+         {
+            // Process for eventual SYSEX unbuffered on the fly
+            scanMidiSerialSysExToUsb(s, &serialMidiParser[s]) ;
+         }
+    }
 
-           if ( serialMidiParser[s].parse( serialInterface[s]->read() ) ) {
-                sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
-           }
-           else
-
-           // Check if a SYSEX msg is currently sent or terminated
-           // as we proceed on the fly.
-           if ( serialMidiParser[s].isByteCaptured() &&
-                ( serialMidiParser[s].isSysExMode() ||
-                  serialMidiParser[s].getByte() == midiXparser::eoxStatus ||
-                  serialMidiParser[s].isSysExError()  ) )
-           {
-              // Process for eventual SYSEX unbuffered on the fly
-              scanMidiSysExToUsb(s, &serialMidiParser[s]) ;
-           }
-       }
-
-   } // for
+    if ( ++s >= SERIAL_INTERFACE_MAX ) s = 0;
 }
