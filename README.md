@@ -1,104 +1,16 @@
 # USBMidiKliK4x4
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface
 
-## The idea
-I currently own 2 MIDI 4X4 from Miditech/Miduplus manufacturer. 
-I thought it was possible to stack the 2 on the same PC to get 8x2 ports IN/Out.
-But as theses devices have exactly the same product and vendor ID, and no serial, it is in fact impossible to do that.
-So the only alternative was to buy a 8x8 interface to the same manufacturer, for the three times the price of the MIDI 4x4 that I did not.
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
-More, recently, one of my interface started to work incorrectly, invoking to me a corrupted firmware. 
-I asked to the Miditech and Midiplus support and they were enough kind to provide to me an updated firmware kit, but for the NEW version...
-Happy to learn that my interface was the "old" one, however still sold on many web sites today...I tested that update package 
-without any success...My version was not updatable at all they said.
+It is not possible (but some were successfull) to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, because these device can't share the same product/vendor ID and serial without USB conflict. More, that usb midi interface is not updateable at all, according to my talk with the Miditech support.
 
-I could'nt accept that a device (almost) still in order with USB,  8 ports 4IN - 4 OUT goes directly in the trash bin. 
-Nothing to loose, I opened the box, and inside I discovered that the microcontroller was a STMF103RC, a very common uC on musical gears 
-(the Arturia Minilab and the Novation launchkey and launchpad are using it for example). 
-Here start the idea of a possible hack....
+The MCU of the Miditech / Midiplus 4x4 midi interface is a a STMF103RC, a very common uC ARM STM32 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. 
 
-=> I have a board available with a programmable and powerfull chip,  native USB, plus all the circuitry for 4 MIDI IN / 4OUT. 
-Why not rewriting a new firmware from scratch as I did for other uC like of the AVR family ?
-I could even extend that firmware to enable merge mode, thru mode, specific routing and filtering modes. 
-So, building an ultimate USB MIDI interface better than the original....
+To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32 family ARM architecture. By activating the STM32F103 bootloader mode maintaning the Boot0 pin to HIGH and the Boot1 pin to LOW (you need to desolder 2 resistors on the board because they are disabling that mode) you can upload though the UART1, a STM32DUINO generic bootloader, and use that interface as an "Arduino board" to program your own firmware with the Arduino standard IDE.
 
-## First steps
+I have extended the  "as-is" firmware features to enable midi routing : "4 merge" mode, thru mode, split mode, etc, 
+So I can say my modified USB interface 4X4 is now better than the original, and, the most important stackable with my existing one as I changed, obviously,  the Product ID !  And the STM32F103 is really really fast...no lag at all, even at 300 BPM with 4IN/OUT working.
 
-The question : does the interface issue was really a firmware corruption problem or a more serious one ?
-The STMF103 has an internal bootloader working with the UART Serial 1. The bootloader mode is activated by mainting 
-the Boot0 pin to HIGH and the Boot1 pin to LOW.  So I desoldered 2 resitors on the board because they were disabling that mode, 
-made a small reset / boot1 HIGH circuit, and soldered the boot 0 to ground.  
-
-I also connected TX and RX of the serial 1 to a small plug. That was easy because some large labelled TXn / RXn pads exist on the MIDI4x4 board.  I connected that plug to an USB Serial TTL, and 2 H later, I was ready to upload a new firmware in the thing.
-I discoverred that the original Miditech / Midiplus firmware was protected against read. I had to accept the "The chip will be entirely erased if you continue.." warning.  
-
-Then, I started with a basic firmware sending "note on" to the serial port.  And guess what : that worked at the first time  !  
-yes ! hardware is ok.
-
-To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32F 
-ARM architecture.  I  uploaded the STMDuino bootloader2.0 to the board with STMFLASH, and tested the 4x4 board as a generic STMF103RC in the Arduino IDE... Again, my MIDI demo sketch worked at the first compilation...And I could adress the 4 serial port connected to midi jacks.
-
-
-    void setup() {
-        // Set MIDI baud rate:
-        Serial1.begin(31250);
-        Serial2.begin(31250);
-        Serial3.begin(31250);
-        Serial4.begin(31250);
-
-    }
-
-    void loop() {
-        // Play notes from F#-0 (0x1E) to F#-5 (0x5A):
-        for (int note = 0x1E; note < 0x5A; note++) {
-            // Note on channel 1 (0x90), some note value (note), middle
-            // velocity (0x45):
-            noteOn(0x90, note, 0x45);
-            delay(100);
-            // Note on channel 1 (0x90), some note value (note), silent
-            // velocity (0x00):
-            noteOn(0x90, note, 0x00);
-            delay(100);
-        }
-    }
-
-    // Plays a MIDI note.  Doesn't check to see that cmd is greater than
-    // 127, or that data values are less than 127:
-    void noteOn(int cmd, int pitch, int velocity) {
-        Serial1.write(cmd);
-        Serial1.write(pitch);
-        Serial1.write(velocity);
-
-        Serial2.write(cmd);
-        Serial2.write(pitch);
-        Serial2.write(velocity);
-
-        Serial3.write(cmd);
-        Serial3.write(pitch);
-        Serial3.write(velocity);
-
-        Serial4.write(cmd);
-        Serial4.write(pitch);
-        Serial4.write(velocity);
-
-    }
-
-Now ready to go ! 
-Features I plan to develop :
-
-- Reproduce the standard behaviuour of the MIDI 4X4 original interface
-- USB Midi 2x4 cables
-- Full MIDI compliance (Running status, SYSEX...).
-- Dual Bootloader supporting USB MIDI and DFU Mode to upgrade firmware easily
-- Routing function via SYSEX :
-. Merge : n MIDI IN merged to nMIDI OUT
-. Thru  : MIDI OUT to n MIDI IN
-
-
-
-
-
-
-
-
+At this time, I use the box with the new firmware in my MIDI setup :-) !
+The code is easily adaptable to any other multi-jack USB interface.
