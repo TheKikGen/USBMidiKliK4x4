@@ -32,21 +32,48 @@ You can change the behaviour of the routing from USB to serial, USB to USB, seri
 
 - USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
 - Serial Jacks MIDI IN to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
-                                                                          
-                  Source                                    Destination   Target byte 
-                                                                            bit
-         USB  Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     7                             
-       Cables Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     6      USB
-              Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     5     Cables
-              Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     4
-                                        | |  |  |       
-                                        | |  |  +-------o MIDI OU JACK 1     3
-              MIDI IN Jack 1  o         | |  +----------o MIDI OU JACK 2     2     Serial 
-       Serial MIDI IN Jack 2  o         | +-------------o MIDI OU JACK 3     1
-              MIDI IN Jack 3  o         +---------------o MIDI OU JACK 4     0
-              MIDI IN Jack 4  o
 
-fTo avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+Example of routing :
+                  
+      Inputs            Source                                  Routing Targets  Target byte
+                                                                                   bit
+       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     7                           
+       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     6   USB
+                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     5   Cables
+                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     4
+                                               | |  |  |       
+                                               | |  |  +-------o MIDI OUT JACK 1    3
+                     MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2    2   Serial 
+       Serial        MIDI IN Jack 2  o         | +-------------o MIDI OUT JACK 3    1
+                     MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4    0
+                     MIDI IN Jack 4  o
 
+To configure the routing for an input, you must the set bits of the target byte to 1 :
+Bits 0-3 are corresponding repesctively to Serial Midi out Jack 1-4
+Bits 4-7 are corresponding respectively to USB Cables IN 0-3.
 
+Sysex message structure :
 
+       F0 77 77 78 <function id = 0x0F> <0x01 = set targets> <input : cable =0X0 | serial=0x1 > <id : 0-4> <target byte> F7
+       F0 77 77 78 <function id = 0x0F> <0x00 = reset to default> F7  
+
+For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
+
+       F0 77 77 78 0F 01 01 00 80 F7
+       F0 77 77 78 0F 01 01 01 80 F7
+       
+The following sysex will restore default routing for all inputs :
+
+       F0 77 77 78 0F 00 F7
+
+Default routing is the following :
+
+       USB MIDI OUT 1 o------------->o MIDI OUT JACK 1 
+       USB MIDI OUT 2 o------------->o MIDI OUT JACK 2 
+       USB MIDI OUT 3 o------------->o MIDI OUT JACK 3 
+       USB MIDI OUT 4 o------------->o MIDI OUT JACK 4 
+
+       USB MIDI IN  1 o<-------------o MIDI IN JACK 1 
+       USB MIDI IN  2 o<-------------o MIDI IN JACK 2 
+       USB MIDI IN  3 o<-------------o MIDI IN JACK 3 
+       USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
