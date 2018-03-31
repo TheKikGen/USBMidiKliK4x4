@@ -19,9 +19,34 @@ And the STM32F103 is really really fast...no lag at all, even at 300 BPM with 4I
 
 The code is easily adaptable to any other multi-jack USB interface.
 
-## USB Midi hard reset with a USB MIDIKLIK 4x4 internal SYSEX
+## USB Midi hard reset with an internal SYSEX
 
 To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
 
        F0 77 77 78 <sysex function id = 0x0A> F7
        
+## Define router midi target with internals SYSEX
+
+You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
+2 routing tables are availables :
+
+- USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
+- Serial Jacks MIDI IN to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
+                                                                          
+                  Source                                    Destination   Target byte 
+                                                                            bit
+         USB  Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     7                             
+       Cables Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     6      USB
+              Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     5     Cables
+              Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     4
+                                        | |  |  |       
+                                        | |  |  +-------o MIDI OU JACK 1     3
+              MIDI IN Jack 1  o         | |  +----------o MIDI OU JACK 2     2     Serial 
+       Serial MIDI IN Jack 2  o         | +-------------o MIDI OU JACK 3     1
+              MIDI IN Jack 3  o         +---------------o MIDI OU JACK 4     0
+              MIDI IN Jack 4  o
+
+fTo avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+
+
+
