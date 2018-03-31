@@ -37,20 +37,20 @@ Example of routing :
                   
       Inputs            Source                                  Routing Targets  Target byte
                                                                                    bit
-       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     7                           
-       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     6   USB
-                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     5   Cables
-                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     4
+       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     4                           
+       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     5   USB
+                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     6   Cables
+                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     7
                                                | |  |  |       
-                                               | |  |  +-------o MIDI OUT JACK 1    3
-                     MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2    2   Serial 
-       Serial        MIDI IN Jack 2  o         | +-------------o MIDI OUT JACK 3    1
-                     MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4    0
+                                               | |  |  +-------o MIDI OUT JACK 1    0
+                     MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2    1   Serial 
+       Serial        MIDI IN Jack 2  o         | +-------------o MIDI OUT JACK 3    2
+                     MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4    3
                      MIDI IN Jack 4  o
 
-To configure the routing for an input, you must the set bits of the target byte to 1 :
-Bits 0-3 are corresponding repesctively to Serial Midi out Jack 1-4
-Bits 4-7 are corresponding respectively to USB Cables IN 0-3.
+To configure the routing for an input, you must set some bits of the target byte to 1 :
+Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
+Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 
 Sysex message structure :
 
