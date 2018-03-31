@@ -54,8 +54,8 @@ Bits 4-7 are corresponding respectively to USB Cables IN 0-3.
 
 Sysex message structure :
 
-       F0 77 77 78 <function id = 0x0F> <0x01 = set targets> <input : cable =0X0 | serial=0x1 > <id : 0-4> <target byte> F7
-       F0 77 77 78 <function id = 0x0F> <0x00 = reset to default> F7  
+       F0 77 77 78 <fn id = 0x0F> <0x01 = set targets> <input : cable =0X0 | serial=0x1 > <id : 0-4> <target byte> F7
+       F0 77 77 78 <fn id = 0x0F> <0x00 = reset to default> F7  
 
 For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
 
