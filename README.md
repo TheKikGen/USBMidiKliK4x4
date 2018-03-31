@@ -35,12 +35,12 @@ You can change the behaviour of the routing from USB to serial, USB to USB, seri
 
 Example of routing :
                   
-      Inputs            Source                                  Routing Targets  Target byte
-                                                                                   bit
-       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1     4                           
-       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2     5   USB
-                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3     6   Cables
-                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4     7
+      Inputs            Source                                  Routing Targets            Target byte
+                                                                                           bit
+       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1 (cable 0)    4                           
+       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2 (cable 1)    5   USB
+                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3 (cable 2)    6   Cables
+                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4 (cable 3)    7
                                                | |  |  |       
                                                | |  |  +-------o MIDI OUT JACK 1    0
                      MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2    1   Serial 
@@ -57,7 +57,7 @@ Sysex message structure :
        F0 77 77 78 <fn id = 0x0F> <0x01 = set targets> <input : cable =0X0 | serial=0x1 > <id : 0-4> <target byte> F7
        F0 77 77 78 <fn id = 0x0F> <0x00 = reset to default> F7  
 
-For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
+For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 3 :
 
        F0 77 77 78 0F 01 01 00 80 F7
        F0 77 77 78 0F 01 01 01 80 F7
