@@ -18,3 +18,10 @@ So I can say my own firmware modified USB interface 4X4 is now better than the o
 And the STM32F103 is really really fast...no lag at all, even at 300 BPM with 4IN/OUT working.
 
 The code is easily adaptable to any other multi-jack USB interface.
+
+## USB Midi hard reset with a USB MIDIKLIK 4x4 internal SYSEX
+
+To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+
+       F0 77 77 78 <sysex function id = 0x0A> F7
+       
