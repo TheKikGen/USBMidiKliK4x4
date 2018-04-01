@@ -44,6 +44,9 @@
 #include "usb_core.h"
 #include "usb_def.h"
 
+// EEPROM parameters
+#include "EEPROM_Params.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +54,10 @@ extern "C" {
 // --------------------------------------------------------------------------------------
 // USB MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
+
+void usb_midi_set_vid_pid(uint16 vid, uint16 pid);
+void usb_midi_set_product_string(char stringDescriptor[]);
+
 void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
 void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
 
@@ -78,8 +85,9 @@ union EVENT_t {
 // DESCRIPTOR IDS
 // --------------------------------------------------------------------------------------
 
-#define USB_VENDORID                0x2912
-#define USB_PRODUCTID               0x1972
+#define USB_VENDORID        0x2912
+#define USB_PRODUCTID       0x1970
+#define USB_PRODUCT_STRING  "USB MIDIKliK 4x4"
 
 // --------------------------------------------------------------------------------------
 // DESCRIPTORS TYPES

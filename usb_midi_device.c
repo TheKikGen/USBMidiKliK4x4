@@ -52,7 +52,6 @@
 
 #include "usb_midi_descriptor.c"
 
-
 static void midiDataTxCb(void);
 static void midiDataRxCb(void);
 
@@ -144,6 +143,30 @@ USER_STANDARD_REQUESTS User_Standard_Requests = {
     .User_SetDeviceFeature   = NOP_Process,
     .User_SetDeviceAddress   = usbSetDeviceAddress
 };
+
+
+// --------------------------------------------------------------------------------------
+// DDEVICE DESCRIPTOR MANIPULATION
+// --------------------------------------------------------------------------------------
+
+void usb_midi_set_vid_pid(uint16 vid, uint16 pid) {  
+  usbMIDIDescriptor_Device.idVendor           = vid;
+  usbMIDIDescriptor_Device.idProduct          = pid; 
+  
+}
+
+void usb_midi_set_product_string(char stringDescriptor[]) {  
+
+  memset(&usbMIDIDescriptor_iProduct.bString,0, (MIDI_PRODUCT_STRING_SIZE+1)*2);  
+  
+  uint8 i = 0;
+  while ( stringDescriptor[i] != 0 ) {
+    usbMIDIDescriptor_iProduct.bString[i*2] = stringDescriptor[i];
+    i++;
+  }
+      
+}
+
 
 // --------------------------------------------------------------------------------------
 // ENABLE / DISABLE / POWERDOWN   MIDI DEVICE
