@@ -45,6 +45,11 @@
 #include <midiXparser.h>
 #include "usb_midi.h"
 #include <libmaple/nvic.h>
+#include <EEPROM.h>
+#include "EEPROM_Params.h"
+
+// EEPROMS parameters
+EEPROM_Params_t EEPROM_Params;
 
 // Timer
 #define TIMER2_RATE_MICROS 1000
@@ -121,7 +126,6 @@ midiXparser serialMidiParser[4];
 // the standard configuraiton of a MIDIPLUS/MIDITECH interface.
 ///////////////////////////////////////////////////////////////////////////////
 
-#define MIDI_ROUTING_TARGET_MAX 4
 #define FROM_SERIAL 0
 #define FROM_USB    1
 
@@ -131,8 +135,8 @@ midiXparser serialMidiParser[4];
 // Routing from an serial MIDI IN
 #define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
 
-uint8_t midiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
-uint8_t midiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
+uint8_t defaultMidiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
+uint8_t defaultMidiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Timer2 interrupt handler
@@ -326,7 +330,8 @@ void routePacketToTarget(uint8_t source,uint32_t packet) {
   uint8_t cin   = midiPacket.packet[0] & 0x0F ;
 
   uint8_t targets =
-    ( source == FROM_SERIAL ? midiSerialRoutingTarget[cable]:midiCableRoutingTarget[cable]);
+    ( source == FROM_SERIAL ?  EEPROM_Params.midiSerialRoutingTarget[cable]:
+                   EEPROM_Params.midiCableRoutingTarget[cable]);
 
   // Find targets
   // Bit 0-3 : Serial 1 - Serial 4
@@ -370,8 +375,7 @@ void routePacketToTarget(uint8_t source,uint32_t packet) {
 // Cmd Description                           Data
 //
 // 0xA Hard reset interface
-// 0xB Set a new product string		< product String 30 x7 bits char max >
-// 0xC Set VendorID & ProductID   <n1n2n3n4=VendorId > <n1n2n3n4=ProductId>
+// 
 // ----------------------------------------------------------------------------
 // sysExInternalBuffer[0] length of the message (func code + data)
 // sysExInternalBuffer[1] function code
@@ -391,6 +395,53 @@ static void ProcessSysExInternal() {
 			nvic_sys_reset();
 			break;
 
+    // CHANGE MIDI PRODUCT STRING
+    // F0 77 77 78 0B <character array> F7
+    case 0x0B:
+      // Copy the receive message to the Product String Descriptor
+      // For MIDI protocol compatibility, and avoid a sysex encoding,
+      // Accentuated ASCII characters, below 128 non supported.
+
+      if (msgLen < 2) return;
+      
+      if ( (msgLen-1) > MIDI_PRODUCT_STRING_SIZE  ) {
+          // Error : Product name too long
+          return;
+      }
+     
+      // Store the new sting in EEPROM bloc
+      memset(&EEPROM_Params.productString,0, sizeof(EEPROM_Params.productString));
+      memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
+      
+      // Write the whole param struct
+      EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
+      
+      break;
+
+    // VENDOR ID & PRODUCT ID
+    // F0 77 77 78 0C <n1 n2 n3 n4 = Vendor Id nibbles> <n1 n2 n3 n4 = Product Id nibbles> F7
+    case 0x0C:
+        // As MIDI data are 7 bits bytes, we must use a special encoding, to encode 8 bits values,
+        // as light as possible. As we have here only 2 x 16 bits values to handle,
+        // the encoding will consists in sending each nibble (4 bits) serialized in bytes.
+        // For example sending VendorID and ProductID 0X8F12 0X9067 will be encoded as :
+        //   0x08 0XF 0x1 0x2  0X9 0X0 0X6 0X7,  so the complete SYSEX message will be :
+        // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
+
+        if ( msgLen != 9 ) return;
+
+
+        EEPROM_Params.vendorID = (sysExInternalBuffer[2] << 12) + (sysExInternalBuffer[3] << 8) +
+                                       (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
+
+        EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
+                                       (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
+
+        // Write the whole param struct
+        EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );        
+
+        break;
+    
     // SET ROUTING TARGETS
     // To configure the routing for an input, you must set some bits of the target byte to 1 : 
     // Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
@@ -412,14 +463,17 @@ static void ProcessSysExInternal() {
 
       // reset to default routing
       if (sysExInternalBuffer[2] == 0x00 ) {
-           uint8_t xmidiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
-           uint8_t xmidiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
-           memcpy(&midiCableRoutingTarget,&xmidiCableRoutingTarget,MIDI_ROUTING_TARGET_MAX);
-           memcpy(&midiSerialRoutingTarget,&xmidiSerialRoutingTarget,MIDI_ROUTING_TARGET_MAX);       
+           memcpy(&EEPROM_Params.midiCableRoutingTarget,&defaultMidiCableRoutingTarget,sizeof(defaultMidiCableRoutingTarget));
+           memcpy(&EEPROM_Params.midiSerialRoutingTarget,&defaultMidiSerialRoutingTarget,sizeof(defaultMidiSerialRoutingTarget));       
+           
+           // Write the whole param struct
+           EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+
       } else
       
       // Set targets
-      if (sysExInternalBuffer[2] == 0x01 ) {
+      if (sysExInternalBuffer[2] == 0x01 & msgLen == 6 ) 
+      {
                     
           if ( sysExInternalBuffer[4]>= MIDI_ROUTING_TARGET_MAX) break;
           if ( sysExInternalBuffer[5] > 0xF || sysExInternalBuffer[6] > 0xF)  break;
@@ -427,29 +481,99 @@ static void ProcessSysExInternal() {
           // Cable
           if (sysExInternalBuffer[3] == 0x00 ) {
               
-              midiCableRoutingTarget[sysExInternalBuffer[4]] = (sysExInternalBuffer[5] << 4 ) + sysExInternalBuffer[6];
+              EEPROM_Params.midiCableRoutingTarget[sysExInternalBuffer[4]] = (sysExInternalBuffer[5] << 4 ) + sysExInternalBuffer[6];
             
           } else
 
           // Serial
           if (sysExInternalBuffer[3] == 0x01 ) {
 
-             midiSerialRoutingTarget[sysExInternalBuffer[4]] = (sysExInternalBuffer[5] << 4 ) + sysExInternalBuffer[6];
-          }                  
-      }
-      
-      break;
+             EEPROM_Params.midiSerialRoutingTarget[sysExInternalBuffer[4]] = (sysExInternalBuffer[5] << 4 ) + sysExInternalBuffer[6];
+          }
+          // Write the whole param struct
+          EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
 
+          
+      }    
+      break;
 
 	}
 
 };
+///////////////////////////////////////////////////////////////////////////////
+// CHECK EEPROM
+//----------------------------------------------------------------------------
+// Retrieve global parameters from EEPROM, or Initalize it
+//////////////////////////////////////////////////////////////////////////////
+void CheckEEPROM() {
+
+  // Set EEPROM parameters for the STMF103RC
+
+  EEPROM.PageBase0 = 0x801F000;
+  EEPROM.PageBase1 = 0x801F800;
+  EEPROM.PageSize  = 0x800;   
+ 
+  // Read the EEPROM parameters structure  
+  EEPROM_readBlock(0, (uint8 *)&EEPROM_Params, sizeof(EEPROM_Params) );  
+
+  // If the signature is not found, of not the same version, or new build, then initialize
+  if (
+        memcmp( &EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) ) ||
+        EEPROM_Params.prmVer != EE_PRMVER
+        //||        EEPROM_Params.buildNumber != BUILD_NUMBER
+     )
+  {
+    memset( &EEPROM_Params,0,sizeof(EEPROM_Params) );
+    memcpy( &EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) );
+
+    EEPROM_Params.prmVer = EE_PRMVER;
+    //EEPROM_Params.buildNumber = BUILD_NUMBER;
+
+    // Routing targets
+    memcpy( &EEPROM_Params.midiCableRoutingTarget,&defaultMidiCableRoutingTarget,sizeof(defaultMidiCableRoutingTarget));
+    memcpy( &EEPROM_Params.midiSerialRoutingTarget,&defaultMidiSerialRoutingTarget,sizeof(defaultMidiSerialRoutingTarget));
+
+    EEPROM_Params.vendorID  = USB_VENDORID;
+    EEPROM_Params.productID = USB_PRODUCTID;
+
+    memcpy(&EEPROM_Params.productString,USB_PRODUCT_STRING,sizeof(USB_PRODUCT_STRING));
+      
+    //Write the whole param struct
+    EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );   
+
+  }
+
+  usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
+  usb_midi_set_product_string((char *) &EEPROM_Params.productString);
+
+}
+///////////////////////////////////////////////////////////////////////////////
+// EEPROM EMULATION UTILITIES
+///////////////////////////////////////////////////////////////////////////////
+int EEPROM_writeBlock(uint16 ee, const uint8 *bloc, uint16 size )
+{    
+    uint16 i;
+    for (i = 0; i < size; i++) EEPROM.write(ee+i, *(bloc+i));
+
+    return i;
+}
+
+int EEPROM_readBlock(uint16 ee, uint8 *bloc, uint16 size )
+{
+    uint16 i;
+    for (i = 0; i < size; i++) *(bloc +i) = EEPROM.read(ee+i);
+    return i;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // SETUP
 ///////////////////////////////////////////////////////////////////////////////
 void setup() {
 
+    // Retrieve EEPROM parameters
+    CheckEEPROM();
+    
     // Configure the TIMER2
     timer.pause();
     timer.setPeriod(TIMER2_RATE_MICROS); // in microseconds
@@ -472,7 +596,7 @@ void setup() {
       serialMidiParser[s].setMidiChannelFilter(midiXparser::allChannel);
       serialMidiParser[s].setMidiMsgFilter( midiXparser::allMidiMsg );
       serialMidiParser[s].setSysExFilter(true,0);
-    }
+    }    
 
     // START USB
     MidiUSB.begin() ;
@@ -487,7 +611,7 @@ void setup() {
     }
     // Force the POWER LED STATE (LOW logic)
     digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
-
+    
 }
 
 ///////////////////////////////////////////////////////////////////////////////
