@@ -24,7 +24,43 @@ The code is easily adaptable to any other multi-jack USB interface.
 To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
 
        F0 77 77 78 <sysex function id = 0x0A> F7
-       
+
+## Changing the device ProductStringName with an internal SYSEX
+
+it is posssible to change the USB device ProductStringName with a specific SYSEX. The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.   The message structure is the following :
+
+       F0 <USB MidiKlik 4x4 header = 0x77 0x77 0x78> <sysex fn id = 0x0b> <USB Midi Product name > F7
+
+Only Serial is parsed (but USB will be in a next version), so you must send the SYSEX to a MIDI IN jack.
+You can use a tool like MIDI-OX to do that easily :
+- connect the device to USB 
+- connect the MIDIOUT JACK 1 to the MIDI IN JACK 1
+- Open MIDI-OX and connect the USBMidiKliK MIDI-OUT 1 in the MIDI output device dialog box
+- Open the SysEx windows in the "View" menu
+- Enter the SYSEX msg in the command window and click on "Send Sysex" in the "CommandWindow" menu.  
+- Unplug/plug the USB cable or send a Midi USB HardReset sysex (see below)
+- Quit and reopen MIDI-OX and you should see a new name in the MIDI devices dialog box.
+
+For example : the following SYSEX will change the name of the MIDI interface to "USB MidiKliK" :
+
+       F0 77 77 77 0B 55 53 42 20 4D 69 64 69 4B 6C 69 4B F7
+
+The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
+
+## Changing the USB VendorID and ProductID with an internal SYSEX
+
+In the same way, you can also change the USB Vendor and Product Ids with a SYSEX. They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
+
+    F0 77 77 78 <func id = 0x0C> <n1n2n3n4 = Vendor Id nibbles> <n1n2n3n4 = Product Id nibbles> F7
+
+As MIDI data are 7 bits bytes, a special encoding is used to handle VendorId and ProductID beeing 16 bits values.  To stay light, and because the message is very short, 2 x 16 bits values, the encoding will consists in sending each nibble (4 bits) serialized in a bytes train. For example sending VendorID and ProductID 0X8F12 0X9067 will be encoded as :
+			
+      0x08 0XF 0x1 0x2  0X9 0X0 0X6 0X7
+
+so the complete SYSEX message will be :
+
+      F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
+
 ## Define router midi target with internals SYSEX
 
 You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
@@ -85,3 +121,5 @@ Default routing is the following :
        USB MIDI IN  2 o<-------------o MIDI IN JACK 2 
        USB MIDI IN  3 o<-------------o MIDI IN JACK 3 
        USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
+
+The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
