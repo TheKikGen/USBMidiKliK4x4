@@ -71,18 +71,18 @@ You can change the behaviour of the routing from USB to serial, USB to USB, seri
 
 Example of routing :
                   
-      Inputs            Source                                  Routing Targets            Target byte
+      Inputs        Source                                  Routing Targets            Target byte
                                                                                            bit
-       USB           Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1 (cable 0)    4                           
-       Cables        Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2 (cable 1)    5   USB
-                     Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3 (cable 2)    6   Cables
-                     Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4 (cable 3)    7
-                                               | |  |  |       
-                                               | |  |  +-------o MIDI OUT JACK 1             0
-                     MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2             1   Serial 
-       Serial        MIDI IN Jack 2  o         | +-------------o MIDI OUT JACK 3             2
-                     MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4             3
-                     MIDI IN Jack 4  o
+       USB       Host MIDI OUT 1 o-----------------+       o Host MIDI IN 1 (cable 0)    4                           
+       Cables    Host MIDI OUT 2 o--------------+  |       o Host MIDI IN 2 (cable 1)    5   USB
+                 Host MIDI OUT 3 o-----------+  |  |       o Host MIDI IN 3 (cable 2)    6   Cables
+                 Host MIDI OUT 4 o---------+ |  |  |       o Host MIDI IN 4 (cable 3)    7
+                                           | |  |  |       
+                                           | |  |  +-------o MIDI OUT JACK 1             0
+                 MIDI IN Jack 1  o         | |  +----------o MIDI OUT JACK 2             1   Serial 
+       Serial    MIDI IN Jack 2  o         | +-------------o MIDI OUT JACK 3             2
+                 MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4             3
+                 MIDI IN Jack 4  o
 
 To configure the routing for an input, you must set some bits of the target byte to 1 :
 Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
