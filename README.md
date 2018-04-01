@@ -91,16 +91,13 @@ Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 Sysex message structure :
 
               F0 77 77 78   <0x0F> 
-                            <0x01 = set> 
-                            <cable=0X0 | serial=0x1> 
+                            <0x00 = reset | 0x01 = set> 
+                            <0X0 = cable  | 0x01 = serial> 
                             <id:0-4> 
                             <target nibble cable> 
                             <target nibble serial> 
               F7
                      
-Or                     
-              F0 77 77 78   <0x0F> <0x00 = default> F7  
-
 For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
 
        F0 77 77 78 0F 01 01 00 01 00 F7
