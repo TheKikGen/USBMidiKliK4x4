@@ -374,8 +374,10 @@ void routePacketToTarget(uint8_t source,uint32_t packet) {
 //
 // Cmd Description                           Data
 //
-// 0xA Hard reset interface
-// 
+// 0x0A Hard reset interface
+// 0x0B Change USB Product string
+// 0X0C Change USB VID / PID
+// 0X0F Change input routing rule
 // ----------------------------------------------------------------------------
 // sysExInternalBuffer[0] length of the message (func code + data)
 // sysExInternalBuffer[1] function code
@@ -390,7 +392,7 @@ static void ProcessSysExInternal() {
 	switch (cmdId) {
 
 		// RESET USB MIDI INTERFACE
-		// F0 77 77 77 0A F7
+		// F0 77 77 78 0A F7
 		case 0x0A:
 			nvic_sys_reset();
 			break;
