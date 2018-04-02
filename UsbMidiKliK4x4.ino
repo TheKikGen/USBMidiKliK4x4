@@ -600,19 +600,7 @@ void setup() {
       serialMidiParser[s].setSysExFilter(true,0);
     }    
 
-    // START USB
-    MidiUSB.begin() ;
-    // Wait and signal the state by flashing the POWER LED then restart
-    for (uint8_t i=1; i<=5 &&  !MidiUSB.isConnected() ; i++ ) {
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(100);
-        flashLED_CONNECT->start(); delay(100);
-        flashLED_CONNECT->start(); delay(100);
-    }
-    // Force the POWER LED STATE (LOW logic)
-    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
+    
     
 }
 
@@ -625,7 +613,24 @@ void loop() {
     static uint8_t s=0;
 
     // Reflect the USB connection status
-    if ( ! MidiUSB.isConnected() ) digitalWrite(LED_CONNECT, HIGH);
+    if ( ! MidiUSB.isConnected() ) {
+        // START USB
+        MidiUSB.end() ;
+        delay(200);
+        
+        MidiUSB.begin() ;
+        // Wait and signal the state by flashing the POWER LED then restart
+        for (uint8_t i=1; i<=5 &&  !MidiUSB.isConnected() ; i++ ) {
+            flashLED_CONNECT->start(); delay(500);
+            flashLED_CONNECT->start(); delay(500);
+            flashLED_CONNECT->start(); delay(500);
+            flashLED_CONNECT->start(); delay(100);
+            flashLED_CONNECT->start(); delay(100);
+            flashLED_CONNECT->start(); delay(100);
+        }
+        // Force the POWER LED STATE (LOW logic)
+        digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
+    }
 
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
