@@ -1,6 +1,8 @@
 # USBMidiKliK4x4
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface
 
+Chack also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
+
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
 It is not possible (but some were successfull) to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, because these device can't share the same product/vendor ID and serial without USB conflict. More, that usb midi interface is not updateable at all, according to my talk with the Miditech support.
