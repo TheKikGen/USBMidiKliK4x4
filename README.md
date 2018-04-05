@@ -63,6 +63,20 @@ so the complete SYSEX message will be :
 
       F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
 
+## Set the "intelligent MIDI Thru" 
+
+When USB midi is not active beyond a defined delay in seconds, the "intelligent" MIDI THRU can be activated automatically.
+In that mode, all midi messages received on the selected MIDI IN jack are broadcasted to all jacks outputs (1 to 4). 
+If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored.
+The sysex message structure is the following :
+
+    F0 77 77 78 <func id = 0x0E> <n = MIDI IN Jack #, 1-4> <delay from 10 to 127> F7
+
+The minimum delay is 10 seconds. The max is 127 seconds.  If the delay is zero, the midi thru mode is disabled.
+For example, to set the MIDI IN 3 jack to be the input, when the delay is 2 mn (120 seconds = 0x78) :
+
+    F0 77 77 78 0E 03 78 F7
+
 ## Define router midi target with internals SYSEX
 
 You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
