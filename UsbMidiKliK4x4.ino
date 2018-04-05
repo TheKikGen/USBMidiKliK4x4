@@ -138,15 +138,38 @@ midiXparser serialMidiParser[4];
 uint8_t defaultMidiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
 uint8_t defaultMidiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
 
+// Intelligent MIDI Thru
+#define INTELLIGENT_MIDI_THRU_MSK 0B00001111
+#define DEFAULT_INTELLIGENT_THRU_MIDI_IN  1
+
+// Default delay in secondes to start after USB midi inactivity
+// Can be chenged by SYSEX
+#define DEFAULT_INTELLIGENT_THRU_DELAY 30
+
+bool          midiUSBActive  = false;
+unsigned long midiUSBLastPacketMillis    = 0;
+unsigned long intelligentMidiThruDelayMillis = DEFAULT_INTELLIGENT_THRU_DELAY * 1000;
 ///////////////////////////////////////////////////////////////////////////////
 // Timer2 interrupt handler
 ///////////////////////////////////////////////////////////////////////////////
 void Timer2Handler(void) {
 
      // Update LEDS
-     flashLEDManager.update(millis());
+     flashLEDManager.update(millis());    
+
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Send a midi msg to serial MIDI
+///////////////////////////////////////////////////////////////////////////////
+void sendMidiMsgToSerial(uint8_t *msg, uint8_t serialNo) {
+
+  if (serialNo >= SERIAL_INTERFACE_MAX ) return;
+  serialInterface[serialNo]->write(msg[0]);
+  serialInterface[serialNo]->write(msg[1]);
+  serialInterface[serialNo]->write(msg[2]);
+}
+  
 ///////////////////////////////////////////////////////////////////////////////
 // Send a USB midi packet to ad-hoc serial MIDI
 ///////////////////////////////////////////////////////////////////////////////
@@ -320,7 +343,6 @@ void scanMidiSerialSysExToUsb( uint8_t cable, midiXparser* serialMidiParser ) {
 //-----------------------------------------------------------------------------
 // Route a packet from one MIDI IN / USB OUT to n MIDI OUT/USB IN
 ///////////////////////////////////////////////////////////////////////////////
-
 void routePacketToTarget(uint8_t source,uint32_t packet) {
 
   union EVENT_t midiPacket = { .i = packet };
@@ -385,17 +407,17 @@ void routePacketToTarget(uint8_t source,uint32_t packet) {
 ///////////////////////////////////////////////////////////////////////////////
 static void ProcessSysExInternal() {
 
-	uint8_t msgLen = sysExInternalBuffer[0];
-	uint8_t cmdId  = sysExInternalBuffer[1];
-	uint8_t i,j;
+  uint8_t msgLen = sysExInternalBuffer[0];
+  uint8_t cmdId  = sysExInternalBuffer[1];
+  uint8_t i,j;
 
-	switch (cmdId) {
+  switch (cmdId) {
 
-		// RESET USB MIDI INTERFACE
-		// F0 77 77 78 0A F7
-		case 0x0A:
-			nvic_sys_reset();
-			break;
+    // RESET USB MIDI INTERFACE
+    // F0 77 77 78 0A F7
+    case 0x0A:
+      nvic_sys_reset();
+      break;
 
     // CHANGE MIDI PRODUCT STRING
     // F0 77 77 78 0B <character array> F7
@@ -404,11 +426,11 @@ static void ProcessSysExInternal() {
       // For MIDI protocol compatibility, and avoid a sysex encoding,
       // Accentuated ASCII characters, below 128 non supported.
 
-      if (msgLen < 2) return;
+      if (msgLen < 2) break;
       
       if ( (msgLen-1) > MIDI_PRODUCT_STRING_SIZE  ) {
           // Error : Product name too long
-          return;
+          break;
       }
      
       // Store the new sting in EEPROM bloc
@@ -430,7 +452,7 @@ static void ProcessSysExInternal() {
         //   0x08 0XF 0x1 0x2  0X9 0X0 0X6 0X7,  so the complete SYSEX message will be :
         // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
 
-        if ( msgLen != 9 ) return;
+        if ( msgLen != 9 ) break;
 
 
         EEPROM_Params.vendorID = (sysExInternalBuffer[2] << 12) + (sysExInternalBuffer[3] << 8) +
@@ -443,10 +465,35 @@ static void ProcessSysExInternal() {
         EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );        
 
         break;
-    
+
+    // Intelligent MIDI THRU. 
+    // F0 77 77 78 0E <n = Midi In Jack # or 0 to disable> <delay in secondes>  F7
+    case 0x0E:
+
+        // When USB midi is not active beyond the defined timout, the MIDI THRU mode can be activated.  
+        // The min delay is 10 secondes. The max is 127 secondes.  
+        // After that delay, Every inputs from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4.
+        // For example, to set the MIDI IN 3 jack to be the input, when the delay is 2 mn 
+        // (120 seconds = 0x78) : F0 77 77 78 0E 03 78 F7
+
+        if ( msgLen != 3 ) break;
+        if ( sysExInternalBuffer[2] > SERIAL_INTERFACE_MAX) break;
+        
+        if ( sysExInternalBuffer[3] >0 ) sysExInternalBuffer[3] = constrain(sysExInternalBuffer[3],10,127);
+                        
+        EEPROM_Params.intelligentMidiThru = sysExInternalBuffer[2];
+        EEPROM_Params.intelligentMidiThruDelay = sysExInternalBuffer[3];
+        intelligentMidiThruDelayMillis = EEPROM_Params.intelligentMidiThruDelay * 1000;
+        
+        // Write the whole param struct
+        EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );        
+
+        break;
+
+   
     // SET ROUTING TARGETS
     // To configure the routing for an input, you must set some bits of the target byte to 1 : 
-    // Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
+    // Bits 0-3 are corresponding respectively to Serial Midi out Jack targets 1-4
     // Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
     // Sysex message structure : 
     //
@@ -499,7 +546,7 @@ static void ProcessSysExInternal() {
       }    
       break;
 
-	}
+  }
 
 };
 ///////////////////////////////////////////////////////////////////////////////
@@ -531,6 +578,11 @@ void CheckEEPROM() {
     EEPROM_Params.prmVer = EE_PRMVER;
     //EEPROM_Params.buildNumber = BUILD_NUMBER;
 
+    // Intelligent Midi Thru. Activated on MIDI IN 4 by default
+    // 0 = inactivated
+    EEPROM_Params.intelligentMidiThru = DEFAULT_INTELLIGENT_THRU_MIDI_IN;
+    EEPROM_Params.intelligentMidiThruDelay = DEFAULT_INTELLIGENT_THRU_DELAY ;
+    
     // Routing targets
     memcpy( &EEPROM_Params.midiCableRoutingTarget,&defaultMidiCableRoutingTarget,sizeof(defaultMidiCableRoutingTarget));
     memcpy( &EEPROM_Params.midiSerialRoutingTarget,&defaultMidiSerialRoutingTarget,sizeof(defaultMidiSerialRoutingTarget));
@@ -544,9 +596,6 @@ void CheckEEPROM() {
     EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );   
 
   }
-
-  usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
-  usb_midi_set_product_string((char *) &EEPROM_Params.productString);
 
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -576,6 +625,13 @@ void setup() {
     // Retrieve EEPROM parameters
     CheckEEPROM();
     
+    intelligentMidiThruDelayMillis = EEPROM_Params.intelligentMidiThruDelay * 1000;
+    
+    // Set USB descriptor strings
+    usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
+    usb_midi_set_product_string((char *) &EEPROM_Params.productString);
+
+  
     // Configure the TIMER2
     timer.pause();
     timer.setPeriod(TIMER2_RATE_MICROS); // in microseconds
@@ -591,7 +647,7 @@ void setup() {
 
     // MIDI SERIAL PORTS set Baud rates
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
-    // + Set parsers filters in the same loop.  All messages but SYSEX.
+    // + Set parsers filters in the same loop.  All messages including on the fly SYSEX.
 
     for ( uint8_t s=0; s < SERIAL_INTERFACE_MAX ; s++ ) {
       serialInterface[s]->begin(31250);
@@ -600,8 +656,26 @@ void setup() {
       serialMidiParser[s].setSysExFilter(true,0);
     }    
 
+    // START USB. That will start USB enumeration.
+    MidiUSB.end() ;
+    delay(200);
     
+    MidiUSB.begin() ;
+    // Wait and signal the state by flashing the POWER LED then restart
+    // Around 20 sec before stopping connection attempts.
+    // If USB connection is unsuccessfull, the interface will work in standalone mode.
+    // So, now, you know that you could also use a USB power supply...
     
+    for (uint8_t i=1; i<=10 &&  !MidiUSB.isConnected() ; i++ ) {
+        flashLED_CONNECT->start(); delay(500);
+        flashLED_CONNECT->start(); delay(500);
+        flashLED_CONNECT->start(); delay(500);
+        flashLED_CONNECT->start(); delay(200);
+        flashLED_CONNECT->start(); delay(200);
+        flashLED_CONNECT->start(); delay(100);
+    }
+    // Force the POWER LED STATE (LOW logic)
+    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);      
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -612,40 +686,37 @@ void loop() {
 
     static uint8_t s=0;
 
-    // Reflect the USB connection status
-    if ( ! MidiUSB.isConnected() ) {
-        // START USB
-        MidiUSB.end() ;
-        delay(200);
-        
-        MidiUSB.begin() ;
-        // Wait and signal the state by flashing the POWER LED then restart
-        for (uint8_t i=1; i<=5 &&  !MidiUSB.isConnected() ; i++ ) {
-            flashLED_CONNECT->start(); delay(500);
-            flashLED_CONNECT->start(); delay(500);
-            flashLED_CONNECT->start(); delay(500);
-            flashLED_CONNECT->start(); delay(100);
-            flashLED_CONNECT->start(); delay(100);
-            flashLED_CONNECT->start(); delay(100);
-        }
-        // Force the POWER LED STATE (LOW logic)
-        digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
-    }
-
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
+            
+      midiUSBActive = true;
+      midiUSBLastPacketMillis = millis() + intelligentMidiThruDelayMillis ;
 
       // Route Packet to the appropriate cable and serial out
-      routePacketToTarget( FROM_USB,MidiUSB.readPacket());
-
+      routePacketToTarget( FROM_USB,MidiUSB.readPacket());      
     }
+         
+    // Midi USB timeout
+    else if ( millis() > ( midiUSBLastPacketMillis + intelligentMidiThruDelayMillis ) ) 
+            midiUSBActive  = false;
 
     // Do we have any MIDI msg on Serial 1 to 4 ?
 
     if ( serialInterface[s]->available() ) {
 
          if ( serialMidiParser[s].parse( serialInterface[s]->read() ) ) {
-              sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
+
+              // If USB was set inactive after timeout, switch to Intelligent Thru mode
+              if ( !midiUSBActive && EEPROM_Params.intelligentMidiThru && (s == EEPROM_Params.intelligentMidiThru-1)  ) 
+              {
+                // Set the new routing rules for Intelligent Midi Thru serial MIDI IN
+                // broadcast the messge then restore the routing rule
+                uint8_t savedRoutingRule = EEPROM_Params.midiSerialRoutingTarget[s];
+                EEPROM_Params.midiSerialRoutingTarget[s] = INTELLIGENT_MIDI_THRU_MSK;
+                sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);                
+                EEPROM_Params.midiSerialRoutingTarget[s]=savedRoutingRule;
+              }               
+              else sendMidiSerialMsgToUsb( s, &serialMidiParser[s]);             
          }
          else
 
