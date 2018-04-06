@@ -7,15 +7,17 @@
 // The following structure start at the first address of the EEPROM
 
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 9
+#define EE_PRMVER 5
 #define MIDI_PRODUCT_STRING_SIZE 30
 #define MIDI_ROUTING_TARGET_MAX 5
 
 typedef struct {
         uint8_t         signature[3];
         uint8_t         prmVer;
-        uint8_t         intelligentMidiThru;
-        uint8_t         intelligentMidiThruDelay;
+        uint8_t         TimestampedVersion[13];
+        uint8_t         intelligentMidiThruIn;
+        uint8_t         intelligentMidiThruMsk;
+        uint8_t         intelligentMidiThruDelayPeriod;
         uint8_t         midiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX];
         uint8_t         midiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX];
         uint16_t        vendorID;
@@ -25,4 +27,3 @@ typedef struct {
 
 int EEPROM_writeBlock(uint16 ee, const uint8 *bloc, uint16 size );
 int EEPROM_readBlock(uint16 ee,  uint8 *bloc, uint16 size );
-
