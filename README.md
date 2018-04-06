@@ -76,7 +76,7 @@ The delay is defined by a number of 15 seconds periods. The maximum period numbe
 
     F0 77 77 78 0E 03 08 F7
 
-## Define router midi target with internals SYSEX
+## Define midi routing rules with internals SYSEX
 
 You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
 2 routing tables are availables :
