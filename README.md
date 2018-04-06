@@ -70,9 +70,9 @@ In that mode, all midi messages received on the selected MIDI IN jack are broadc
 If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored.
 The sysex message structure is the following :
 
-    F0 77 77 78 <func id = 0x0E> <n = MIDI IN Jack #, 1-4> <delay from 10 to 127> F7
+    F0 77 77 78 <func id = 0x0E> <n = MIDI IN Jack #, 1-4> <n = nb of 15s periods, 0-127> F7
 
-The delay is defined by a numer of 15 seconds periods. The minimum period is 1. The max is 127 (31 mn).  If the number of period is zero, the midi thru mode is permanent. For example, to set the MIDI IN 3 jack to be the input, when the delay is 2 mn (120 seconds = 8 periods of 15 seconds) :
+The delay is defined by a number of 15 seconds periods. The maximum period number is 127 (31 mn).  If the number of period is zero, the midi thru mode is permanent. For example, to set the MIDI IN 3 jack to be the input, when the delay reachs 2 mn (120 seconds = 8 periods of 15 seconds) :
 
     F0 77 77 78 0E 03 08 F7
 
