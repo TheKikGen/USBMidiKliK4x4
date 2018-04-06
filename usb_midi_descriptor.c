@@ -5,41 +5,42 @@
 
   DEVICE DESCRIPTOR
 
+  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
+
   ------------------------   CAUTION  ----------------------------------
-  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.  
-  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT 
+  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.
+  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT
   DISASSEMBLING ANY SOFTWARE FROM MIDITECH/MIDIPLUS.
 
-  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI 
-  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY. 
-  
-  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE 
+  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI
+  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY.
+
+  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE
   WITH THE MIDITECH/MIDIPLUS TOOLS AND PROCEDURES. NO ROLLBACK.
-  
-  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE. 
-  YOU DO IT AT YOUR OWN RISKS. 
+
+  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE.
+  YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  Permission to use, copy, modify, distribute, and sell this
-  software and its documentation for any purpose is hereby granted
-  without fee, provided that the above copyright notice appear in
-  all copies and that both that the copyright notice and this
-  permission notice and warranty disclaimer appear in supporting
-  documentation, and that the name of the author not be used in
-  advertising or publicity pertaining to distribution of the
-  software without specific, written prior permission.
-
-  The author disclaim all warranties with regard to this
-  software, including all implied warranties of merchantability
-  and fitness.  In no event shall the author be liable for any
-  special, indirect or consequential damages or any damages
-  whatsoever resulting from loss of use, data or profits, whether
-  in an action of contract, negligence or other tortious action,
-  arising out of or in connection with the use or performance of
-  this software.
-
-   Licence : MIT.
+  This file is part of the USBMIDIKLIK-4x4 distribution 
+  https://github.com/TheKikGen/USBMidiKliK4x4
+  Copyright (c) 2018 TheKikGen Labs team.
+  
+  This program is free software: you can redistribute it and/or modify  
+  it under the terms of the GNU General Public License as published by  
+  the Free Software Foundation, version 3.
+ 
+  This program is distributed in the hope that it will be useful, but 
+  WITHOUT ANY WARRANTY; without even the implied warranty of 
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+  General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License 
+  along with this program. If not, see <http://www.gnu.org/licenses/>.
+ 
 */
+
 // ---------------------------------------------------------------
 // Full assembled USB Descriptor FOR MIDI 4X4 DEVICE
 // ---------------------------------------------------------------

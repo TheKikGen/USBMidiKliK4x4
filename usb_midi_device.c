@@ -1,39 +1,47 @@
-/******************************************************************************
- * The MIT License
- *
- * Adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
- * Perry Hung, Magnus Lundin,
- * Donald Delmar Davis, Suspect Devices.
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *****************************************************************************/
+/*
+  USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
+  Based on the MIDITECH / MIDIPLUS 4X4 harware.
+  Copyright (C) 2017/2018 by The KikGen labs.
 
-/**
- * @file libmaple/usb/stm32f1/usb_midi_device.c
- * @brief USB MIDI.
- *
- * FIXME: this works on the STM32F1 USB peripherals, and probably no
- * place else. Nonportable bits really need to be factored out, and
- * the result made cleaner.
- */
+  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
+
+  ------------------------   CAUTION  ----------------------------------
+  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.
+  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT
+  DISASSEMBLING ANY SOFTWARE FROM MIDITECH/MIDIPLUS.
+
+  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI
+  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY.
+
+  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE
+  WITH THE MIDITECH/MIDIPLUS TOOLS AND PROCEDURES. NO ROLLBACK.
+
+  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE.
+  YOU DO IT AT YOUR OWN RISKS.
+  ---------------------------------------------------------------------
+
+  This file is part of the USBMIDIKLIK-4x4 distribution 
+  https://github.com/TheKikGen/USBMidiKliK4x4
+  Copyright (c) 2018 TheKikGen Labs team.
+  
+  This program is free software: you can redistribute it and/or modify  
+  it under the terms of the GNU General Public License as published by  
+  the Free Software Foundation, version 3.
+ 
+  This program is distributed in the hope that it will be useful, but 
+  WITHOUT ANY WARRANTY; without even the implied warranty of 
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+  General Public License for more details.
+ 
+  You should have received a copy of the GNU General Public License 
+  along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+  FIXME: this works on the STM32F1 USB peripherals, and probably no
+  place else. Nonportable bits really need to be factored out, and
+  the result made cleaner.
+  
+*/
 
 #include "usb_midi_device.h"
 
