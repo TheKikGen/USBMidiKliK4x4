@@ -95,11 +95,15 @@ PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLI
 // USB Midi object
 USBMidi MidiUSB;
 
+// When MIDI SERIAL is inactive beyond the timeout.. 
+#define MIDI_SERIAL_TIMEOUT_MILLIS  30000
+bool midiSerialActive = false;
+unsigned long midiSerialLastPacketMillis = 0;
+
 // MIDI Parsers for serial 1 to 4
 midiXparser serialMidiParser[4];
 
 // MIDI Routing
-
 #define FROM_SERIAL 0
 #define FROM_USB    1
 
@@ -669,26 +673,11 @@ void setup() {
       serialMidiParser[s].setSysExFilter(true,0);
     }
 
-    // START USB. That will start USB enumeration.
-    MidiUSB.end() ;
-    delay(200);
+    // USB initiate connection
     MidiUSB.begin() ;
-
-    // Wait and signal the state by flashing the POWER LED
-    // Around 20 sec before stopping connection attempts.
-    // If USB connection is unsuccessfull, the interface will work in standalone mode.
-    // So, now, you know that you could also use a USB power supply...
-
-    for (uint8_t i=1; i<=10 &&  !MidiUSB.isConnected() ; i++ ) {
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(500);
-        flashLED_CONNECT->start(); delay(200);
-        flashLED_CONNECT->start(); delay(200);
-        flashLED_CONNECT->start(); delay(100);
-    }
-    // Force the POWER LED STATE (LOW logic)
-    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
+    delay(500);
+    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);   
+    
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -698,6 +687,27 @@ void setup() {
 void loop() {
 
     static uint8_t s=0;
+       
+    // Try to connect/reconnect USB if we detect a high level on USBDM 
+    // This is to manage the case of a powered device without USB active (suspend mode for ex.)    
+    uint8_t cx = MidiUSB.isConnected();   
+    if ( !cx ) {
+       // Assert PA11 (USBDM) to check USB hardware connection
+       // A small lag on midi serial can surround if the connection is set
+       if (  gpio_read_bit(PIN_MAP[PA11].gpio_device,PIN_MAP[PA11].gpio_bit) ) {
+          flashLED_CONNECT->start();
+          MidiUSB.end() ;
+          delay(200);
+          flashLED_CONNECT->start();
+          MidiUSB.begin() ;
+          delay(500);
+       }      
+    } 
+    
+    // SET CONNECT LED STATUS. We use gpio instead digitalWrite to be really fast, in that case....
+    // We lost the Arduino compatibility here...
+    gpio_write_bit(PIN_MAP[PC9].gpio_device,PIN_MAP[PC9].gpio_bit, cx ? 0 : 1 );
+
 
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
@@ -716,6 +726,9 @@ void loop() {
     // Do we have any MIDI msg on Serial 1 to 4 ?
 
     if ( serialInterface[s]->available() ) {
+          
+          midiSerialActive = true;
+          midiSerialLastPacketMillis = millis();
 
          if ( serialMidiParser[s].parse( serialInterface[s]->read() ) ) {
 
@@ -744,7 +757,10 @@ void loop() {
             // Process for eventual SYSEX unbuffered on the fly
             scanMidiSerialSysExToUsb(s, &serialMidiParser[s]) ;
          }
-    }
+    }    // Midi Serial timeout
+    else if ( millis() > ( midiSerialLastPacketMillis + MIDI_SERIAL_TIMEOUT_MILLIS ) )
+            midiSerialActive  = false;
+
 
     if ( ++s >= SERIAL_INTERFACE_MAX ) s = 0;
 }

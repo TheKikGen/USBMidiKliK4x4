@@ -100,14 +100,18 @@ static volatile uint32 n_unread_packets = 0;
 // ENDPOINTS CALLBACKS TABLES
 // --------------------------------------------------------------------------------------
 void (*ep_int_in[7])(void) =
-    {midiDataTxCb,midiDataTxCb,midiDataTxCb,
+    {midiDataTxCb,
+     NOP_Process,
+     NOP_Process,
      NOP_Process,
      NOP_Process,
      NOP_Process,
      NOP_Process};
 
 void (*ep_int_out[7])(void) =
-    {midiDataRxCb,midiDataRxCb,midiDataRxCb,
+    {NOP_Process,
+     midiDataRxCb,
+     NOP_Process,
      NOP_Process,
      NOP_Process,
      NOP_Process,
@@ -254,10 +258,6 @@ static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
     }
 }
 
-//void usb_midi_putc(char ch) {
-//    while (!usb_midi_tx((uint8*)&ch, 1))
-//        ;
-//}
 
 // --------------------------------------------------------------------------------------
 // USB TX / RX / PEEK
