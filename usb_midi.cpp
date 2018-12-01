@@ -1,4 +1,4 @@
-/*  
+/*
   USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
   Based on the MIDITECH / MIDIPLUS 4X4 harware.
   Copyright (C) 2017/2018 by The KikGen labs.
@@ -21,22 +21,22 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 #include "usb_midi.h"
@@ -77,8 +77,8 @@ void USBMidi::end(void) {
 
 }
 
-void USBMidi::writePacket(uint32 p) {
-    this->writePackets(&p, 1);
+void USBMidi::writePacket(const uint32  *pk) {
+    this->writePackets(pk, 1);
 }
 
 void USBMidi::writePackets(const void *buf, uint32 len) {
@@ -114,7 +114,7 @@ uint32 USBMidi::available(void) {
     return usb_midi_data_available();
 }
 
-uint32 USBMidi::readPackets(void *buf, uint32 len) {
+uint32 USBMidi::readPackets(const void *buf, uint32 len) {
     if (!buf) {
         return 0;
     }
@@ -128,9 +128,9 @@ uint32 USBMidi::readPackets(void *buf, uint32 len) {
 }
 
 /* Blocks forever until 1 byte is received */
-uint32 USBMidi::readPacket(void) {
+uint32 USBMidi::readPacket() {
     uint32 p;
-    this->readPackets(&p, 1);
+    usb_midi_rx(&p,1);
     return p;
 }
 

@@ -1,4 +1,4 @@
-/*  
+/*
   USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
   Based on the MIDITECH / MIDIPLUS 4X4 harware.
   Copyright (C) 2017/2018 by The KikGen labs.
@@ -21,22 +21,22 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 #pragma once
@@ -67,9 +67,9 @@ public:
     void begin();
     void end();
     uint32 available(void);
-    uint32 readPackets(void *buf, uint32 len);
-    uint32 readPacket(void);
-    void writePacket(uint32);
+    uint32 readPackets(const void *buf, uint32 len);
+    uint32 readPacket();
+    void writePacket(const uint32*);
     void writePackets(const void*, uint32);
     uint8 isConnected();
     uint8 pending();
