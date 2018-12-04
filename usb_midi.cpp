@@ -64,16 +64,24 @@ USBMidi::USBMidi(void) {
 // BEGIN - Call that function in SETUP
 void USBMidi::begin() {
 
+#ifdef HAS_MIDITECH_HARDWARE
 		// Reset the USB interface on the MIDITECH 4x4 board.
     // The MIDI 4X4 has a DISC command, but the level logic is inverted
     // Then configure USB and Endpoints callbacks
     usb_midi_enable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,1);
+#else
+    usb_midi_enable(NULL, 0,0);
+#endif
 
 }
 
 void USBMidi::end(void) {
 
+#ifdef HAS_MIDITECH_HARDWARE
     usb_midi_disable(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit,0);
+#else
+    usb_midi_disable(NULL,0,0);
+#endif
 
 }
 

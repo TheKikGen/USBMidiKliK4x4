@@ -38,9 +38,6 @@
 
 */
 
-//#define SERIAL_RX_BUFFER_SIZE 128
-//#define SERIAL_TX_BUFFER_SIZE 128
-
 #include <PulseOutManager.h>
 #include <midiXparser.h>
 #include "usb_midi.h"
@@ -48,108 +45,62 @@
 #include <EEPROM.h>
 #include "EEPROM_Params.h"
 #include "build_number_defines.h"
+#include "UsbMidiKliK4x4.h"
+
+// Serial interfaces Array
+HardwareSerial * serialInterface[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
 // EEPROMS parameters
 EEPROM_Params_t EEPROM_Params;
 
 // Timer
-#define TIMER2_RATE_MICROS 1000
 HardwareTimer timer(2);
-
-// Serial interfaces Array
-#define SERIAL_INTERFACE_MAX  4
-
-HardwareSerial * serialInterface[SERIAL_INTERFACE_MAX] = {&Serial1
-#if SERIAL_INTERFACE_MAX >= 2
-  ,&Serial2
-#endif
-#if SERIAL_INTERFACE_MAX >= 3
-  ,&Serial3
-#endif
-#if SERIAL_INTERFACE_MAX >= 4
-  ,&Serial4
-#endif
-};
 
 // Sysex used to set some parameters of the interface.
 // Be aware that the 0x77 manufacturer id is reserved in the MIDI standard (but not used)
 // The second byte is usually an id number or a func code + the midi channel (any here)
 // The Third is the product id
-#define SYSEX_INTERNAL_BUFF_SIZE 32
-static  uint8_t sysExInternalHeader[] = {0xF0,0x77,0x77,0x78} ;
+static  uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
 static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
-// Prepare LEDs pulse for MIDIN and MIDIOUT
+// Prepare LEDs pulse for Connect, MIDIN and MIDIOUT
 // From MIDI SERIAL point of view
-
-// LED light duration in milliseconds
-#define LED_PULSE_MILLIS  5
-
 // Use a PulseOutManager factory to create the pulses
 PulseOutManager flashLEDManager;
 
-// LED must be declared in the same order as hardware serials
-PulseOut* flashLED_IN[SERIAL_INTERFACE_MAX] = {
-flashLEDManager.factory(D4,LED_PULSE_MILLIS,LOW),
-#if SERIAL_INTERFACE_MAX >= 2
-flashLEDManager.factory(D5,LED_PULSE_MILLIS,LOW),
-#endif
-#if SERIAL_INTERFACE_MAX >= 3
-flashLEDManager.factory(D6,LED_PULSE_MILLIS,LOW),
-#endif
-#if SERIAL_INTERFACE_MAX >=4
-flashLEDManager.factory(D7,LED_PULSE_MILLIS,LOW)
-#endif
-};
-
-PulseOut* flashLED_OUT[SERIAL_INTERFACE_MAX] = {
-flashLEDManager.factory(D36,LED_PULSE_MILLIS,LOW),
-#if SERIAL_INTERFACE_MAX >= 2
-flashLEDManager.factory(D37,LED_PULSE_MILLIS,LOW),
-#endif
-#if SERIAL_INTERFACE_MAX >= 3
-flashLEDManager.factory(D16,LED_PULSE_MILLIS,LOW),
-#endif
-#if SERIAL_INTERFACE_MAX >= 4
-flashLEDManager.factory(D17,LED_PULSE_MILLIS,LOW)
-#endif
-};
-
-#define LED_CONNECT   D41
 PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLIS,LOW);
+
+#ifdef HAS_MIDITECH_HARDWARE
+  // LED must be declared in the same order as hardware serials
+  #define LEDS_MIDI
+  PulseOut* flashLED_IN[SERIAL_INTERFACE_MAX] = {
+    flashLEDManager.factory(D4,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D5,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D6,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D7,LED_PULSE_MILLIS,LOW)
+  };
+
+  PulseOut* flashLED_OUT[SERIAL_INTERFACE_MAX] = {
+    flashLEDManager.factory(D36,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D37,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D16,LED_PULSE_MILLIS,LOW),
+    flashLEDManager.factory(D17,LED_PULSE_MILLIS,LOW)
+  };
+#endif
 
 // USB Midi object
 USBMidi MidiUSB;
 
 // When MIDI SERIAL is inactive beyond the timeout..
-#define MIDI_SERIAL_TIMEOUT_MILLIS  30000
 bool midiSerialActive = false;
 unsigned long midiSerialLastPacketMillis = 0;
 
-// MIDI Parsers for serial 1 to 4
-midiXparser serialMidiParser[4];
+// MIDI Parsers for serial 1 to n
+midiXparser serialMidiParser[SERIAL_INTERFACE_MAX];
 
-// MIDI Routing
-#define FROM_SERIAL 0
-#define FROM_USB    1
-
-// Routing from an USB cable OUT
-#define DEFAULT_MIDI_CABLE_ROUTING_TARGET  0B00000001,0B00000010,0B00000100,0B00001000
-
-// Routing from a serial MIDI IN
-#define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
-
+// Default midi routing
 uint8_t defaultMidiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
 uint8_t defaultMidiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX] = {DEFAULT_MIDI_SERIAL_ROUTING_TARGET};
-
-// Intelligent Serial default MIDI Thru
-// No IN actives - 4 midi out - channel messages
-#define DEFAULT_INTELLIGENT_MIDI_THRU_MSK 0B1111
-#define DEFAULT_INTELLIGENT_MIDI_THRU_IN  0B00000001
-
-// Default number of 15 secs periods to start after USB midi inactivity
-// Can be changed by SYSEX
-#define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
 
 bool          midiUSBActive  = false;
 unsigned long midiUSBLastPacketMillis    = 0;
@@ -185,7 +136,7 @@ void Timer2Handler(void) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a midi msg to serial MIDI
+// Send a midi msg to serial MIDI. 0 is Serial1.
 ///////////////////////////////////////////////////////////////////////////////
 static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
 
@@ -193,7 +144,11 @@ static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
   serialInterface[serialNo]->write(msg[0]);
   serialInterface[serialNo]->write(msg[1]);
   serialInterface[serialNo]->write(msg[2]);
+  #ifdef LEDS_MIDI
   flashLED_OUT[serialNo]->start();
+  #else
+  flashLED_CONNECT->start();
+  #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -209,14 +164,25 @@ static void SerialWritePacket(const midiPacket_t *pk, uint8_t serialNo) {
           // 1 byte
           case 0x05: case 0x0F:
             serialInterface[serialNo]->write(pk->packet[1]);
+
+            #ifdef LEDS_MIDI
             flashLED_OUT[serialNo]->start();
+            #else
+            flashLED_CONNECT->start();
+            #endif
+
             break;
 
           // 2 bytes
           case 0x02: case 0x06: case 0x0C: case 0x0D:
             serialInterface[serialNo]->write(pk->packet[1]);
             serialInterface[serialNo]->write(pk->packet[2]);
+            #ifdef LEDS_MIDI
             flashLED_OUT[serialNo]->start();
+            #else
+            flashLED_CONNECT->start();
+            #endif
+
             break;
 
           // 3 bytes
@@ -225,14 +191,17 @@ static void SerialWritePacket(const midiPacket_t *pk, uint8_t serialNo) {
             serialInterface[serialNo]->write(pk->packet[1]);
             serialInterface[serialNo]->write(pk->packet[2]);
             serialInterface[serialNo]->write(pk->packet[3]);
+            #ifdef LEDS_MIDI
             flashLED_OUT[serialNo]->start();
+            #else
+            flashLED_CONNECT->start();
+            #endif
+
             break;
 
           default :
             return;
-
   }
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -427,8 +396,12 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
     ( source == FROM_SERIAL ?  EEPROM_Params.midiSerialRoutingTarget[cable]:
                    EEPROM_Params.midiCableRoutingTarget[cable]);
 
-  // Flash the LED IN
+  // Flash the LED IN (if available)
+  #ifdef LEDS_MIDI
   flashLED_IN[cable]->start();
+  #else
+  flashLED_CONNECT->start();
+  #endif
 
   // Find targets
   // Bit 0-3 : Serial 1 - Serial 4
@@ -446,7 +419,9 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
       if (targets & ( 1 << t ) ) {
         lpk.packet[0] = ( t << 4 ) + cin;
         MidiUSB.writePacket(&(lpk.i));    // Send to USB
+        #ifdef LEDS_MIDI
         flashLED_IN[t]->start();
+        #endif
       }
 
   }
@@ -889,20 +864,21 @@ void ConfigRootMenu()
 	char c;
 	for ( ;; )
 		{
-			Serial.print("\n\nUSBMIDIKliK 4x4 MENU\n");
-			Serial.print("(c)TheKikGen Labs\n\n");
-			Serial.print("0.Show current settings\n");
-			Serial.print("1.Reload settings\n");
-			Serial.print("2.USB product string\n");
-			Serial.print("3.USB Vendor ID & Product ID\n");
-			Serial.print("4.Intelligent Midi Thru MIDI filters\n");
-      Serial.print("5.Intelligent Midi Thru delay for USB timeout\n");
-      Serial.print("6.Intelligent Midi Thru IN Jack routing\n");
-			Serial.print("7.Midi USB Cable OUT routing\n");
-      Serial.print("8.Midi IN Jack routing\n");
-      Serial.print("9.Reset routing to factory default\n");
-			Serial.print("s.Save & quit\n");
-			Serial.print("x.Abort\n");
+      Serial.print("\n\nUSBMIDIKliK 4x4 MENU");
+      Serial.print(" - ");Serial.println(HARDWARE_TYPE);
+			Serial.println("(c)TheKikGen Labs\n");
+			Serial.println("0.Show current settings");
+			Serial.println("1.Reload settings");
+			Serial.println("2.USB product string");
+			Serial.println("3.USB Vendor ID & Product ID");
+			Serial.println("4.Intelligent Midi Thru MIDI filters");
+      Serial.println("5.Intelligent Midi Thru delay for USB timeout");
+      Serial.println("6.Intelligent Midi Thru IN Jack routing");
+			Serial.println("7.Midi USB Cable OUT routing");
+      Serial.println("8.Midi IN Jack routing");
+      Serial.println("9.Reset routing to factory default");
+			Serial.println("s.Save & quit");
+			Serial.println("x.Abort");
 			Serial.print("=>");
 
       choice = USBSerialGetChar();
@@ -1143,22 +1119,28 @@ void setup() {
         EEPROM_Params.nextBootMode = bootModeMidi;
         EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
 
-        // Enable USB and start USB serial
-        gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
-        gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, 1);
+        #ifdef HAS_MIDITECH_HARDWARE
+          // Assert DISC PIN (PA8 usually for Miditech) to enable USB
+          gpio_set_mode(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, GPIO_OUTPUT_PP);
+          gpio_write_bit(PIN_MAP[PA8].gpio_device, PIN_MAP[PA8].gpio_bit, 1);
+        #endif
+
+        // start USB serial
         Serial.begin();
 
         // wait for a serial monitor to be connected.
+        // 3 short flash
+
         while (!Serial) {
             flashLED_CONNECT->start();delay(100);
             flashLED_CONNECT->start();delay(100);
             flashLED_CONNECT->start();delay(300);
-        }
+          }
         digitalWrite(LED_CONNECT, LOW);
         ConfigRootMenu(); // INFINITE LOOP
     }
 
-    // MIDI MODE START HERE
+    // MIDI MODE START HERE ==================================================
     intelligentMidiThruDelayMillis = EEPROM_Params.intelligentMidiThruDelayPeriod * 15000;
 
     // Set USB descriptor strings
@@ -1195,7 +1177,7 @@ void loop() {
     if ( !cx ) {
        // Assert PA11 (USBDM) to check USB hardware connection
        // A small lag on midi serial can surround if the connection is set
-       if (  gpio_read_bit(PIN_MAP[PA11].gpio_device,PIN_MAP[PA11].gpio_bit) ) {
+       if (  gpio_read_bit(PIN_MAP[PIN_USBDM].gpio_device,PIN_MAP[PIN_USBDM].gpio_bit) ) {
           flashLED_CONNECT->start();
           MidiUSB.end() ;
           delay(200);
@@ -1207,7 +1189,10 @@ void loop() {
 
     // SET CONNECT LED STATUS. We use gpio instead digitalWrite to be really fast, in that case....
     // We lost the Arduino compatibility here...
-    gpio_write_bit(PIN_MAP[PC9].gpio_device,PIN_MAP[PC9].gpio_bit, cx ? 0 : 1 );
+    // We do that only when dedicated LEDs exist for MIDI (i.e. not the Blue Pill)...
+    #ifdef LEDS_MIDI
+    gpio_write_bit(PIN_MAP[LED_CONNECT].gpio_device,PIN_MAP[LED_CONNECT].gpio_bit, cx ? 0 : 1 );
+    #endif
 
     // Do we have a MIDI USB packet available ?
     if ( MidiUSB.available() ) {
@@ -1232,10 +1217,15 @@ void loop() {
     }
 
     // Midi USB timeout
-    else if ( millis() > ( midiUSBLastPacketMillis + intelligentMidiThruDelayMillis ) )
-            midiUSBActive  = false;
+    else if ( midiUSBActive && millis() > ( midiUSBLastPacketMillis + intelligentMidiThruDelayMillis )  ) {
+      flashLED_CONNECT->start();delay(100);
+      flashLED_CONNECT->start();delay(100);
+      flashLED_CONNECT->start();delay(100);
+      midiUSBActive  = false;
+    }
 
-    // Do we have any MIDI msg on Serial 1 to 4 ?
+
+    // Do we have any MIDI msg on Serial 1 to n ?
     for (uint8_t s=0; s <SERIAL_INTERFACE_MAX ; s++ ) {
         if ( serialInterface[s]->available() ) {
 
