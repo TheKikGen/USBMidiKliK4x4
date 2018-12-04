@@ -1,9 +1,6 @@
 # USBMidiKliK4x4 - STMDUINO
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
 
-NOTE: You can obviously use this project to build a midi interface with other STM32F boards. 
-Tested and working also on a "Blue pill".
-
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
@@ -166,3 +163,13 @@ Default routing is the following :
        USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
 
 The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
+
+## Using another STMF32x board
+
+You can obviously use this project to build a midi interface with other STM32F boards. 
+I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O. 
+https://wiki.stm32duino.com/index.php?title=Blue_Pill
+
+<img border="0" src="https://4.bp.blogspot.com/-2nP69Lwl-dU/WhrncwR_WdI/AAAAAAAAIAE/ugo2ail4EdAXxgveZqc_jh9kwQU6PXiUwCLcBGAs/s1600/stm32-arduino-ide.jpg"  />
+
+
