@@ -23,22 +23,22 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 // ---------------------------------------------------------------
@@ -57,9 +57,9 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
       .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,
       .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,
       .bDeviceProtocol    = 0x00,
-      .bMaxPacketSize0    = MAX_PACKET_SIZE,
-      .idVendor           = USB_VENDORID, 
-      .idProduct          = USB_PRODUCTID, 
+      .bMaxPacketSize0    = USB_MIDI_MAX_PACKET_SIZE,
+      .idVendor           = USB_MIDI_VENDORID,
+      .idProduct          = USB_MIDI_PRODUCTID,
       .bcdDevice          = 0x0100,
       .iManufacturer      = 0x01,
       .iProduct           = 0x02,
@@ -88,7 +88,7 @@ typedef struct {
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_D;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_E;
 
-    
+
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_4;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_7;
@@ -102,20 +102,19 @@ typedef struct {
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataOutEndpoint;
     MIDI_USB_DESCRIPTOR_ENDPOINT       DataInEndpoint;
     MS_CS_BULK_ENDPOINT_DESCRIPTOR(4)  MS_CS_DataInEndpoint;
-} __packed usb_descriptor_config;
+} __packed usb_midi_descriptor_config;
 
-#define MAX_POWER (100 >> 1)
-static const usb_descriptor_config usbMIDIDescriptor_Config = {
+static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     .Config_Header = {
         .bLength              = sizeof(usb_descriptor_config_header),
         .bDescriptorType      = USB_DESCRIPTOR_TYPE_CONFIGURATION,
-        .wTotalLength         = sizeof(usb_descriptor_config),
+        .wTotalLength         = sizeof(usb_midi_descriptor_config),
         .bNumInterfaces       = 0x02,
         .bConfigurationValue  = 0x01,
         .iConfiguration       = 0x00,
         .bmAttributes         = (USB_CONFIG_ATTR_BUSPOWERED |
                                  USB_CONFIG_ATTR_SELF_POWERED),
-        .bMaxPower            = MAX_POWER,
+        .bMaxPower            = USB_MIDI_MAX_POWER,
     },
 
     .AC_Interface = {
@@ -127,7 +126,7 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
         .bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
         .bInterfaceSubClass = USB_INTERFACE_AUDIOCONTROL,
         .bInterfaceProtocol = 0x00,
-        .iInterface         = 0x00, 
+        .iInterface         = 0x00,
     },
 
     .AC_CS_Interface = {
@@ -157,8 +156,8 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
         .SubType            = 0x01,
         .bcdADC             = 0x0100,
-        .wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)                             
-                              +8*sizeof(MIDI_IN_JACK_DESCRIPTOR)                              
+        .wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
+                              +8*sizeof(MIDI_IN_JACK_DESCRIPTOR)
                               +8*MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
                               +sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
                               +MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(4)
@@ -210,7 +209,7 @@ static const usb_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x09,
         .iJack              = 0x07, // MIDI OUT 3
     },
-           
+
     .MIDI_IN_JACK_A = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -404,24 +403,24 @@ static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
 
 
 static usb_descriptor_string usbMIDIDescriptor_iProduct = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(MIDI_PRODUCT_STRING_SIZE+1), // Defined in EEPROM_Params.h   
+    .bLength = USB_DESCRIPTOR_STRING_LEN(MIDI_PRODUCT_STRING_SIZE+1), // Defined in EEPROM_Params.h
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'U',0,'S',0,'B',0,' ',0,'M',0,'i',0,'d',0,'i',0,'K',0,'l',0,'i',\ 
+    .bString = {'U',0,'S',0,'B',0,' ',0,'M',0,'i',0,'d',0,'i',0,'K',0,'l',0,'i',\
                  0,'K',0,' ',0,'4',0,'X',0,'4',0, 0,0,  0,0,  0,0,  0,0,  0,0,  0,0,\
                    0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  }   ,
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iSerial = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(8),    
+    .bLength = USB_DESCRIPTOR_STRING_LEN(8),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
     // 07DA0908
-    .bString = {'0', 0, '7', 0, 'D', 0, 'A', 0, '0', 0, '9', 0, '0', 0, '8', 0},   
+    .bString = {'0', 0, '7', 0, 'D', 0, 'A', 0, '0', 0, '9', 0, '0', 0, '8', 0},
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iInterface = {
     .bLength = USB_DESCRIPTOR_STRING_LEN(4),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0},    
+    .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0},
 };
 
 // Midi Out 1
@@ -472,7 +471,6 @@ static const usb_descriptor_string usbMIDIDescriptor_iJackIn4 = {
     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0, ' ', 0, '4', 0},
 };
 
-
 static ONE_DESCRIPTOR usbMidiDevice_Descriptor = {
     (uint8*)&usbMIDIDescriptor_Device,
     sizeof(usb_descriptor_device)
@@ -480,16 +478,16 @@ static ONE_DESCRIPTOR usbMidiDevice_Descriptor = {
 
 static ONE_DESCRIPTOR usbMidiConfig_Descriptor = {
     (uint8*)&usbMIDIDescriptor_Config,
-    sizeof(usb_descriptor_config)
+    sizeof(usb_midi_descriptor_config)
 };
 
-#define N_STRING_DESCRIPTORS 13
-static ONE_DESCRIPTOR String_Descriptor[N_STRING_DESCRIPTORS] = {
+#define USB_MIDI_N_STRING_DESCRIPTORS 13
+static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = {
     {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1) },
     {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(14)},
     {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(MIDI_PRODUCT_STRING_SIZE+1)},
     {(uint8*)&usbMIDIDescriptor_iSerial,      USB_DESCRIPTOR_STRING_LEN(8) },
-    {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(4) },  
+    {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(4) },
     {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },
     {(uint8*)&usbMIDIDescriptor_iJackIn2,     USB_DESCRIPTOR_STRING_LEN(9) },
     {(uint8*)&usbMIDIDescriptor_iJackIn3,     USB_DESCRIPTOR_STRING_LEN(9) },
@@ -499,4 +497,3 @@ static ONE_DESCRIPTOR String_Descriptor[N_STRING_DESCRIPTORS] = {
     {(uint8*)&usbMIDIDescriptor_iJackOut3,    USB_DESCRIPTOR_STRING_LEN(10) },
     {(uint8*)&usbMIDIDescriptor_iJackOut4,    USB_DESCRIPTOR_STRING_LEN(10) },
 };
-

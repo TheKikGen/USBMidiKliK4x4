@@ -92,7 +92,7 @@ void USBMidi::writePackets(const void *buf, uint32 len) {
 
     uint32 sent = 0;
 
-    while (txed < len && (millis() - start < USB_TIMEOUT)) {
+    while (txed < len && (millis() - start < USB_MIDI_TIMEOUT)) {
         sent = usb_midi_tx((const uint32*)buf + txed, len - txed);
         txed += sent;
         if (old_txed != txed) {

@@ -21,28 +21,28 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 #ifndef BUILD_DEFS_H
 #define BUILD_DEFS_H
 
-#define VERSION_MAJOR 0
+#define VERSION_MAJOR 1
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890
@@ -160,7 +160,8 @@ const char TimestampedVersion[] =
     BUILD_HOUR_CH0,
   BUILD_HOUR_CH1,
     BUILD_MIN_CH0,
-  BUILD_MIN_CH1
+  BUILD_MIN_CH1,
+  0
 };
 
 #endif // BUILD_DEFS_H

@@ -20,22 +20,22 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 #pragma once
 
@@ -46,14 +46,21 @@
 // The following structure start at the first address of the EEPROM
 
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 5
+#define EE_PRMVER 6
 #define MIDI_PRODUCT_STRING_SIZE 30
-#define MIDI_ROUTING_TARGET_MAX 5
+#define MIDI_ROUTING_TARGET_MAX 4
+
+// Boot modes
+enum nextBootMode {
+    bootModeMidi   = 0,
+    bootModeConfigMenu = 2,
+};
 
 typedef struct {
         uint8_t         signature[3];
         uint8_t         prmVer;
-        uint8_t         TimestampedVersion[13];
+        uint8_t         TimestampedVersion[14];
+        uint8_t         nextBootMode;
         uint8_t         intelligentMidiThruIn;
         uint8_t         intelligentMidiThruMsk;
         uint8_t         intelligentMidiThruDelayPeriod;

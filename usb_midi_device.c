@@ -21,26 +21,26 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
   FIXME: this works on the STM32F1 USB peripherals, and probably no
   place else. Nonportable bits really need to be factored out, and
   the result made cleaner.
-  
+
 */
 
 #include "usb_midi_device.h"
@@ -60,19 +60,18 @@
 
 #include "usb_midi_descriptor.c"
 
-static void midiDataTxCb(void);
-static void midiDataRxCb(void);
-
-static void usbInit(void);
-static void usbReset(void);
-static RESULT usbDataSetup(uint8 request);
-static RESULT usbNoDataSetup(uint8 request);
-static RESULT usbGetInterfaceSetting(uint8 interface, uint8 alt_setting);
-static uint8* usbGetDeviceDescriptor(uint16 length);
-static uint8* usbGetConfigDescriptor(uint16 length);
-static uint8* usbGetStringDescriptor(uint16 length);
-static void usbSetConfiguration(void);
-static void usbSetDeviceAddress(void);
+static void   usb_midi_DataTxCb(void);
+static void   usb_midi_DataRxCb(void);
+static void   usb_midi_Init(void);
+static void   usb_midi_Reset(void);
+static RESULT usb_midi_DataSetup(uint8 request);
+static RESULT usb_midi_NoDataSetup(uint8 request);
+static RESULT usb_midi_GetInterfaceSetting(uint8 interface, uint8 alt_setting);
+static uint8* usb_midi_GetDeviceDescriptor(uint16 length);
+static uint8* usb_midi_GetConfigDescriptor(uint16 length);
+static uint8* usb_midi_GetStringDescriptor(uint16 length);
+static void   usb_midi_SetConfiguration(void);
+static void   usb_midi_SetDeviceAddress(void);
 
 /*
  * Etc.
@@ -99,8 +98,8 @@ static volatile uint32 n_unread_packets = 0;
 // --------------------------------------------------------------------------------------
 // ENDPOINTS CALLBACKS TABLES
 // --------------------------------------------------------------------------------------
-void (*ep_int_in[7])(void) =
-    {midiDataTxCb,
+void (*usb_midi_ep_int_in[7])(void) =
+    {usb_midi_DataTxCb,
      NOP_Process,
      NOP_Process,
      NOP_Process,
@@ -108,9 +107,9 @@ void (*ep_int_in[7])(void) =
      NOP_Process,
      NOP_Process};
 
-void (*ep_int_out[7])(void) =
+void (*usb_midi_ep_int_out[7])(void) =
     {NOP_Process,
-     midiDataRxCb,
+     usb_midi_DataRxCb,
      NOP_Process,
      NOP_Process,
      NOP_Process,
@@ -122,61 +121,61 @@ void (*ep_int_out[7])(void) =
 // These override core USB functionality which was declared __weak.
 // --------------------------------------------------------------------------------------
 
-
-DEVICE Device_Table = {
-    .Total_Endpoint      = NUM_ENDPTS,
-    .Total_Configuration = 1
-};
-
-
-DEVICE_PROP Device_Property = {
-    .Init                        = usbInit,
-    .Reset                       = usbReset,
-    .Process_Status_IN           = NOP_Process,
-    .Process_Status_OUT          = NOP_Process,
-    .Class_Data_Setup            = usbDataSetup,
-    .Class_NoData_Setup          = usbNoDataSetup,
-    .Class_Get_Interface_Setting = usbGetInterfaceSetting,
-    .GetDeviceDescriptor         = usbGetDeviceDescriptor,
-    .GetConfigDescriptor         = usbGetConfigDescriptor,
-    .GetStringDescriptor         = usbGetStringDescriptor,
-    .RxEP_buffer                 = NULL,
-    .MaxPacketSize               = MAX_PACKET_SIZE
-};
-
-USER_STANDARD_REQUESTS User_Standard_Requests = {
-    .User_GetConfiguration   = NOP_Process,
-    .User_SetConfiguration   = usbSetConfiguration,
-    .User_GetInterface       = NOP_Process,
-    .User_SetInterface       = NOP_Process,
-    .User_GetStatus          = NOP_Process,
-    .User_ClearFeature       = NOP_Process,
-    .User_SetEndPointFeature = NOP_Process,
-    .User_SetDeviceFeature   = NOP_Process,
-    .User_SetDeviceAddress   = usbSetDeviceAddress
-};
+//
+// DEVICE Device_Table = {
+//     .Total_Endpoint      = USB_MIDI_NUM_ENDPTS,
+//     .Total_Configuration = 1
+// };
+//
+//
+// DEVICE_PROP Device_Property = {
+//     .Init                        = usb_midi_Init,
+//     .Reset                       = usb_midi_Reset,
+//     .Process_Status_IN           = NOP_Process,
+//     .Process_Status_OUT          = NOP_Process,
+//     .Class_Data_Setup            = usb_midi_DataSetup,
+//     .Class_NoData_Setup          = usb_midi_NoDataSetup,
+//     .Class_Get_Interface_Setting = usb_midi_GetInterfaceSetting,
+//     .GetDeviceDescriptor         = usb_midi_GetDeviceDescriptor,
+//     .GetConfigDescriptor         = usb_midi_GetConfigDescriptor,
+//     .GetStringDescriptor         = usb_midi_GetStringDescriptor,
+//     .RxEP_buffer                 = NULL,
+//     .MaxPacketSize               = USB_MIDI_MAX_PACKET_SIZE
+// };
+//
+// USER_STANDARD_REQUESTS User_Standard_Requests = {
+//     .User_GetConfiguration   = NOP_Process,
+//     .User_SetConfiguration   = usb_midi_SetConfiguration,
+//     .User_GetInterface       = NOP_Process,
+//     .User_SetInterface       = NOP_Process,
+//     .User_GetStatus          = NOP_Process,
+//     .User_ClearFeature       = NOP_Process,
+//     .User_SetEndPointFeature = NOP_Process,
+//     .User_SetDeviceFeature   = NOP_Process,
+//     .User_SetDeviceAddress   = usb_midi_SetDeviceAddress
+// };
 
 
 // --------------------------------------------------------------------------------------
-// DDEVICE DESCRIPTOR MANIPULATION
+// DEVICE DESCRIPTOR MANIPULATION
 // --------------------------------------------------------------------------------------
 
-void usb_midi_set_vid_pid(uint16 vid, uint16 pid) {  
+void usb_midi_set_vid_pid(uint16 vid, uint16 pid) {
   usbMIDIDescriptor_Device.idVendor           = vid;
-  usbMIDIDescriptor_Device.idProduct          = pid; 
-  
+  usbMIDIDescriptor_Device.idProduct          = pid;
+
 }
 
-void usb_midi_set_product_string(char stringDescriptor[]) {  
+void usb_midi_set_product_string(char stringDescriptor[]) {
 
-  memset(&usbMIDIDescriptor_iProduct.bString,0, (MIDI_PRODUCT_STRING_SIZE+1)*2);  
-  
+  memset(&usbMIDIDescriptor_iProduct.bString,0, (MIDI_PRODUCT_STRING_SIZE+1)*2);
+
   uint8 i = 0;
   while ( stringDescriptor[i] != 0 ) {
     usbMIDIDescriptor_iProduct.bString[i*2] = stringDescriptor[i];
     i++;
   }
-      
+
 }
 
 
@@ -193,19 +192,42 @@ void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
      *
      */
 
-     if (disc_dev != NULL) {
-        gpio_set_mode(disc_dev, disc_bit, GPIO_OUTPUT_PP);
-        gpio_write_bit(disc_dev, disc_bit, level);
-    }
+      // USB MIDI Device setup.  We dont redeclare Device_Table 
 
-    /* Initialize the USB peripheral. */
-    usb_init_usblib(USBLIB, ep_int_in, ep_int_out);
-}
+      Device_Table.Total_Endpoint      = USB_MIDI_NUM_ENDPTS;
+      Device_Table.Total_Configuration = 1;
 
-void usb_power_down() {
-    USB_BASE->CNTR = USB_CNTR_FRES;
-    USB_BASE->ISTR = 0;
-    USB_BASE->CNTR = USB_CNTR_FRES + USB_CNTR_PDWN;
+      Device_Property.Init                        = usb_midi_Init;
+      Device_Property.Reset                       = usb_midi_Reset;
+      Device_Property.Process_Status_IN           = NOP_Process;
+      Device_Property.Process_Status_OUT          = NOP_Process;
+      Device_Property.Class_Data_Setup            = usb_midi_DataSetup;
+      Device_Property.Class_NoData_Setup          = usb_midi_NoDataSetup;
+      Device_Property.Class_Get_Interface_Setting = usb_midi_GetInterfaceSetting;
+      Device_Property.GetDeviceDescriptor         = usb_midi_GetDeviceDescriptor;
+      Device_Property.GetConfigDescriptor         = usb_midi_GetConfigDescriptor;
+      Device_Property.GetStringDescriptor         = usb_midi_GetStringDescriptor;
+      Device_Property.RxEP_buffer                 = NULL;
+      Device_Property.MaxPacketSize               = USB_MIDI_MAX_PACKET_SIZE;
+
+
+      User_Standard_Requests.User_GetConfiguration   = NOP_Process;
+      User_Standard_Requests.User_SetConfiguration   = usb_midi_SetConfiguration;
+      User_Standard_Requests.User_GetInterface       = NOP_Process;
+      User_Standard_Requests.User_SetInterface       = NOP_Process;
+      User_Standard_Requests.User_GetStatus          = NOP_Process;
+      User_Standard_Requests.User_ClearFeature       = NOP_Process;
+      User_Standard_Requests.User_SetEndPointFeature = NOP_Process;
+      User_Standard_Requests.User_SetDeviceFeature   = NOP_Process;
+      User_Standard_Requests.User_SetDeviceAddress   = usb_midi_SetDeviceAddress;
+
+      if (disc_dev != NULL) {
+         gpio_set_mode(disc_dev, disc_bit, GPIO_OUTPUT_PP);
+         gpio_write_bit(disc_dev, disc_bit, level);
+     }
+
+      /* Initialize the USB peripheral. */
+      usb_init_usblib(USBLIB, usb_midi_ep_int_in, usb_midi_ep_int_out);
 }
 
 void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
@@ -220,7 +242,7 @@ void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
     if (disc_dev != NULL) {
         gpio_write_bit(disc_dev, disc_bit, level);
     }
-    usb_power_down();
+    usb_power_off();
 }
 
 
@@ -356,12 +378,12 @@ uint16 usb_midi_get_pending(void) {
 // ENDPOINTS CALLBACKS
 // --------------------------------------------------------------------------------------
 
-static void midiDataTxCb(void) {
+static void usb_midi_DataTxCb(void) {
     n_unsent_packets = 0;
     transmitting = 0;
 }
 
-static void midiDataRxCb(void) {
+static void usb_midi_DataRxCb(void) {
     usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_NAK);
     n_unread_packets = usb_get_ep_rx_count(MIDI_STREAM_OUT_ENDP) / 4;
     /* This copy won't overwrite unread bytes, since we've set the RX
@@ -384,7 +406,7 @@ static void midiDataRxCb(void) {
 // --------------------------------------------------------------------------------------
 
 /* NOTE: Nothing specific to this device class in this function, move to usb_lib */
-static void usbInit(void) {
+static void usb_midi_Init(void) {
     pInformation->Current_Configuration = 0;
 
     USB_BASE->CNTR = USB_CNTR_FRES;
@@ -404,14 +426,14 @@ static void usbInit(void) {
 }
 
 
-static void usbReset(void) {
+static void usb_midi_Reset(void) {
     pInformation->Current_Configuration = 0;
 
     /* current feature is current bmAttributes */
     pInformation->Current_Feature = (USB_CONFIG_ATTR_BUSPOWERED |
                                      USB_CONFIG_ATTR_SELF_POWERED);
 
-    USB_BASE->BTABLE = BTABLE_ADDRESS;
+    USB_BASE->BTABLE = USB_MIDI_BTABLE_ADDRESS;
 
     // Setup control endpoint  */
     usb_set_ep_type     (USB_MIDI_CTRL_ENDP, USB_EP_EP_TYPE_CONTROL);
@@ -446,7 +468,7 @@ static void usbReset(void) {
     rx_offset = 0;
 }
 
-static RESULT usbDataSetup(uint8 request) {
+static RESULT usb_midi_DataSetup(uint8 request) {
     uint8* (*CopyRoutine)(uint16) = 0;
 
     if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
@@ -463,7 +485,7 @@ static RESULT usbDataSetup(uint8 request) {
     return USB_SUCCESS;
 }
 
-static RESULT usbNoDataSetup(uint8 request) {
+static RESULT usb_midi_NoDataSetup(uint8 request) {
     RESULT ret = USB_UNSUPPORT;
 
     if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
@@ -471,7 +493,7 @@ static RESULT usbNoDataSetup(uint8 request) {
     return ret;
 }
 
-static RESULT usbGetInterfaceSetting(uint8 interface, uint8 alt_setting) {
+static RESULT usb_midi_GetInterfaceSetting(uint8 interface, uint8 alt_setting) {
     if (alt_setting > 0) {
         return USB_UNSUPPORT;
     } else if (interface > 1) {
@@ -481,29 +503,29 @@ static RESULT usbGetInterfaceSetting(uint8 interface, uint8 alt_setting) {
     return USB_SUCCESS;
 }
 
-static uint8* usbGetDeviceDescriptor(uint16 length) {
+static uint8* usb_midi_GetDeviceDescriptor(uint16 length) {
     return Standard_GetDescriptorData(length, &usbMidiDevice_Descriptor);
 }
 
-static uint8* usbGetConfigDescriptor(uint16 length) {
+static uint8* usb_midi_GetConfigDescriptor(uint16 length) {
     return Standard_GetDescriptorData(length, &usbMidiConfig_Descriptor);
 }
 
-static uint8* usbGetStringDescriptor(uint16 length) {
+static uint8* usb_midi_GetStringDescriptor(uint16 length) {
     uint8 wValue0 = pInformation->USBwValue0;
 
-    if (wValue0 > N_STRING_DESCRIPTORS) {
+    if (wValue0 > USB_MIDI_N_STRING_DESCRIPTORS) {
         return NULL;
     }
-    return Standard_GetDescriptorData(length, &String_Descriptor[wValue0]);
+    return Standard_GetDescriptorData(length, &usbMIDIString_Descriptor[wValue0]);
 }
 
-static void usbSetConfiguration(void) {
+static void usb_midi_SetConfiguration(void) {
     if (pInformation->Current_Configuration != 0) {
         USBLIB->state = USB_CONFIGURED;
     }
 }
 
-static void usbSetDeviceAddress(void) {
+static void usb_midi_SetDeviceAddress(void) {
     USBLIB->state = USB_ADDRESSED;
 }

@@ -21,22 +21,22 @@
   YOU DO IT AT YOUR OWN RISKS.
   ---------------------------------------------------------------------
 
-  This file is part of the USBMIDIKLIK-4x4 distribution 
+  This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
   Copyright (c) 2018 TheKikGen Labs team.
-  
-  This program is free software: you can redistribute it and/or modify  
-  it under the terms of the GNU General Public License as published by  
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
   the Free Software Foundation, version 3.
- 
-  This program is distributed in the hope that it will be useful, but 
-  WITHOUT ANY WARRANTY; without even the implied warranty of 
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
- 
-  You should have received a copy of the GNU General Public License 
+
+  You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 #pragma once
@@ -85,7 +85,7 @@ uint8 usb_midi_is_transmitting(void);
 // --------------------------------------------------------------------------------------
 // GLOBAL USB CONFIGURATION
 // --------------------------------------------------------------------------------------
-#define USB_TIMEOUT 50
+#define USB_MIDI_TIMEOUT 50
 
 // Use this structure to send and receive packet to/from USB
 union EVENT_t {
@@ -99,9 +99,9 @@ union EVENT_t {
 // DESCRIPTOR IDS
 // --------------------------------------------------------------------------------------
 
-#define USB_VENDORID        0x2912
-#define USB_PRODUCTID       0x1970
-#define USB_PRODUCT_STRING  "USB MIDIKliK 4x4"
+#define USB_MIDI_VENDORID        0x2912
+#define USB_MIDI_PRODUCTID       0x1970
+#define USB_MIDI_PRODUCT_STRING  "USB MIDIKliK 4x4"
 
 // --------------------------------------------------------------------------------------
 // DESCRIPTORS TYPES
@@ -127,17 +127,17 @@ union EVENT_t {
 #define MIDI_JACK_EMBEDDED                0x01
 #define MIDI_JACK_EXTERNAL                0x02
 
-#define MAX_POWER (100 >> 1)
-
+//#define MAX_POWER (100 >> 1)
+#define USB_MIDI_MAX_POWER (100 >> 1)
 
 // --------------------------------------------------------------------------------------
 // ENDPOINTS
 // --------------------------------------------------------------------------------------
 
-#define NUM_ENDPTS            0x04
+#define USB_MIDI_NUM_ENDPTS            0x04
 
 // buffer table base address
-#define   BTABLE_ADDRESS      0x0000
+#define USB_MIDI_BTABLE_ADDRESS      0x0000
 
 // Every USB device must provide at least one control endpoint at address 0 called the
 // default endpoint or Endpoint0. This endpoint is bidirectional.
@@ -146,7 +146,7 @@ union EVENT_t {
 // configure the device, or perform control operations that are unique to the device.
 // Control Endpoint
 
-#define MAX_PACKET_SIZE          0x10  /* 64B, maximum for USB FS Devices */
+#define USB_MIDI_MAX_PACKET_SIZE          0x10  /* 64B, maximum for USB FS Devices */
 
 #define USB_MIDI_CTRL_ENDP       USB_EP0
 #define USB_MIDI_CTRL_RX_ADDR    0x40
