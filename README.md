@@ -1,4 +1,4 @@
-# USBMidiKliK4x4
+# USBMidiKliK4x4 - STMDUINO
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface
 
 Chack also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
@@ -26,6 +26,31 @@ The code is easily adaptable to any other multi-jack USB interface.
 To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
 
        F0 77 77 78 <sysex function id = 0x0A> F7
+
+## USB Midi reboot in USB serial config menu mode
+
+This sysex anables the configuration menu accessible from USB serial.  Immediatly after sending this sequence, the interface reboots in serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
+
+       F0 77 77 78 <sysex function id = 0x08> F7
+
+When in serial mode, the menu is the following :
+
+	USBMIDIKliK 4x4 MENU
+	(c)TheKikGen Labs                                                                             
+
+	0.Show current settings                                                         
+	1.Reload settings                                                               
+	2.USB product string                                                            
+	3.USB Vendor ID & Product ID                                                    
+	4.Intelligent Midi Thru MIDI filters                                            
+	5.Intelligent Midi Thru delay for USB timeout                                   
+	6.Intelligent Midi Thru IN Jack routing                                         
+	7.Midi USB Cable OUT routing                                                    
+	8.Midi IN Jack routing                                                          
+	9.Reset routing to factory default                                              
+	s.Save & quit                                                                   
+	x.Abort                                                                         
+	=>         
 
 ## Changing the device ProductStringName with an internal SYSEX
 
