@@ -1,4 +1,4 @@
-# USBMidiKliK4x4 - STMDUINO
+# USBMidiKliK4x4 Dual - STMDUINO
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
