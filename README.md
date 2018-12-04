@@ -31,7 +31,7 @@ To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (U
 
 ## USB Midi reboot in USB serial config menu mode
 
-This sysex anables the configuration menu accessible from USB serial.  Immediatly after sending this sequence, the interface reboots in serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
+This sysex enables the configuration menu accessible from USB serial.  Immediatly after sending this sequence, the interface reboots in serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
 
        F0 77 77 78 <sysex function id = 0x08> F7
 
