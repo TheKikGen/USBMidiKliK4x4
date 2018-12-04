@@ -1,7 +1,8 @@
 # USBMidiKliK4x4 - STMDUINO
 A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
-NOTE: You can obviously use this project to buil a midi interface with other STM32F boards. 
-Tested and working on a "Blue pill".
+
+NOTE: You can obviously use this project to build a midi interface with other STM32F boards. 
+Tested and working also on a "Blue pill".
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
