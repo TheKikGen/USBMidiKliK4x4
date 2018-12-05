@@ -27,7 +27,7 @@ The code was mainly adapted from my other single USBMidiKlik project, developed 
 
 ## USB Midi hard reset with an internal SYSEX
 
-To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
 
        F0 77 77 78 <sysex function id = 0x0A> F7
 
@@ -56,21 +56,11 @@ When in serial mode, the menu is the following :
 	x.Abort                                                                         
 	=>         
 
-## Changing the device ProductStringName with an internal SYSEX
+## Changing the device ProductStringName
 
-it is posssible to change the USB device ProductStringName with a specific SYSEX. The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.   The message structure is the following :
+it is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.   The message structure is the following :
 
        F0 <USB MidiKlik 4x4 header = 0x77 0x77 0x78> <sysex fn id = 0x0b> <USB Midi Product name > F7
-
-Only Serial is parsed (but USB will be in a next version), so you must send the SYSEX to a MIDI IN jack.
-You can use a tool like MIDI-OX to do that easily :
-- connect the device to USB 
-- connect the MIDIOUT JACK 1 to the MIDI IN JACK 1
-- Open MIDI-OX and connect the USBMidiKliK MIDI-OUT 1 in the MIDI output device dialog box
-- Open the SysEx windows in the "View" menu
-- Enter the SYSEX msg in the command window and click on "Send Sysex" in the "CommandWindow" menu.  
-- Unplug/plug the USB cable or send a Midi USB HardReset sysex (see below)
-- Quit and reopen MIDI-OX and you should see a new name in the MIDI devices dialog box.
 
 For example : the following SYSEX will change the name of the MIDI interface to "USB MidiKliK" :
 
@@ -78,9 +68,9 @@ For example : the following SYSEX will change the name of the MIDI interface to 
 
 The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
 
-## Changing the USB VendorID and ProductID with an internal SYSEX
+## Changing the USB VendorID and ProductID
 
-In the same way, you can also change the USB Vendor and Product Ids with a SYSEX. They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
+In the same way, you can also change the USB Vendor and Product Ids with a SYSEX (or configuration menu). They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
 
     F0 77 77 78 <func id = 0x0C> <n1n2n3n4 = Vendor Id nibbles> <n1n2n3n4 = Product Id nibbles> F7
 
@@ -95,18 +85,19 @@ so the complete SYSEX message will be :
 ## Set the "intelligent MIDI Thru" 
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
-In that mode, all midi messages received on the selected MIDI IN jack are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
+In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
 
     	F0 77 77 78 	<func id = 0x0E> 
-    			<n = MIDI IN Jack #, 1-4. 0 = Intelligent Thru mode disabled>
+    			< (High nible bits 4-7 = Midi In Jack 1-4 or 0 to disable>) (low nible bits 0-3 = midiMsg filter mask)>
+			Midi Msg filter mask (can't be zero) : b0 = channel Voice, b1 = system Common, b2=realTime, b3=sysEx		
 			<serial Midi out bit mask 1-F>
 			<n = nb of 15s periods, 0-127> 
 	F7
 
 The delay is defined by a number of 15 seconds periods. The min/max period number is 1-127 (31 mn).  
-For example, to set the MIDI IN 3 jack to be the input, outputs,  when the delay reachs 2 mn (120 seconds = 8 periods of 15 seconds) :
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
 
-    F0 77 77 78 0E 03 0F 08 F7
+	F0 77 77 78 0E 34 0F 08 F7
 
 ## Define midi routing rules with internals SYSEX
 
