@@ -6,20 +6,21 @@ Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
 The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
-As it is not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, to get 8x8, because of identical product/vendor ID and serial, and also because that usb midi interface is not updateable at all, according to the Miditech support, that was motivating me enough to see if a hack was possible, at less to change the PID or VID.
+As it is not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8.
+This is mainly because of identical product/vendor ID and serial, and , according to the Miditech support, that usb midi interface is not updateable at all. That was motivating me enough to go deep in the detail, and try, at less to change the PID or VID.
 
-The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it with the Arduino Uno (ATMEGA328P). 
+The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it to the Arduino Uno (ATMEGA328P). 
 
-As a former ATMEL and Arduino developper, I choose to use STMDUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
+As a former AVR platform developper, I choose to use STMDUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
 
-To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load a "blink" hello world sketch with the Arduino standard IDE.
+To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load from the USB a "blink" hello world sketch with the Arduino standard IDE.
 
 ## USBMidiKliK4x4 firmware
 
 This firmware was entirely written from scratch, without hacking, or reverse-engineering anything from Miditech / Midiplus. 
-The current version supports full USB midi 4xIN , 4XOUT plus routing features, enabling configurables "4 merge" mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103. 
+The current version supports full USB midi 4xIN , 4XOUT plus routing features, enabling configurables standalone mode, "4 merge" mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103. 
 
-So I can say my modified Miditech USB interface is now better than the original, and, the most important, stackable with my other one as I changed, obviously,  the Product ID !  
+So I can say my modified Miditech USB interface is now better than the original, and, the most important, stackable with my other one as I changed, obviously,  the Product ID !  I use them almost everyday. 
 
 The code was mainly adapted from my other single USBMidiKlik project, developed on the AVR platform.
 
