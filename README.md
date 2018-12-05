@@ -1,25 +1,29 @@
 # USBMidiKliK4x4 Dual - STMDUINO
-A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
+A multi-port USB MIDI interface for the STMDUINO platform.
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
-It is not possible (but some were successfull) to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, because these device can't share the same product/vendor ID and serial without USB conflict. More, that usb midi interface is not updateable at all, according to my talk with the Miditech support.
+The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
+As it is not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, to get 8x8, because of identical product/vendor ID and serial, and also because that usb midi interface is not updateable at all, according to the Miditech support, that was motivating me enough to see if a hack was possible, at less to change the PID or VID.
 
-The MCU of the Miditech / Midiplus 4x4 midi interface is a a STMF103RC, a very common uC ARM STM32 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. 
+The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it with the Arduino Uno (ATMEGA328P). 
 
-To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32 family ARM architecture. By activating the STM32F103 bootloader mode maintaning the Boot0 pin to HIGH and the Boot1 pin to LOW (you need to desolder 2 resistors on the board because they are disabling that mode) you can upload though the UART1, a STM32DUINO generic bootloader, and use that interface as an "Arduino board" to program your own firmware with the Arduino standard IDE.
+As a former ATMEL and Arduino developper, I choose to use STMDUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
 
-I have written this firmware entirely from scratch, without hacking anything from Miditech / Midiplus. 
-The current version supports full USB midi 4xIN , 4XOUT plus routing features, big sysex, and is very stable.
-Mdi routing enables "4 merge" mode, thru mode, split mode, etc.  
+To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load a "blink" hello world sketch with the Arduino standard IDE.
 
-So I can say my own firmware modified USB interface 4X4 is now better than the original, and, the most important stackable with my existing one as I changed, obviously,  the Product ID !  
+## USBMidiKliK4x4 firmware
 
-And the STM32F103 is really really fast...no lag at all, even at 300 BPM with 4IN/OUT working.
+This firmware was entirely written from scratch, without hacking, or reverse-engineering anything from Miditech / Midiplus. 
+The current version supports full USB midi 4xIN , 4XOUT plus routing features, enabling configurables "4 merge" mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103. 
 
-The code is easily adaptable to any other multi-jack USB interface.
+So I can say my modified Miditech USB interface is now better than the original, and, the most important, stackable with my other one as I changed, obviously,  the Product ID !  
+
+The code was mainly adapted from my other single USBMidiKlik project, developed on the AVR platform.
+
+# USBMidiKliK4x4 Dual - SYSEX
 
 ## USB Midi hard reset with an internal SYSEX
 
