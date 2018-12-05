@@ -62,9 +62,9 @@ The following menu should appear after pressing ENTER :
 	x.Abort                                                                         
 	=>         
 
-## Changing the device ProductStringName
+## Change the device ProductStringName
 
-it is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.
+It is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.
 The message structure is the following :
 
        F0 <USB MidiKlik 4x4 header = 0x77 0x77 0x78> <sysex fn id = 0x0b> <USB Midi Product name > F7
@@ -75,7 +75,7 @@ For example : the following SYSEX will change the name of the MIDI interface to 
 
 The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
 
-## Changing the USB VendorID and ProductID
+## Change the USB VendorID and ProductID
 
 In the same way, you can also change the USB Vendor and Product Ids with a SYSEX (or configuration menu). They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
 
@@ -172,7 +172,7 @@ Default routing is :
 
 The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
 
-## Using another STMF32x board
+## Use another STMF32x board
 
 You can obviously use this project to build a midi interface with other STM32F boards. 
 I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O.
