@@ -31,19 +31,19 @@ The system exclusive messages format is the following :
 
 The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
 
-## USB Midi hard reset with an internal SYSEX (function 0x0A)
+## Hardware reset (function 0x0A)
 
 To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message is the following :
 
        F0 77 77 78 0A F7
 
-## USB Midi reboot in USB serial config menu mode (function 0x08)
+## Serial Configuration menu Bootmode (function 0x08)
 
-This sysex enables the configuration menu accessible from USB serial.  Immediatly after sending this sequence, the interface reboots in serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
+This sysex enables the configuration menu accessible from the USB serial.  Immediatly after sending this sequence, the interface reboots in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
 
        F0 77 77 78 08 F7
 
-When you connect a terminnal to the virtual usb com port, the following menu should appear after pressing ENTER :
+The following menu should appear after pressing ENTER :
 
 	USBMIDIKliK 4x4 MENU
 	(c)TheKikGen Labs                                                                             
