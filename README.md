@@ -1,47 +1,73 @@
-# USBMidiKliK4x4
-A hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface
+# USBMidiKliK4x4 Dual - STM32DUINO
+A multi-port USB MIDI interface for the STMDUINO platform.
 
-Chack also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
+Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
-It is not possible (but some were successfull) to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer, because these device can't share the same product/vendor ID and serial without USB conflict. More, that usb midi interface is not updateable at all, according to my talk with the Miditech support.
+The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
+Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8. This is mainly because of identical product/vendor ID and serial, and , according to the Miditech support, as that usb midi interface is not updateable at all, I was stucked....That was motivating me enough to go deep in the detail, and try, at less to change the PID or VID.
 
-The MCU of the Miditech / Midiplus 4x4 midi interface is a a STMF103RC, a very common uC ARM STM32 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. 
+The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it to the Arduino Uno (ATMEGA328P). 
 
-To preserve and reuse my existing software libraries, I choose to use STMDUINO, a port of the Arduino platform to the STM32 family ARM architecture. By activating the STM32F103 bootloader mode maintaning the Boot0 pin to HIGH and the Boot1 pin to LOW (you need to desolder 2 resistors on the board because they are disabling that mode) you can upload though the UART1, a STM32DUINO generic bootloader, and use that interface as an "Arduino board" to program your own firmware with the Arduino standard IDE.
+As a former AVR platform developper, I choose to use STMDUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
 
-I have written this firmware entirely from scratch, without hacking anything from Miditech / Midiplus. 
-The current version supports full USB midi 4xIN , 4XOUT plus routing features, big sysex, and is very stable.
-Mdi routing enables "4 merge" mode, thru mode, split mode, etc.  
+To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load from the USB a "blink" hello world sketch with the Arduino standard IDE.
 
-So I can say my own firmware modified USB interface 4X4 is now better than the original, and, the most important stackable with my existing one as I changed, obviously,  the Product ID !  
+## USBMidiKliK4x4 firmware
 
-And the STM32F103 is really really fast...no lag at all, even at 300 BPM with 4IN/OUT working.
+This firmware was entirely written from scratch, without hacking, or reverse-engineering anything from Miditech / Midiplus. 
+The current version supports full USB midi 4xIN , 4XOUT plus routing features, enabling configurables standalone mode, "4 merge" mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103. 
 
-The code is easily adaptable to any other multi-jack USB interface.
+So I can say my modified Miditech USB interface is now better than the original, and, the most important, stackable with my other one as I changed, obviously,  the Product ID !  I use them almost everyday. 
 
-## USB Midi hard reset with an internal SYSEX
+The code was mainly adapted from my other single USBMidiKlik project, developed on the AVR platform.
 
-To avoid unplugging the USB cable, you cand send this sysex TO A MIDI IN JACK (USB not implemented) that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+# USBMidiKliK4x4 Dual - SYSEX
 
-       F0 77 77 78 <sysex function id = 0x0A> F7
+The system exclusive messages format is the following :
 
-## Changing the device ProductStringName with an internal SYSEX
+	F0 77 77 78 <sysex function id > <data> F7
 
-it is posssible to change the USB device ProductStringName with a specific SYSEX. The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.   The message structure is the following :
+The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
+
+## Hardware reset (function 0x0A)
+
+To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message is the following :
+
+       F0 77 77 78 0A F7
+
+## Serial Configuration menu Bootmode (function 0x08)
+
+This sysex enables the configuration menu accessible from the USB serial.  Immediatly after sending this sequence, the interface reboots in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
+
+       F0 77 77 78 08 F7
+
+The following menu should appear after pressing ENTER :
+
+	USBMIDIKliK 4x4 MENU
+	(c)TheKikGen Labs                                                                             
+
+	0.Show current settings                                                         
+	1.Reload settings                                                               
+	2.USB product string                                                            
+	3.USB Vendor ID & Product ID                                                    
+	4.Intelligent Midi Thru MIDI filters                                            
+	5.Intelligent Midi Thru delay for USB timeout                                   
+	6.Intelligent Midi Thru IN Jack routing                                         
+	7.Midi USB Cable OUT routing                                                    
+	8.Midi IN Jack routing                                                          
+	9.Reset routing to factory default                                              
+	s.Save & quit                                                                   
+	x.Abort                                                                         
+	=>         
+
+## Change the device ProductStringName
+
+It is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.
+The message structure is the following :
 
        F0 <USB MidiKlik 4x4 header = 0x77 0x77 0x78> <sysex fn id = 0x0b> <USB Midi Product name > F7
-
-Only Serial is parsed (but USB will be in a next version), so you must send the SYSEX to a MIDI IN jack.
-You can use a tool like MIDI-OX to do that easily :
-- connect the device to USB 
-- connect the MIDIOUT JACK 1 to the MIDI IN JACK 1
-- Open MIDI-OX and connect the USBMidiKliK MIDI-OUT 1 in the MIDI output device dialog box
-- Open the SysEx windows in the "View" menu
-- Enter the SYSEX msg in the command window and click on "Send Sysex" in the "CommandWindow" menu.  
-- Unplug/plug the USB cable or send a Midi USB HardReset sysex (see below)
-- Quit and reopen MIDI-OX and you should see a new name in the MIDI devices dialog box.
 
 For example : the following SYSEX will change the name of the MIDI interface to "USB MidiKliK" :
 
@@ -49,9 +75,9 @@ For example : the following SYSEX will change the name of the MIDI interface to 
 
 The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
 
-## Changing the USB VendorID and ProductID with an internal SYSEX
+## Change the USB VendorID and ProductID
 
-In the same way, you can also change the USB Vendor and Product Ids with a SYSEX. They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
+In the same way, you can also change the USB Vendor and Product Ids with a SYSEX (or configuration menu). They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
 
     F0 77 77 78 <func id = 0x0C> <n1n2n3n4 = Vendor Id nibbles> <n1n2n3n4 = Product Id nibbles> F7
 
@@ -66,22 +92,29 @@ so the complete SYSEX message will be :
 ## Set the "intelligent MIDI Thru" 
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
-In that mode, all midi messages received on the selected MIDI IN jack are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
+In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
 
     	F0 77 77 78 	<func id = 0x0E> 
-    			<n = MIDI IN Jack #, 1-4. 0 = Intelligent Thru mode disabled>
+			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
 			<serial Midi out bit mask 1-F>
 			<n = nb of 15s periods, 0-127> 
 	F7
+	
+Midi Msg filter masks (can be combined but can't be zero) are :
 
-The delay is defined by a number of 15 seconds periods. The min/max period number is 1-127 (31 mn).  
-For example, to set the MIDI IN 3 jack to be the input, outputs,  when the delay reachs 2 mn (120 seconds = 8 periods of 15 seconds) :
+	b0 = channel Voice (0001)
+	b1 = system Common (0010)
+	b2=realTime        (0100)
+	b3=sysEx           (1000)		
+	
+The delay is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 (100) jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
 
-    F0 77 77 78 0E 03 0F 08 F7
+	F0 77 77 78 0E 34 0F 08 F7
 
-## Define midi routing rules with internals SYSEX
+## Define midi routing rules
 
-You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
+You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, USB to USB, serial to USB, serial to serial.
 2 routing tables are availables :
 
 - USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
@@ -108,24 +141,24 @@ Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 
 Sysex message structure :
 
-              F0 77 77 78   <0x0F> 
-                            <0x00 = reset | 0x01 = set> 
-                            <0X0 = cable  | 0x01 = serial> 
-                            <id:0-4> 
-                            <target nibble cable> 
-                            <target nibble serial> 
-              F7
+      F0 77 77 78   <0x0F> 
+		    <0x00 = reset | 0x01 = set> 
+		    <0X0 = cable  | 0x01 = serial> 
+		    <id:0-4> 
+		    <target nibble cable> 
+		    <target nibble serial> 
+      F7
                      
 For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
 
-       F0 77 77 78 0F 01 01 00 01 00 F7
-       F0 77 77 78 0F 01 01 01 01 00 F7
+      F0 77 77 78 0F 01 01 00 01 00 F7
+      F0 77 77 78 0F 01 01 01 01 00 F7
        
 The following sysex will restore default routing for all inputs :
 
        F0 77 77 78 0F 00 F7
 
-Default routing is the following :
+Default routing is :
 
        USB MIDI OUT 1 o------------->o MIDI OUT JACK 1 
        USB MIDI OUT 2 o------------->o MIDI OUT JACK 2 
@@ -138,3 +171,13 @@ Default routing is the following :
        USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
 
 The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
+
+## Use another STMF32x board
+
+You can obviously use this project to build a midi interface with other STM32F boards. 
+I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O.
+
+https://wiki.stm32duino.com/index.php?title=Blue_Pill
+
+<img border="0" src="https://4.bp.blogspot.com/-2nP69Lwl-dU/WhrncwR_WdI/AAAAAAAAIAE/ugo2ail4EdAXxgveZqc_jh9kwQU6PXiUwCLcBGAs/s1600/stm32-arduino-ide.jpg"  />
+
