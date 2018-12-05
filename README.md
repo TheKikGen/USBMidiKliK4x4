@@ -6,8 +6,7 @@ Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 <img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
 
 The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
-As it is not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8.
-This is mainly because of identical product/vendor ID and serial, and , according to the Miditech support, that usb midi interface is not updateable at all. That was motivating me enough to go deep in the detail, and try, at less to change the PID or VID.
+Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8. This is mainly because of identical product/vendor ID and serial, and , according to the Miditech support, as that usb midi interface is not updateable at all, I was stucked....That was motivating me enough to go deep in the detail, and try, at less to change the PID or VID.
 
 The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it to the Arduino Uno (ATMEGA328P). 
 
