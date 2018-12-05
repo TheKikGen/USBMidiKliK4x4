@@ -88,19 +88,26 @@ When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU
 In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
 
     	F0 77 77 78 	<func id = 0x0E> 
-    			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
+			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
 			<serial Midi out bit mask 1-F>
 			<n = nb of 15s periods, 0-127> 
 	F7
-Midi Msg filter masks (can be combined but can't be zero) are  b0 = channel Voice, b1 = system Common, b2=realTime, b3=sysEx;		
-The delay is defined by a number of 15 seconds periods. The min/max period number is 1-127 (31 mn).  
-After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
+	
+Midi Msg filter masks (can be combined but can't be zero) are :
+
+	b0 = channel Voice (0001)
+	b1 = system Common (0010)
+	b2=realTime        (0100)
+	b3=sysEx           (1000)		
+	
+The delay is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 (100) jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
 
 	F0 77 77 78 0E 34 0F 08 F7
 
-## Define midi routing rules with internals SYSEX
+## Define midi routing rules
 
-You can change the behaviour of the routing from USB to serial, USB to USB, serial to USB, serial to serial.
+You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, USB to USB, serial to USB, serial to serial.
 2 routing tables are availables :
 
 - USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
@@ -127,24 +134,24 @@ Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 
 Sysex message structure :
 
-              F0 77 77 78   <0x0F> 
-                            <0x00 = reset | 0x01 = set> 
-                            <0X0 = cable  | 0x01 = serial> 
-                            <id:0-4> 
-                            <target nibble cable> 
-                            <target nibble serial> 
-              F7
+      F0 77 77 78   <0x0F> 
+		    <0x00 = reset | 0x01 = set> 
+		    <0X0 = cable  | 0x01 = serial> 
+		    <id:0-4> 
+		    <target nibble cable> 
+		    <target nibble serial> 
+      F7
                      
 For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
 
-       F0 77 77 78 0F 01 01 00 01 00 F7
-       F0 77 77 78 0F 01 01 01 01 00 F7
+      F0 77 77 78 0F 01 01 00 01 00 F7
+      F0 77 77 78 0F 01 01 01 01 00 F7
        
 The following sysex will restore default routing for all inputs :
 
        F0 77 77 78 0F 00 F7
 
-Default routing is the following :
+Default routing is :
 
        USB MIDI OUT 1 o------------->o MIDI OUT JACK 1 
        USB MIDI OUT 2 o------------->o MIDI OUT JACK 2 
@@ -161,7 +168,8 @@ The new routing is saved in the flash memory immediatly after the update. So it 
 ## Using another STMF32x board
 
 You can obviously use this project to build a midi interface with other STM32F boards. 
-I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O. 
+I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O.
+
 https://wiki.stm32duino.com/index.php?title=Blue_Pill
 
 <img border="0" src="https://4.bp.blogspot.com/-2nP69Lwl-dU/WhrncwR_WdI/AAAAAAAAIAE/ugo2ail4EdAXxgveZqc_jh9kwQU6PXiUwCLcBGAs/s1600/stm32-arduino-ide.jpg"  />
