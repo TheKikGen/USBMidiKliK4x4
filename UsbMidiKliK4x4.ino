@@ -413,19 +413,20 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
   }
 
   // usb cable targets
-  targets = targets >> 4;
-  midiPacket_t lpk = { .i = pk->i }; ; // Copy to change the cable
-  for (uint8_t t=0; t<=3 ; t++) {
-      if (targets & ( 1 << t ) ) {
-        lpk.packet[0] = ( t << 4 ) + cin;
-        MidiUSB.writePacket(&(lpk.i));    // Send to USB
-        #ifdef LEDS_MIDI
-        flashLED_IN[t]->start();
-        #endif
-      }
-
+  // only if USB connected
+  if ( MidiUSB.isConnected()) {
+    targets = targets >> 4;
+    midiPacket_t lpk = { .i = pk->i }; ; // Copy to change the cable
+    for (uint8_t t=0; t<=3 ; t++) {
+        if (targets & ( 1 << t ) ) {
+          lpk.packet[0] = ( t << 4 ) + cin;
+          MidiUSB.writePacket(&(lpk.i));    // Send to USB
+          #ifdef LEDS_MIDI
+          flashLED_IN[t]->start();
+          #endif
+        }
+    }
   }
-
   // Internal sysex
   if (cin >= 4 && cin <= 7 && cable == 0 ) {
      ParseSysExInternal(pk);
@@ -553,7 +554,7 @@ static void ProcessSysExInternal() {
       if ( sysExInternalBuffer[4] == 0  || sysExInternalBuffer[4] > 127 ) break;
 
       EEPROM_Params.intelligentMidiThruIn = sysExInternalBuffer[2];
-      EEPROM_Params.intelligentMidiThruMsk = sysExInternalBuffer[3];
+      EEPROM_Params.intelligentMidiThruOut = sysExInternalBuffer[3];
       EEPROM_Params.intelligentMidiThruDelayPeriod = sysExInternalBuffer[4];
 
       // reset globals for a real time update
@@ -657,7 +658,7 @@ void CheckEEPROM() {
     // intelligentMidiThru ==0 => Disabled
     EEPROM_Params.intelligentMidiThruIn = DEFAULT_INTELLIGENT_MIDI_THRU_IN;
     EEPROM_Params.intelligentMidiThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
-    EEPROM_Params.intelligentMidiThruMsk = DEFAULT_INTELLIGENT_MIDI_THRU_MSK;
+    EEPROM_Params.intelligentMidiThruOut = DEFAULT_INTELLIGENT_MIDI_THRU_OUT;
 
     // Routing targets
     memcpy( EEPROM_Params.midiCableRoutingTarget,defaultMidiCableRoutingTarget,sizeof(defaultMidiCableRoutingTarget));
@@ -764,7 +765,6 @@ static uint8_t USBSerialScanHexChar(char *buff, uint8_t len,char exitchar,char s
 // Show current EEPROM settings
 ///////////////////////////////////////////////////////////////////////////////
 static void ShowCurrentSettings() {
-	char buff [8];
 	uint8_t i,j;
 
   Serial.print("\n================ CURRENT SETTINGS ================");
@@ -835,7 +835,7 @@ static void ShowCurrentSettings() {
 
    Serial.print("|  ");
    for ( j=0; j < 4 ; j++) {
-     if ( EEPROM_Params.intelligentMidiThruMsk & ( 1 << j) )
+     if ( EEPROM_Params.intelligentMidiThruOut & ( 1 << j) )
        Serial.print("X ");
      else Serial.print(". ");
    }
@@ -997,7 +997,7 @@ void ConfigRootMenu()
             if ( j == 0 ) {
               Serial.print("\nNo change made for Midi Jack out.");
             } else {
-              EEPROM_Params.intelligentMidiThruMsk  = j;
+              EEPROM_Params.intelligentMidiThruOut  = j;
             }
 
   					break;
@@ -1063,7 +1063,7 @@ void ConfigRootMenu()
                 if ( c == 'y') {
                   EEPROM_Params.intelligentMidiThruIn = DEFAULT_INTELLIGENT_MIDI_THRU_IN;
                   EEPROM_Params.intelligentMidiThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
-                  EEPROM_Params.intelligentMidiThruMsk = DEFAULT_INTELLIGENT_MIDI_THRU_MSK;
+                  EEPROM_Params.intelligentMidiThruOut = DEFAULT_INTELLIGENT_MIDI_THRU_OUT;
                   memcpy( EEPROM_Params.midiCableRoutingTarget,defaultMidiCableRoutingTarget,sizeof(defaultMidiCableRoutingTarget));
                   memcpy( EEPROM_Params.midiSerialRoutingTarget,defaultMidiSerialRoutingTarget,sizeof(defaultMidiSerialRoutingTarget));
                 }
@@ -1195,7 +1195,7 @@ void loop() {
     #endif
 
     // Do we have a MIDI USB packet available ?
-    if ( MidiUSB.available() ) {
+    if ( cx && MidiUSB.available() ) {
 
       midiUSBActive = true;
       midiUSBLastPacketMillis = millis()  ;
@@ -1234,21 +1234,28 @@ void loop() {
 
              if ( serialMidiParser[s].parse( serialInterface[s]->read() ) ) {
 
-                  // If USB was set inactive after timeout, switch to Intelligent Thru mode
-                  if ( !midiUSBActive
-                              && EEPROM_Params.intelligentMidiThruIn
-                              && (s == ( EEPROM_Params.intelligentMidiThruIn >>4) -1)
-                              && ( (EEPROM_Params.intelligentMidiThruIn & 0x0F) & serialMidiParser[s].getMidiMsgType() )
-                     )
-                  {
-                    // Set the new routing rules for Intelligent Midi Thru serial MIDI IN
-                    // broadcast the message then restore the routing rule
-                    uint8_t savedRoutingRule = EEPROM_Params.midiSerialRoutingTarget[s];
-                    EEPROM_Params.midiSerialRoutingTarget[s] = EEPROM_Params.intelligentMidiThruMsk;
+                  if ( midiUSBActive )
                     SendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
-                    EEPROM_Params.midiSerialRoutingTarget[s]=savedRoutingRule;
+                  else {
+                    // If USB was set inactive after timeout, switch to Intelligent Thru mode
+                    // NB : Bit testing for midi msg rely on msgType, matching value 1 to 8.
+                    // This was done for speed optimization but could break if enum value change
+                    // in the midiXparser class. 1:channel, 2:systemCo., 4:realTime, 8:Sysex
+                    if ( EEPROM_Params.intelligentMidiThruOut
+                         && ( EEPROM_Params.intelligentMidiThruIn & ( 1 << (s+4) ) )
+                         && ( EEPROM_Params.intelligentMidiThruIn & serialMidiParser[s].getMidiMsgType() )
+                       )
+                    {
+                      // Set the new routing rules for Intelligent Midi Thru serial MIDI IN
+                      // broadcast the message then restore the routing rule
+                      uint8_t savedRoutingRule = EEPROM_Params.midiSerialRoutingTarget[s];
+                      EEPROM_Params.midiSerialRoutingTarget[s] = EEPROM_Params.intelligentMidiThruOut;
+                      SendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
+                      EEPROM_Params.midiSerialRoutingTarget[s]=savedRoutingRule;
+                    }
+                    else
+                      SendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
                   }
-                  else SendMidiSerialMsgToUsb( s, &serialMidiParser[s]);
              }
              else
 

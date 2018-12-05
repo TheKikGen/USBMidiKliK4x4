@@ -88,7 +88,7 @@
 
 // Intelligent Serial default MIDI Thru
 // No IN actives - 4 midi out - channel messages
-#define DEFAULT_INTELLIGENT_MIDI_THRU_MSK 0B1111
+#define DEFAULT_INTELLIGENT_MIDI_THRU_OUT 0B1111
 #define DEFAULT_INTELLIGENT_MIDI_THRU_IN  0B00000001
 
 // Default number of 15 secs periods to start after USB midi inactivity

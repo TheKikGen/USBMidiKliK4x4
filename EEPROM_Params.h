@@ -62,7 +62,7 @@ typedef struct {
         uint8_t         TimestampedVersion[14];
         uint8_t         nextBootMode;
         uint8_t         intelligentMidiThruIn;
-        uint8_t         intelligentMidiThruMsk;
+        uint8_t         intelligentMidiThruOut;
         uint8_t         intelligentMidiThruDelayPeriod;
         uint8_t         midiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX];
         uint8_t         midiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX];
