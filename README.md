@@ -25,19 +25,25 @@ The code was mainly adapted from my other single USBMidiKlik project, developed 
 
 # USBMidiKliK4x4 Dual - SYSEX
 
-## USB Midi hard reset with an internal SYSEX
+The system exclusive messages format is the following :
 
-To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message structure is the following :
+	F0 77 77 78 <sysex function id > <data> F7
 
-       F0 77 77 78 <sysex function id = 0x0A> F7
+The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
 
-## USB Midi reboot in USB serial config menu mode
+## USB Midi hard reset with an internal SYSEX (function 0x0A)
+
+To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message is the following :
+
+       F0 77 77 78 0A F7
+
+## USB Midi reboot in USB serial config menu mode (function 0x08)
 
 This sysex enables the configuration menu accessible from USB serial.  Immediatly after sending this sequence, the interface reboots in serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
 
-       F0 77 77 78 <sysex function id = 0x08> F7
+       F0 77 77 78 08 F7
 
-When in serial mode, the menu is the following :
+When you connect a terminnal to the virtual usb com port, the following menu should appear after pressing ENTER :
 
 	USBMIDIKliK 4x4 MENU
 	(c)TheKikGen Labs                                                                             
@@ -58,7 +64,8 @@ When in serial mode, the menu is the following :
 
 ## Changing the device ProductStringName
 
-it is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.   The message structure is the following :
+it is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.
+The message structure is the following :
 
        F0 <USB MidiKlik 4x4 header = 0x77 0x77 0x78> <sysex fn id = 0x0b> <USB Midi Product name > F7
 
@@ -173,5 +180,4 @@ I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 seria
 https://wiki.stm32duino.com/index.php?title=Blue_Pill
 
 <img border="0" src="https://4.bp.blogspot.com/-2nP69Lwl-dU/WhrncwR_WdI/AAAAAAAAIAE/ugo2ail4EdAXxgveZqc_jh9kwQU6PXiUwCLcBGAs/s1600/stm32-arduino-ide.jpg"  />
-
 
