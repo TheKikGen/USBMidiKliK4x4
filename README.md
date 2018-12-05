@@ -88,12 +88,11 @@ When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU
 In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
 
     	F0 77 77 78 	<func id = 0x0E> 
-    			< (High nible bits 4-7 = Midi In Jack 1-4 or 0 to disable>) (low nible bits 0-3 = midiMsg filter mask)>
-			Midi Msg filter mask (can't be zero) : b0 = channel Voice, b1 = system Common, b2=realTime, b3=sysEx		
+    			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
 			<serial Midi out bit mask 1-F>
 			<n = nb of 15s periods, 0-127> 
 	F7
-
+Midi Msg filter masks (can be combined but can't be zero) are  b0 = channel Voice, b1 = system Common, b2=realTime, b3=sysEx;		
 The delay is defined by a number of 15 seconds periods. The min/max period number is 1-127 (31 mn).  
 After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
 
