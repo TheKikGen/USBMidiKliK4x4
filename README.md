@@ -10,7 +10,7 @@ Needing more midi jacks, I bought a second Miditech interface, but I discovered 
 
 The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it to the Arduino Uno (ATMEGA328P). 
 
-As a former AVR platform developper, I choose to use STMDUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
+As a former AVR platform developper, I choose to use STM32DUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
 
 To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load from the USB a "blink" hello world sketch with the Arduino standard IDE.
 
