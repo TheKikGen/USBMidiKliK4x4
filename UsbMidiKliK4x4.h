@@ -94,3 +94,24 @@
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
 #define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
+
+// Functions prototypes
+void Timer2Handler(void);
+static void SendMidiMsgToSerial(uint8_t const *, uint8_t);
+static void SerialWritePacket(const midiPacket_t *, uint8_t);
+static void RouteStdMidiMsg( uint8_t, midiXparser* ) ;
+static void RouteSysExMidiMsg( uint8_t , midiXparser*  ) ;
+static void ParseSysExInternal(const midiPacket_t *) ;
+static void RoutePacketToTarget(uint8_t, const midiPacket_t *) ;
+static void ProcessSysExInternal() ;
+void CheckEEPROM();
+int EEPROM_writeBlock(uint16 , const uint8 *, uint16  );
+int EEPROM_readBlock(uint16 , uint8 *, uint16  );
+static uint8_t GetInt8FromHexChar(char);
+static uint16_t GetInt16FromHex4Char(char *);
+static uint16_t GetInt16FromHex4Bin(char * );
+static char USBSerialGetDigit();
+static char USBSerialGetChar();
+static uint8_t USBSerialScanHexChar(char *, uint8_t ,char,char);
+static void ShowCurrentSettings();
+void ConfigRootMenu();
