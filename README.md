@@ -45,8 +45,8 @@ This sysex enables the configuration menu accessible from the USB serial.  Immed
 
 The following menu should appear after pressing ENTER :
 
-	USBMIDIKliK 4x4 MENU
-	(c)TheKikGen Labs                                                                             
+	USBMIDIKliK 4x4 MENU - MIDITECH HARDWARE                                        
+	(c)TheKikGen Labs                                                               
 
 	0.Show current settings                                                         
 	1.Reload settings                                                               
@@ -60,7 +60,38 @@ The following menu should appear after pressing ENTER :
 	9.Reset routing to factory default                                              
 	s.Save & quit                                                                   
 	x.Abort                                                                         
-	=>         
+	=>0                                                                             
+
+	================ CURRENT SETTINGS ================                              
+
+	Magic - V - Build : MDK - 6 - 1.181207.0122                                     
+	BootMode          : 0                                                           
+	VID - PID - STR   : 2912 - 1970 - USB MIDIKliK 4x4                              
+
+	------------ Midi routing ------------                                          
+
+	Cable            Cable IN  |  Midi OUT                                          
+	USB OUT #  --->  1 2 3 4   |  1 2 3 4                                           
+	   1       --->  . . . .   |  X . . .                                           
+	   2       --->  . . . .   |  . X . .                                           
+	   3       --->  . . . .   |  . . X .                                           
+	   4       --->  . . . .   |  . . . X                                           
+
+	MIDI JACK        Cable IN  |  Midi OUT                                          
+	   IN #    --->  1 2 3 4   |  1 2 3 4                                           
+	   1       --->  X . . .   |  . . . .                                           
+	   2       --->  . X . .   |  . . . .                                           
+	   3       --->  . . X .   |  . . . .                                           
+	   4       --->  . . . X   |  . . . .                                           
+
+	 INTELLIGENT THRU | Filter       |  Midi OUT                                    
+	JACK IN # 1 2 3 4 | Ch Sc Rt Sx  |  1 2 3 4                                     
+		  . . . . |  X  .  .  .  |  X X X X                                     
+
+	Intelligent Midi Thru delay (USB timeout) : 30s                                 
+	(Intelligent Midi Thru is inactive).                                            
+
+	==================================================                              
 
 ## Change the device ProductStringName
 
