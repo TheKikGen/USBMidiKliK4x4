@@ -63,6 +63,27 @@ HardwareTimer timer(2);
 static  const uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
 static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
+// MIDI USB packet lenght
+static const uint8_t PROGMEM CINToLenTable[] =
+{
+	0,
+	0,
+	2, // 0x02
+	3, // 0x03
+	3, // 0x04
+	1, // 0x05
+	2, // 0x06
+	3, // 0x07
+	3, // 0x08
+	3, // 0x09
+	3, // 0x0A
+	3, // 0x0B
+	2, // 0x0C
+	2, // 0x0D
+	3, // 0x0E
+	1  // 0x0F
+};
+
 // Prepare LEDs pulse for Connect, MIDIN and MIDIOUT
 // From MIDI SERIAL point of view
 // Use a PulseOutManager factory to create the pulses
@@ -135,49 +156,17 @@ static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
 ///////////////////////////////////////////////////////////////////////////////
 static void SerialWritePacket(const midiPacket_t *pk, uint8_t serialNo) {
 
-  uint8_t cin   = pk->packet[0] & 0x0F ;
   if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
   // Sendpacket to serial at the right size
-  switch (cin) {
-          // 1 byte
-          case 0x05: case 0x0F:
-            serialInterface[serialNo]->write(pk->packet[1]);
+  uint8_t msgLen = CINToLenTable[pk->packet[0] & 0x0F] ;
+  serialInterface[serialNo]->write(&pk->packet[1],msgLen);
 
-            #ifdef LEDS_MIDI
-            flashLED_OUT[serialNo]->start();
-            #else
-            flashLED_CONNECT->start();
-            #endif
-
-            break;
-
-          // 2 bytes
-          case 0x02: case 0x06: case 0x0C: case 0x0D:
-            serialInterface[serialNo]->write(&pk->packet[1],2);
-            #ifdef LEDS_MIDI
-            flashLED_OUT[serialNo]->start();
-            #else
-            flashLED_CONNECT->start();
-            #endif
-
-            break;
-
-          // 3 bytes
-          case 0x03: case 0x07: case 0x04: case 0x08:
-          case 0x09: case 0x0A: case 0x0B: case 0x0E:
-            serialInterface[serialNo]->write(&pk->packet[1],3);
-            #ifdef LEDS_MIDI
-            flashLED_OUT[serialNo]->start();
-            #else
-            flashLED_CONNECT->start();
-            #endif
-
-            break;
-
-          default :
-            return;
-  }
+  #ifdef LEDS_MIDI
+  flashLED_OUT[serialNo]->start();
+  #else
+  flashLED_CONNECT->start();
+  #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
