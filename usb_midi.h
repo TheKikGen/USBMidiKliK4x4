@@ -69,11 +69,12 @@ public:
     uint32 available(void);
     uint32 readPackets(const void *buf, uint32 len);
     uint32 readPacket();
-    void writePacket(const uint32*);
-    void writePackets(const void*, uint32);
-    uint8 isConnected();
-    uint8 pending();
-
+    uint32 peekPacket();
+    void   markPacketRead();
+    void   writePacket(const uint32*);
+    void   writePackets(const void*, uint32);
+    uint8  isConnected();
+    uint8  pending();
  };
 
 #endif

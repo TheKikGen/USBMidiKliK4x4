@@ -77,6 +77,7 @@ void usb_midi_putc(char ch);
 uint32 usb_midi_tx(const uint32* buf, uint32 len);
 uint32 usb_midi_rx(uint32* buf, uint32 len);
 uint32 usb_midi_peek(uint32* buf, uint32 len);
+uint32 usb_midi_mark_read(uint32 n_copied) ;
 
 uint32 usb_midi_data_available(void); /* in RX buffer */
 uint16 usb_midi_get_pending(void);

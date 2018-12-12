@@ -43,6 +43,7 @@
   #warning "MIDITECH HARDWARE DETECTED"
   #define HARDWARE_TYPE "MIDITECH HARDWARE"
   // Miditech 4X4 has 4 cables and 4 serials
+  // NOT BEYOND 4 !!!
   #define SERIAL_INTERFACE_MAX  4
   #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
 
@@ -86,10 +87,14 @@
 // Routing from a serial MIDI IN
 #define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
 
+// All midi messages. Used for cable and serial routing.
+#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111,0B11111111,0B11111111,0B11111111
+
 // Intelligent Serial default MIDI Thru
-// No IN actives - 4 midi out - channel messages
-#define DEFAULT_INTELLIGENT_MIDI_THRU_OUT 0B1111
-#define DEFAULT_INTELLIGENT_MIDI_THRU_IN  0B00000001
+// No IN actives - Alls msg -
+// IN1->OUT1 - IN2->OUT1,2 IN3->OUT->1,2,3 IN4->OUT1,2,3,4
+#define DEFAULT_INTELLIGENT_MIDI_THRU_OUT   0B11110001,0B11110011,0B11110111,0B11111111
+#define DEFAULT_INTELLIGENT_MIDI_THRU_IN    0B0000
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX

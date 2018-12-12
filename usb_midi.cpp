@@ -136,6 +136,17 @@ uint32 USBMidi::readPackets(const void *buf, uint32 len) {
 }
 
 /* Blocks forever until 1 byte is received */
+uint32 USBMidi::peekPacket() {
+      uint32 p;
+      usb_midi_peek(&p,1);
+      return p;
+}
+
+void USBMidi::markPacketRead() {
+    usb_midi_mark_read(1) ;
+}
+
+/* Blocks forever until 1 byte is received */
 uint32 USBMidi::readPacket() {
     uint32 p;
     usb_midi_rx(&p,1);
