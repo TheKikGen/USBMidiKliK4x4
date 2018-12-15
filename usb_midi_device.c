@@ -325,35 +325,24 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
  * into buf and deq's the FIFO. */
 uint32 usb_midi_rx(uint32* buf, uint32 packets) {
     /* Copy bytes to buffer. */
-    return usb_midi_mark_read(usb_midi_peek(buf, packets));
-}
+    uint32 n_copied = usb_midi_peek(buf, packets);
 
+    usb_midi_mark_read(n_copied);
 
-/* Nonblocking byte receive.
- * Mark n packets as read  when they have been peeked
- * Warning : this call must only follow  a peek !!
- * Use readPacket instead if you need to read and mark
- */
-
-uint32 usb_midi_mark_read(uint32 n_copied) {
-    /* Mark bytes as read. */
-    if ( n_copied <= n_unread_packets)  {
-        n_unread_packets-= n_copied;
-        rx_offset += n_copied;
-    }
-    else {
-      n_unread_packets = 0;
-      rx_offset = 0;
-      /* If all bytes have been read, re-enable the RX endpoint, which
-       * was set to NAK when the current batch of bytes was received. */
-       usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
-       usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
-    }
+    // /* Mark bytes as read. */
+    // n_unread_packets -= n_copied;
+    // rx_offset += n_copied;
+    //
+    // /* If all bytes have been read, re-enable the RX endpoint, which
+    //  * was set to NAK when the current batch of bytes was received. */
+    // if (n_unread_packets == 0) {
+    //     usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
+    //     usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
+    //     rx_offset = 0;
+    // }
 
     return n_copied;
 }
-
-
 
 /* Nonblocking byte lookahead.
  *
@@ -370,6 +359,30 @@ uint32 usb_midi_peek(uint32* buf, uint32 packets) {
 
     return packets;
 }
+
+/* Nonblocking byte receive.
+ * Mark n packets as read  when they have been peeked
+ * Warning : this call must only follow  a peek !!
+ * Use readPacket instead if you need to read and mark
+ */
+
+uint32 usb_midi_mark_read(uint32 n_copied) {
+    /* Mark bytes as read. */
+    /* Mark bytes as read. */
+    n_unread_packets -= n_copied;
+    rx_offset += n_copied;
+
+    /* If all bytes have been read, re-enable the RX endpoint, which
+     * was set to NAK when the current batch of bytes was received. */
+    if (n_unread_packets == 0) {
+        usb_set_ep_rx_count(MIDI_STREAM_OUT_ENDP, MIDI_STREAM_EPSIZE);
+        usb_set_ep_rx_stat(MIDI_STREAM_OUT_ENDP, USB_EP_STAT_RX_VALID);
+        rx_offset = 0;
+    }
+
+    return n_copied;
+}
+
 
 // --------------------------------------------------------------------------------------
 // USB MIDI STATE

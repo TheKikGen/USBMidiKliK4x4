@@ -51,8 +51,8 @@
 
 #else
   // Assume a "Blue Pill" like configuration
-  #warning "BLUE PILL HARDWARE ASSUMED"
-  #define HARDWARE_TYPE "BLUE PILL"
+  #warning "BLUEPILL HARDWARE ASSUMED"
+  #define HARDWARE_TYPE "BLUEPILL"
   #define SERIAL_INTERFACE_MAX  3
   #define SERIALS_PLIST &Serial1,&Serial2,&Serial3
 
@@ -73,9 +73,6 @@
 
 // LED light duration in milliseconds
 #define LED_PULSE_MILLIS  5
-
-// When MIDI SERIAL is inactive beyond the timeout..
-#define MIDI_SERIAL_TIMEOUT_MILLIS  30000
 
 // MIDI Routing
 #define FROM_SERIAL 0
@@ -109,7 +106,7 @@ static void RouteSysExMidiMsg( uint8_t , midiXparser*  ) ;
 static void ParseSysExInternal(const midiPacket_t *) ;
 static void RoutePacketToTarget(uint8_t, const midiPacket_t *) ;
 static void ProcessSysExInternal() ;
-void CheckEEPROM();
+void CheckEEPROM(bool);
 int EEPROM_writeBlock(uint16 , const uint8 *, uint16  );
 int EEPROM_readBlock(uint16 , uint8 *, uint16  );
 static uint8_t GetInt8FromHexChar(char);

@@ -122,6 +122,10 @@ uint32 USBMidi::available(void) {
     return usb_midi_data_available();
 }
 
+bool USBMidi::isTransmitting(void) {
+   return usb_midi_is_transmitting();
+}
+
 uint32 USBMidi::readPackets(const void *buf, uint32 len) {
     if (!buf) {
         return 0;

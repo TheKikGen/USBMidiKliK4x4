@@ -67,6 +67,7 @@ public:
     void begin();
     void end();
     uint32 available(void);
+    bool   isTransmitting(void);
     uint32 readPackets(const void *buf, uint32 len);
     uint32 readPacket();
     uint32 peekPacket();
