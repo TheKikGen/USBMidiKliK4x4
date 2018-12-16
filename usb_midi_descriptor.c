@@ -112,8 +112,10 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bNumInterfaces       = 0x02,
         .bConfigurationValue  = 0x01,
         .iConfiguration       = 0x00,
-        .bmAttributes         = (USB_CONFIG_ATTR_BUSPOWERED |
-                                 USB_CONFIG_ATTR_SELF_POWERED),
+
+        .bmAttributes         = 0xa0 , // (Bus Powered)  Remote Wakeup
+        // .bmAttributes         = (USB_CONFIG_ATTR_BUSPOWERED |
+        //                           USB_CONFIG_ATTR_SELF_POWERED),
         .bMaxPower            = USB_MIDI_MAX_POWER,
     },
 
@@ -401,13 +403,15 @@ static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
     .bString = {'T', 0, 'h', 0, 'e', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
 };
 
-
+// We reserve room to change the product string later but the lenght is manually adjusted to 18.
 static usb_descriptor_string usbMIDIDescriptor_iProduct = {
-    .bLength = USB_DESCRIPTOR_STRING_LEN(MIDI_PRODUCT_STRING_SIZE+1), // Defined in EEPROM_Params.h
+    .bLength = USB_DESCRIPTOR_STRING_LEN(18),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-    .bString = {'U',0,'S',0,'B',0,' ',0,'M',0,'i',0,'d',0,'i',0,'K',0,'l',0,'i',\
-                 0,'K',0,' ',0,'4',0,'X',0,'4',0, 0,0,  0,0,  0,0,  0,0,  0,0,  0,0,\
-                   0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  0,0,  }   ,
+    .bString =  { 'U', 0, 'S', 0, 'B', 0, ' ', 0, 'M', 0, 'i', 0, 'd', 0, 'i', 0, 'K', 0, 'l', 0,  // 10
+                  'i', 0, 'K', 0, ' ', 0, '4', 0, 'X', 0, '4', 0, '*', 0, '*', 0,  0 , 0 , 0 , 0,  //  20
+                   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 30
+                   0,  0, // USB_MIDI_PRODUCT_STRING_SIZE = 30
+                }
 };
 
 static const usb_descriptor_string usbMIDIDescriptor_iSerial = {
@@ -485,7 +489,7 @@ static ONE_DESCRIPTOR usbMidiConfig_Descriptor = {
 static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = {
     {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1) },
     {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(14)},
-    {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(MIDI_PRODUCT_STRING_SIZE+1)},
+    {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(18)},
     {(uint8*)&usbMIDIDescriptor_iSerial,      USB_DESCRIPTOR_STRING_LEN(8) },
     {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(4) },
     {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },

@@ -41,8 +41,6 @@
 
 #pragma once
 
-#include "usb_midi_device.h"
-
 /**
  * @brief Wirish USB MIDI port (MidiUSB).
  */

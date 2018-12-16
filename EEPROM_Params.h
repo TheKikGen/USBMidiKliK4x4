@@ -37,7 +37,12 @@
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
+
+#ifndef _EEPROM_PARAMS_H_
+#define _EEPROM_PARAMS_H_
 #pragma once
+
+#include "usb_midi_device.h"
 
 // EEPROM parameters
 // The signature is used to check if EEPROM is correctly initialized
@@ -47,8 +52,6 @@
 
 #define EE_SIGNATURE "MDK"
 #define EE_PRMVER 7
-#define MIDI_PRODUCT_STRING_SIZE 30
-#define MIDI_ROUTING_TARGET_MAX 4
 
 // Boot modes
 enum nextBootMode {
@@ -66,7 +69,7 @@ typedef struct {
         uint8_t         intelligentMidiThruIn;
 
         // Bits 0-3 : Serial OUT targets - Bits 4-7  : midi msg filter
-        uint8_t         intelligentMidiThruOut[MIDI_ROUTING_TARGET_MAX];
+        uint8_t         intelligentMidiThruOut[MIDI_ROUTING_TARGET_MAX]; // defined in usbmidiklik4x4.h
 
         // 1 to 255 periods of 15s.
         uint8_t         intelligentMidiThruDelayPeriod;
@@ -82,8 +85,10 @@ typedef struct {
 
         uint16_t        vendorID;
         uint16_t        productID;
-        uint8_t         productString[MIDI_PRODUCT_STRING_SIZE+1];
+        uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // defined in usb_midi_devce.h
 } EEPROM_Params_t;
 
 int EEPROM_writeBlock(uint16 ee, const uint8 *bloc, uint16 size );
 int EEPROM_readBlock(uint16 ee,  uint8 *bloc, uint16 size );
+
+#endif

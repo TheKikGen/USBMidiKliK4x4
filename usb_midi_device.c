@@ -42,6 +42,9 @@
   the result made cleaner.
 
 */
+#ifndef USB_MIDI_DEVICE_H
+#define USB_MIDI_DEVICE_H
+#pragma once
 
 #include "usb_midi_device.h"
 
@@ -168,13 +171,23 @@ void usb_midi_set_vid_pid(uint16 vid, uint16 pid) {
 
 void usb_midi_set_product_string(char stringDescriptor[]) {
 
-  memset(&usbMIDIDescriptor_iProduct.bString,0, (MIDI_PRODUCT_STRING_SIZE+1)*2);
+  // Check the true string descriptor size allocated by manual declaration
+  // in usb_midi_descriptor.c. It is critical !!!
 
+  // fill the existing string descriptor with 0
+  memset(&usbMIDIDescriptor_iProduct.bString,0, (USB_MIDI_PRODUCT_STRING_SIZE)*2+2);
+
+  // Copy string to the descriptor. The string must be zero ending !!!
   uint8 i = 0;
   while ( stringDescriptor[i] != 0 ) {
+    // The string is wide characters type.  2 bytes / char.
     usbMIDIDescriptor_iProduct.bString[i*2] = stringDescriptor[i];
-    i++;
+    if (++i >= USB_MIDI_PRODUCT_STRING_SIZE ) break;
   }
+
+  // Adjust the length
+  usbMIDIDescriptor_iProduct.bLength = i*2+2;
+  usbMIDIString_Descriptor[usbMIDIDescriptor_Device.iProduct].Descriptor_Size = i*2+2;
 
 }
 
@@ -555,3 +568,4 @@ static void usb_midi_SetConfiguration(void) {
 static void usb_midi_SetDeviceAddress(void) {
     USBLIB->state = USB_ADDRESSED;
 }
+#endif

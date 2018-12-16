@@ -37,6 +37,8 @@
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
+#ifndef _USBMIDIKLIK4X4_H_
+#define _USBMIDIKLIK4X4_H_
 #pragma once
 
 #ifdef HAS_MIDITECH_HARDWARE
@@ -61,6 +63,10 @@
 
 #endif
 
+// Routing targets can be greater than serial interfaces.
+// 4 Max however. e.g. 3 serials, 4 cables.
+#define MIDI_ROUTING_TARGET_MAX 4
+
 // USBDM (USB -) PIN
 #define PIN_USBDM PA11
 
@@ -81,7 +87,7 @@
 // Routing from an USB cable OUT
 #define DEFAULT_MIDI_CABLE_ROUTING_TARGET  0B00000001,0B00000010,0B00000100,0B00001000
 
-// Routing from a serial MIDI IN
+// Routing from a serial jack MIDI IN
 #define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
 
 // All midi messages. Used for cable and serial routing.
@@ -96,6 +102,12 @@
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
 #define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
+
+// Use this structure to send and receive packet to/from USB
+typedef union  {
+    uint32_t i;
+    uint8_t  packet[4];
+} midiPacket_t;
 
 // Functions prototypes
 void Timer2Handler(void);
@@ -117,3 +129,5 @@ static char USBSerialGetChar();
 static uint8_t USBSerialScanHexChar(char *, uint8_t ,char,char);
 static void ShowCurrentSettings();
 void ConfigRootMenu();
+
+#endif

@@ -38,8 +38,10 @@
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
-
+#ifndef _USB_MIDI_DEVICE_H_
+#define _USB_MIDI_DEVICE_H_
 #pragma once
+
 
 #include <libmaple/usb.h>
 #include <libmaple/nvic.h>
@@ -57,7 +59,7 @@
 #include "usb_def.h"
 
 // EEPROM parameters
-#include "EEPROM_Params.h"
+//#include "EEPROM_Params.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,21 +90,18 @@ uint8 usb_midi_is_transmitting(void);
 // --------------------------------------------------------------------------------------
 #define USB_MIDI_TIMEOUT 50
 
-// Use this structure to send and receive packet to/from USB
-union EVENT_t {
-    uint32_t i;
-    uint8_t  packet[4];
-};
-
-#define midiPacket_t union EVENT_t
-
 // --------------------------------------------------------------------------------------
 // DESCRIPTOR IDS
 // --------------------------------------------------------------------------------------
 
-#define USB_MIDI_VENDORID        0x2912
-#define USB_MIDI_PRODUCTID       0x1970
-#define USB_MIDI_PRODUCT_STRING  "USB MIDIKliK 4x4"
+#define USB_MIDI_VENDORID            0x2912
+#define USB_MIDI_PRODUCTID           0x1970
+#define USB_MIDI_PRODUCT_STRING      "USB MIDIKliK 4x4"
+#define USB_MIDI_PRODUCT_SERIAL      "07DA0908"
+
+// String buffer Size in the descriptor without tailing zero.
+// The real buffer size is USB_MIDI_PRODUCT_STRING_SIZE*2 +2
+#define USB_MIDI_PRODUCT_STRING_SIZE 30
 
 // --------------------------------------------------------------------------------------
 // DESCRIPTORS TYPES
@@ -240,4 +239,6 @@ typedef struct  {
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
