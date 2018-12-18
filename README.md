@@ -161,57 +161,62 @@ Example of routing :
                   
       Inputs        Source                                  Routing Targets            Target byte
                                                                                            bit
-       USB       Host MIDI OUT 1 o-----------------+  +----o Host MIDI IN 1 (cable 0)    4                           
-       Cables    Host MIDI OUT 2 o--------------+  |  |    o Host MIDI IN 2 (cable 1)    5   USB
-                 Host MIDI OUT 3 o-----------+  |  |  |    o Host MIDI IN 3 (cable 2)    6   Cables
-                 Host MIDI OUT 4 o---------+ |  |  |  |    o Host MIDI IN 4 (cable 3)    7
-                                     +-+---|-|--|--|--+ 
-                                     | |   | |  |  +-------o MIDI OUT JACK 1             0
-                 MIDI IN Jack 1  o---+ |   | |  +----------o MIDI OUT JACK 2             1   Serial 
-       Serial    MIDI IN Jack 2  o-----+   | +-------------o MIDI OUT JACK 3             2
-                 MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4             3
-                 MIDI IN Jack 4  o
+       USB       Host MIDI OUT 1 o-->(filter)---------+  +----o Host MIDI IN 1 (cable 0)    4                           
+       Cables    Host MIDI OUT 2 o-->(filter)------+  |  |    o Host MIDI IN 2 (cable 1)    5   USB
+       OUT       Host MIDI OUT 3 o-->(filter)---+  |  |  |    o Host MIDI IN 3 (cable 2)    6   Cables
+                 Host MIDI OUT 4 o-->(filter)-+ |  |  |  |    o Host MIDI IN 4 (cable 3)    7    IN
+                                     +-+------|-|--|--|--+  
+                                     | |      | |  |  +-------o MIDI OUT JACK 1             0
+                 MIDI IN Jack 1  o---+ |      | |  +----------o MIDI OUT JACK 2             1   Serial 
+       Serial    MIDI IN Jack 2  o-----+      | +-------------o MIDI OUT JACK 3             2    Jacks
+        Jacks    MIDI IN Jack 3  o            +---------------o MIDI OUT JACK 4             3     OUT
+       IN        MIDI IN Jack 4  o
 
-To configure the routing for an input, you must set some bits of the target byte to 1 :
-Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
-Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
+The sysex message structure is the following :
 
-Sysex message structure :
+	Header       = F0 77 77 78	
+	Function     = 0F
+	Action       = <00 Reset to default midi routing>
+		   OR  <01 Set routing +
+    				. source type     = <cable=0X0 | serial=0x1>
+			        . id              = id for cable or serial 0-3
+             			. Midi Msg filter mask
+				. routing targets = <cable mask> , <jack serial mask>
 
-      F0 77 77 78   <0x0F> 
-		    < 0x01 = set > 
-		    < 0X0 = cable  | 0x01 = serial > 
-		    < id:0-4 > 
-		    < target nibble cable > 
-		    < target nibble serial >
-      F7
+	EOX 	     = F7
 
-or
+8 targets by input (a cable USB OUT or a jack Serial MIDI IN) are possible :
+. USB cable IN 0 to 3
+. Jack midi OUT to an external gear 1 to 4
 
-      F0 77 77 78 <0x0F> <0x00 = default factory routing> F7
-    
-For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
+Routing targets tables are stored in 2 bytes / 8 bits, 1 for each input. Bit 0 is starting at the top right. 
+. Bits 0-3 are corresponding respectively to Serial Midi out Jack targets 1-4
+. Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 
-      F0 77 77 78 0F 01 01 00 01 00 F7
-      F0 77 77 78 0F 01 01 01 01 00 F7
-       
-The following sysex will restore default routing for all inputs :
+To configure the routing rule for an input, you must set some bits of the target byte to 1. For example,
+the mask 01010001 will activate the cable out 0 and 2, and jack serial 1.
 
-       F0 77 77 78 0F 00 F7
+Message filter is defined with the following bit mask :
+
+	. Channel Voice    = 0001
+	. System Common    = 0010
+	. RealTime Msg     = 0100
+	. System Exclusive = 1000
+
+Some examples :
+
+	F0 77 77 78 0F 00 F7                <= reset to default midi routing
+    	F0 77 77 78 0F 01 00 00 0F 00 03 F7 <= Set Cable 0 to Jack 1,2, all midi msg
+	F0 77 77 78 0F 01 00 00 0F 01 03 F7 <= Set Cable 0 to Cable In 0, Jack 1,2, all midi msg
+	F0 77 77 78 0F 01 01 01 04 00 0F F7 <= Set Serial jack In 2 to all serial jack out, realtime msg only
+	F0 77 77 78 0F 01 01 00 01 03 03 F7 <= Set Serial jack In 1 to 1,2 jack out,cable in 0,1, channel voice msg only
 
 Default routing is :
 
-       USB MIDI OUT 1 o------------->o MIDI OUT JACK 1 
-       USB MIDI OUT 2 o------------->o MIDI OUT JACK 2 
-       USB MIDI OUT 3 o------------->o MIDI OUT JACK 3 
-       USB MIDI OUT 4 o------------->o MIDI OUT JACK 4 
+       USB Cable OUT (0,3)  o------------->o MIDI OUT JACK (1,4) 
+       USB Jack IN   (1,4)  o------------->o USB Cable IN (0,3)
 
-       USB MIDI IN  1 o<-------------o MIDI IN JACK 1 
-       USB MIDI IN  2 o<-------------o MIDI IN JACK 2 
-       USB MIDI IN  3 o<-------------o MIDI IN JACK 3 
-       USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
-
-The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
+The new routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
 
 ## Use another STMF32x board
 
