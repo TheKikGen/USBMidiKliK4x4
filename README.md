@@ -45,53 +45,59 @@ This sysex enables the configuration menu accessible from the USB serial.  Immed
 
 The following menu should appear after pressing ENTER :
 
-	USBMIDIKliK 4x4 MENU - MIDITECH HARDWARE                                        
-	(c)TheKikGen Labs                                                               
+USBMIDIKliK 4x4 MENU - BLUEPILL                                                 
+(c)TheKikGen Labs                                                               
+                                                                                
+0.Show current settings              e.Reload settings from EEPROM              
+1.Midi USB Cable OUT routing         f.Restore all factory settings             
+2.Midi IN Jack routing               r.Reset routing to factory default         
+3.Intelligent Thru IN Jack routing   s.Save & quit                              
+4.Intelligent Thru USB timeout       x.Abort                                    
+5.USB Vendor ID & Product ID                                                    
+6.USB product string                                                            
+                                                                                
+=>s                                                                             
+	-===========================================-                                  
+			CURRENT SETTINGS                                                
+	---------------------------------------------                                   
+	Magic number   : MDK7-1.181218.1605                                             
+	Next BootMode  : 2                                                              
+	Vendor Id      : 2912                                                           
+	Product Id     : 1970                                                           
+	Product string : USB MIDIKliK 4x4                                               
+	Sysex header   : F0 77 77 78                                                    
 
-	0.Show current settings                                                         
-	1.Reload settings                                                               
-	2.USB product string                                                            
-	3.USB Vendor ID & Product ID                                                    
-	4.Intelligent Midi Thru MIDI filters                                            
-	5.Intelligent Midi Thru delay for USB timeout                                   
-	6.Intelligent Midi Thru IN Jack routing                                         
-	7.Midi USB Cable OUT routing                                                    
-	8.Midi IN Jack routing                                                          
-	9.Reset routing to factory default                                              
-	s.Save & quit                                                                   
-	x.Abort                                                                         
-	=>0                                                                             
-
-	================ CURRENT SETTINGS ================                              
-
-	Magic - V - Build : MDK - 6 - 1.181207.0122                                     
-	BootMode          : 0                                                           
-	VID - PID - STR   : 2912 - 1970 - USB MIDIKliK 4x4                              
-
-	------------ Midi routing ------------                                          
-
-	Cable            Cable IN  |  Midi OUT                                          
-	USB OUT #  --->  1 2 3 4   |  1 2 3 4                                           
-	   1       --->  . . . .   |  X . . .                                           
-	   2       --->  . . . .   |  . X . .                                           
-	   3       --->  . . . .   |  . . X .                                           
-	   4       --->  . . . .   |  . . . X                                           
-
-	MIDI JACK        Cable IN  |  Midi OUT                                          
-	   IN #    --->  1 2 3 4   |  1 2 3 4                                           
-	   1       --->  X . . .   |  . . . .                                           
-	   2       --->  . X . .   |  . . . .                                           
-	   3       --->  . . X .   |  . . . .                                           
-	   4       --->  . . . X   |  . . . .                                           
-
-	 INTELLIGENT THRU | Filter       |  Midi OUT                                    
-	JACK IN # 1 2 3 4 | Ch Sc Rt Sx  |  1 2 3 4                                     
-		  . . . . |  X  .  .  .  |  X X X X                                     
-
-	Intelligent Midi Thru delay (USB timeout) : 30s                                 
-	(Intelligent Midi Thru is inactive).                                            
-
-	==================================================                              
+	-===========================================-                                   
+	|                MIDI ROUTING               |                                   
+	|-------------------------------------------|                                   
+	| Cable| Msg Filter   | Cable IN | Jack OUT |                                   
+	| OUT# | Ch Sc Rt Sx  | 1 2 3 4  | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  1-> |  X  X  X  X  | . . . .  | X . . .  |                                   
+	|  2-> |  X  X  X  X  | . . . .  | . X . .  |                                   
+	|  3-> |  X  X  X  X  | . . . .  | . . X .  |                                   
+	|  4-> |  X  X  X  X  | . . . .  | . . . X  |                                   
+	|-------------------------------------------|                                   
+	| Jack | Msg Filter   | Cable IN | Jack OUT |                                   
+	| IN # | Ch Sc Rt Sx  | 1 2 3 4  | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  1-> |  X  X  X  X  | X . . .  | . . . .  |                                   
+	|  2-> |  X  X  X  X  | . X . .  | . . . .  |                                   
+	|  3-> |  X  X  X  X  | . . X .  | . . . .  |                                   
+	|  4-> |  X  X  X  X  | . . . X  | . . . .  |                                   
+	|-------------------------------------------|                                   
+	|      Intelligent Thru mode (inactive)     |                                   
+	|-------------------------------------------|                                   
+	| Jack | Msg Filter   |          | Jack OUT |                                   
+	| IN # | Ch Sc Rt Sx  | (No USB) | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  .-> |  X  X  X  X  |          | X . . .  |                                   
+	|  .-> |  X  X  X  X  |          | X X . .  |                                   
+	|  .-> |  X  X  X  X  |          | X X X .  |                                   
+	|  .-> |  X  X  X  X  |          | X X X X  |                                   
+	-===========================================-                                   
+	  Intelligent Midi Thru USB timeout : 30s                                       
+	-===========================================-  
 
 ## Change the device ProductStringName
 
