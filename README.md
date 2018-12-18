@@ -129,25 +129,38 @@ so the complete SYSEX message will be :
 ## Set the "intelligent MIDI Thru" 
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
-In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
+In that mode, the routing rules are changed to the routing rules defined for the thru mode.
+If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. 
 
-    	F0 77 77 78 	<func id = 0x0E> 
-			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
-			<serial Midi out bit mask 1-F>
-			<n = nb of 15s periods, 0-127> 
-	F7
+The sysex message structure is the following :
+
+	Header       = F0 77 77 78
+	Function     = 0E
+	Action       = 00 Reset to default
+		  OR   01 Disable
+		  OR   02 Set Delay <number of 15s periods 1-127>
+		  OR   03 Set thu mode jack routing +
+				. Midi In Jack = < Midi In Jack # 1-4 = 0-3>
+    				. Midi Msg filter mask (can't be zero) :
+			        . Serial midi Jack out targets Mask 4bits 1-F
+		                       Bit0 = Jack1, bit 3 = Jack 4
+	EOX = F7
 	
-Midi Msg filter masks (can be combined but can't be zero) are :
+Message filter masks (can be combined but can't be zero) are :
 
-	b0 = channel Voice (0001)
-	b1 = system Common (0010)
-	b2=realTime        (0100)
-	b3=sysEx           (1000)		
+	b0 = channel Voice    (0001)
+	b1 = system Common    (0010)
+	b2 = realTime         (0100)
+	b3 = system exlcusive (1000)		
 	
 The delay is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
-After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 (100) jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask.  Examples :
 
-	F0 77 77 78 0E 34 0F 08 F7
+	F0 77 77 78 0E 00 F7    <= Reset to default 
+	F0 77 77 78 0E 01 F7    <= Disable midi thru mode
+	F0 77 77 78 0E 02 02 F7 <= Set delay to 30s (2 periods)
+	F0 77 77 78 0E 03 01 0F 0F F7 <= Set Midi In Jack 2 to Jacks out 1,2,3,4 All msg
+	F0 77 77 78 0E 03 03 04 0C F7 <= Set Midi In Jack 4 to Jack 3,4, real time only
 
 ## Define midi routing rules
 
@@ -196,12 +209,7 @@ Routing targets tables are stored in 2 bytes / 8 bits, 1 for each input. Bit 0 i
 To configure the routing rule for an input, you must set some bits of the target byte to 1. For example,
 the mask 01010001 will activate the cable out 0 and 2, and jack serial 1.
 
-Message filter is defined with the following bit mask :
-
-	. Channel Voice    = 0001
-	. System Common    = 0010
-	. RealTime Msg     = 0100
-	. System Exclusive = 1000
+Message filter is defined as the midi thu mode (see above).
 
 Some examples :
 
