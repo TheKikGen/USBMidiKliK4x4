@@ -45,18 +45,18 @@ This sysex enables the configuration menu accessible from the USB serial.  Immed
 
 The following menu should appear after pressing ENTER :
 
-USBMIDIKliK 4x4 MENU - BLUEPILL                                                 
-(c)TheKikGen Labs                                                               
-                                                                                
-0.Show current settings              e.Reload settings from EEPROM              
-1.Midi USB Cable OUT routing         f.Restore all factory settings             
-2.Midi IN Jack routing               r.Reset routing to factory default         
-3.Intelligent Thru IN Jack routing   s.Save & quit                              
-4.Intelligent Thru USB timeout       x.Abort                                    
-5.USB Vendor ID & Product ID                                                    
-6.USB product string                                                            
-                                                                                
-=>s                                                                             
+	USBMIDIKliK 4x4 MENU - BLUEPILL                                                 
+	(c)TheKikGen Labs                                                               
+
+	0.Show current settings              e.Reload settings from EEPROM              
+	1.Midi USB Cable OUT routing         f.Restore all factory settings             
+	2.Midi IN Jack routing               r.Reset routing to factory default         
+	3.Intelligent Thru IN Jack routing   s.Save & quit                              
+	4.Intelligent Thru USB timeout       x.Abort                                    
+	5.USB Vendor ID & Product ID                                                    
+	6.USB product string                                                            
+
+	=>s                                                                             
 	-===========================================-                                  
 			CURRENT SETTINGS                                                
 	---------------------------------------------                                   
