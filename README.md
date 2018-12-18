@@ -140,9 +140,9 @@ The sysex message structure is the following :
 		  OR   01 Disable
 		  OR   02 Set Delay <number of 15s periods 1-127>
 		  OR   03 Set thu mode jack routing +
-				. Midi In Jack = < Midi In Jack # 1-4 = 0-3>
-    				. Midi Msg filter mask (can't be zero) :
-			        . Serial midi Jack out targets Mask 4bits 1-F
+		  		. Midi In Jack = < Midi In Jack # 1-4 = 0-3>
+				. Midi Msg filter mask (can't be zero) :
+				. Serial midi Jack out targets Mask 4bits 1-F
 		                       Bit0 = Jack1, bit 3 = Jack 4
 	EOX = F7
 	
@@ -191,11 +191,10 @@ The sysex message structure is the following :
 	Function     = 0F
 	Action       = <00 Reset to default midi routing>
 		   OR  <01 Set routing +
-    				. source type     = <cable=0X0 | serial=0x1>
-			        . id              = id for cable or serial 0-3
-             			. Midi Msg filter mask
+		   		. source type     = <cable=0X0 | serial=0x1>
+				. id              = id for cable or serial 0-3
+				. Midi Msg filter mask
 				. routing targets = <cable mask> , <jack serial mask>
-
 	EOX 	     = F7
 
 8 targets by input (a cable USB OUT or a jack Serial MIDI IN) are possible :
