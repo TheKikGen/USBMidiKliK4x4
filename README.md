@@ -172,17 +172,17 @@ You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, U
 
 Example of routing :
                   
-      Inputs        Source                                  Routing Targets            Target byte
-                                                                                           bit
-       USB       Host MIDI OUT 1 o-->(filter)---------+  +----o Host MIDI IN 1 (cable 0)    4                           
-       Cables    Host MIDI OUT 2 o-->(filter)------+  |  |    o Host MIDI IN 2 (cable 1)    5   USB
-       OUT       Host MIDI OUT 3 o-->(filter)---+  |  |  |    o Host MIDI IN 3 (cable 2)    6   Cables
-                 Host MIDI OUT 4 o-->(filter)-+ |  |  |  |    o Host MIDI IN 4 (cable 3)    7    IN
+      Inputs        Source                                  Routing Targets             Target byte
+                                                                                            bits
+       USB       Host MIDI OUT 1 o-->(filter)---------+  +----o Host MIDI IN 1 (cbl 0) 4                           
+       Cables    Host MIDI OUT 2 o-->(filter)------+  |  |    o Host MIDI IN 2 (cbl 1) 5   USB
+       OUT       Host MIDI OUT 3 o-->(filter)---+  |  |  |    o Host MIDI IN 3 (cbl 2) 6   Cables
+                 Host MIDI OUT 4 o-->(filter)-+ |  |  |  |    o Host MIDI IN 4 (cbl 3) 7   IN
                                      +-+------|-|--|--|--+  
-                                     | |      | |  |  +-------o MIDI OUT JACK 1             0
-                 MIDI IN Jack 1  o---+ |      | |  +----------o MIDI OUT JACK 2             1   Serial 
-       Serial    MIDI IN Jack 2  o-----+      | +-------------o MIDI OUT JACK 3             2    Jacks
-        Jacks    MIDI IN Jack 3  o            +---------------o MIDI OUT JACK 4             3     OUT
+                                     | |      | |  |  +-------o MIDI OUT JACK 1        0
+                 MIDI IN Jack 1  o---+ |      | |  +----------o MIDI OUT JACK 2        1   Serial 
+       Serial    MIDI IN Jack 2  o-----+      | +-------------o MIDI OUT JACK 3        2   Jacks
+        Jacks    MIDI IN Jack 3  o            +---------------o MIDI OUT JACK 4        3   OUT
        IN        MIDI IN Jack 4  o
 
 The sysex message structure is the following :
