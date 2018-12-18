@@ -30,6 +30,7 @@ The system exclusive messages format is the following :
 	F0 77 77 78 <sysex function id > <data> F7
 
 The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
+IMPORTANT : INTERNAL SYSEX ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1.  
 
 ## Hardware reset (function 0x0A)
 
