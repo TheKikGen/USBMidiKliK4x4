@@ -119,7 +119,7 @@ PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLI
 USBMidi MidiUSB;
 
 // MIDI Parsers for serial 1 to n
-midiXparser xpMidi[SERIAL_INTERFACE_MAX];
+midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
 // Default midi routing
 uint8_t const defaultMidiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX]  = {DEFAULT_MIDI_CABLE_ROUTING_TARGET};
@@ -152,11 +152,17 @@ void Timer2Handler(void) {
 ///////////////////////////////////////////////////////////////////////////////
 void FlashAllLeds(uint8_t mode) {
 
+
 	for ( uint8_t f=0 ; f< MIDI_ROUTING_TARGET_MAX ; f++ ) {
+		#ifdef LEDS_MIDI
 			for ( uint8_t i=0 ; i< SERIAL_INTERFACE_MAX ; i++ ) {
 					if ( mode == 0 || mode ==1 ) flashLED_IN[i]->start();
 					if ( mode == 0 || mode ==2 ) 	flashLED_OUT[i]->start();
 			}
+		#else
+			flashLED_CONNECT->start();
+		#endif
+
 			delay(100);
 	}
 }
@@ -182,11 +188,15 @@ static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
 ///////////////////////////////////////////////////////////////////////////////
 static void SerialWritePacket(const midiPacket_t *pk, uint8_t serialNo) {
 
-  if (serialNo >= SERIAL_INTERFACE_MAX ) return;
-
+  //if (serialNo >= SERIAL_INTERFACE_MAX ) return;
   // Sendpacket to serial at the right size
   uint8_t msgLen = CINToLenTable[pk->packet[0] & 0x0F] ;
-  serialHw[serialNo]->write(&pk->packet[1],msgLen);
+
+	// if (msgLen >= 1 ) serialHw[serialNo]->write(pk->packet[1]); //  1 byte blocking transmission
+	// if (msgLen >= 2 ) serialHw[serialNo]->write(pk->packet[2]);
+	// if (msgLen >= 3 ) serialHw[serialNo]->write(pk->packet[3]);
+
+	serialHw[serialNo]->write(&pk->packet[1],msgLen);
 
   #ifdef LEDS_MIDI
   flashLED_OUT[serialNo]->start();
@@ -387,7 +397,6 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 	flashLED_CONNECT->start();
 	#endif
 
-
 	// Sysex is a particular case when using packets.
 	// Internal sysex Jack 1/Cable 0 ALWAYS!! are checked whatever filters are
 	// This insures that the internal sysex will be always interpreted.
@@ -423,7 +432,7 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 	else if (source == FROM_SERIAL ){
 		 outTargets = EEPROM_Params.midiSerialRoutingTarget[cable];
 		 inFilters = EEPROM_Params.midiMsgFilterRoutingTarget[cable] & 0x0F;
-		 if ( !midiUSBCx ) outTargets &= 0x0F;// Blank USB targets if not connected
+		 if ( !midiUSBCx  ) outTargets &= 0x0F;// Blank USB targets if not connected
 	}
 	else return; // Error.
 
@@ -432,19 +441,26 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 
 	uint8_t t;
 
-	// SERIAL JACKS with contention management
-  uint8_t jackTargets = outTargets & 0x0F;
-	if ( jackTargets ) {
-		do {
-			for (t=0; t<SERIAL_INTERFACE_MAX ; t++) {
-				if ( (jackTargets & ( 1 << t ) ) && serialHw[t]->availableForWrite()) {
-					SerialWritePacket(pk,t);
-					jackTargets &= ~( 1 << t );
-				}
-			}
-		} while (jackTargets);
+	if ( outTargets & 0x0F) {
+				for (t=0; t<SERIAL_INTERFACE_MAX ; t++)
+					if ( (outTargets & ( 1 << t ) ) ) SerialWritePacket(pk,t);
 	}
-	// // We have not itme for contention management here....else we
+
+
+	// SERIAL JACKS with contention management
+  // uint8_t jackTargets = outTargets & 0x0F;
+	// if ( jackTargets ) {
+	// 	uint8_t msgLen = CINToLenTable[cin] ;
+	// 	do {
+	// 		for (t=0; t<SERIAL_INTERFACE_MAX ; t++) {
+	// 			if ( (jackTargets & ( 1 << t ) ) ){ //}&& serialHw[t]->availableForWrite()) {
+	// 				serialHw[t]->write(&pk->packet[1],msgLen);
+	// 				jackTargets &= ~( 1 << t );
+	// 			}
+	// 		}
+	// 	} while (jackTargets);
+	// }
+	// // // We have not itme for contention management here....else we
 	// // could miss somme USB packets...
 	//
 	// if ( outTargets & 0x0F ) {
@@ -458,7 +474,7 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 	// Only if USB connected and thru mode inactive
 	// Because we use MIDI_ROUTING_TARGET_MAX as a limit, it is possible
 	// to route a 3 UART midi serial to 4 USB cables.
-  if ( midiUSBCx && !midiThruModeActive &&(outTargets & 0xF0 )  ) {
+  if ( midiUSBCx && !midiThruModeActive && (outTargets & 0xF0 )  ) {
     	midiPacket_t lpk = { .i = pk->i }; ; // packet copy to change the dest cable
 			outTargets = outTargets >> 4;
 			for (t=0; t<=MIDI_ROUTING_TARGET_MAX ; t++) {
@@ -1367,9 +1383,7 @@ void setup() {
 
     for ( uint8_t s=0; s < SERIAL_INTERFACE_MAX ; s++ ) {
       serialHw[s]->begin(31250);
-      xpMidi[s].setMidiChannelFilter(midiXparser::allChannel);
-      xpMidi[s].setMidiMsgFilter( midiXparser::allMsgTypeMsk );
-      //xpMidi[s].setSysExFilter(true,0);
+      midiSerial[s].setMidiMsgFilter( midiXparser::allMsgTypeMsk );
     }
 
     // MIDI USB initiate connection
@@ -1386,7 +1400,7 @@ void setup() {
 
 void loop() {
 
-		static uint8_t busySerial = 0 ;
+		static bool isSerialBusy = false ;
 
 		// Try to connect/reconnect USB if we detect a high level on USBDM
     // This is to manage the case of a powered device without USB active or suspend mode for ex.
@@ -1402,13 +1416,12 @@ void loop() {
 				midiThruModeActive = false;
 
 				// Read a Midi USB packet .
-        if ( ! busySerial ) {
+        if ( !isSerialBusy ) {
 					uint32 pk = MidiUSB.readPacket();
         	// Route Packet to the appropriate cable and serial out
         	RoutePacketToTarget( FROM_USB,  (const midiPacket_t *) &pk );
 				} else {
-						busySerial-- ;
-						FlashAllLeds(0); // All leds when Midi thru mode active
+						isSerialBusy = false ;
 				}
 
 	    } else
@@ -1456,28 +1469,30 @@ void loop() {
 		{
 		    // Do we have any MIDI msg on Serial 1 to n ?
 		    if ( serialHw[s]->available() ) {
-		       if ( xpMidi[s].parse( serialHw[s]->read() ) ) {
+		       if ( midiSerial[s].parse( serialHw[s]->read() ) ) {
 						 		// We manage sysEx "on the fly". Clean end of a sysexe msg ?
-						 		if ( xpMidi[s].getMidiMsgType() == midiXparser::sysExMsgTypeMsk )
-									RouteSysExMidiMsg(s, &xpMidi[s]) ;
+						 		if ( midiSerial[s].getMidiMsgType() == midiXparser::sysExMsgTypeMsk )
+									RouteSysExMidiMsg(s, &midiSerial[s]) ;
 
 								// Not a sysex. The message is complete.
 								else
-		            	RouteStdMidiMsg( s, &xpMidi[s]);
+		            	RouteStdMidiMsg( s, &midiSerial[s]);
 		       }
 		       else
 					 // Acknowledge any sysex error
-					 if ( xpMidi[s].isSysExError() )
-					 	 RouteSysExMidiMsg(s, &xpMidi[s]) ;
+					 if ( midiSerial[s].isSysExError() )
+					 	 RouteSysExMidiMsg(s, &midiSerial[s]) ;
 					 else
 					 // Check if a SYSEX mode active and send bytes on the fly.
-		       if ( xpMidi[s].isSysExMode() && xpMidi[s].isByteCaptured() ) {
-						 	RouteSysExMidiMsg(s, &xpMidi[s]) ;
+		       if ( midiSerial[s].isSysExMode() && midiSerial[s].isByteCaptured() ) {
+						 	RouteSysExMidiMsg(s, &midiSerial[s]) ;
 					 }
 		    }
 
-				// Manage Serial contention vs USB.
-				//if (  midiUSBCx && !serialHw[s]->availableForWrite()  ) busySerial ++;
+				// Manage Serial contention vs USB
+				// When one or more of the serial buffer is full, we block USB read one round.
+				// This implies to use non blocking Serial.write(buff,len).
+				if (  midiUSBCx &&  !serialHw[s]->availableForWrite() ) isSerialBusy = true; // 1 round without reading USB
 	  }
 
 }

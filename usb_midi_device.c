@@ -223,7 +223,6 @@ void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
       Device_Property.RxEP_buffer                 = NULL;
       Device_Property.MaxPacketSize               = USB_MIDI_MAX_PACKET_SIZE;
 
-
       User_Standard_Requests.User_GetConfiguration   = NOP_Process;
       User_Standard_Requests.User_SetConfiguration   = usb_midi_SetConfiguration;
       User_Standard_Requests.User_GetInterface       = NOP_Process;
@@ -441,7 +440,7 @@ static void usb_midi_DataRxCb(void) {
 }
 
 // --------------------------------------------------------------------------------------
-// USB API
+// USB User functions
 // --------------------------------------------------------------------------------------
 
 /* NOTE: Nothing specific to this device class in this function, move to usb_lib */
@@ -510,9 +509,9 @@ static void usb_midi_Reset(void) {
 static RESULT usb_midi_DataSetup(uint8 request) {
     uint8* (*CopyRoutine)(uint16) = 0;
 
-    if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
-
-    }
+    // if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
+    //
+    // }
 
     if (CopyRoutine == NULL) {
         return USB_UNSUPPORT;
@@ -527,8 +526,8 @@ static RESULT usb_midi_DataSetup(uint8 request) {
 static RESULT usb_midi_NoDataSetup(uint8 request) {
     RESULT ret = USB_UNSUPPORT;
 
-    if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
-    }
+    // if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
+    // }
     return ret;
 }
 
