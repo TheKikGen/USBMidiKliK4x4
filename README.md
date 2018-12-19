@@ -30,6 +30,7 @@ The system exclusive messages format is the following :
 	F0 77 77 78 <sysex function id > <data> F7
 
 The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
+IMPORTANT : INTERNAL SYSEX ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1.  
 
 ## Hardware reset (function 0x0A)
 
@@ -45,53 +46,59 @@ This sysex enables the configuration menu accessible from the USB serial.  Immed
 
 The following menu should appear after pressing ENTER :
 
-	USBMIDIKliK 4x4 MENU - MIDITECH HARDWARE                                        
+	USBMIDIKliK 4x4 MENU - BLUEPILL                                                 
 	(c)TheKikGen Labs                                                               
 
-	0.Show current settings                                                         
-	1.Reload settings                                                               
-	2.USB product string                                                            
-	3.USB Vendor ID & Product ID                                                    
-	4.Intelligent Midi Thru MIDI filters                                            
-	5.Intelligent Midi Thru delay for USB timeout                                   
-	6.Intelligent Midi Thru IN Jack routing                                         
-	7.Midi USB Cable OUT routing                                                    
-	8.Midi IN Jack routing                                                          
-	9.Reset routing to factory default                                              
-	s.Save & quit                                                                   
-	x.Abort                                                                         
-	=>0                                                                             
+	0.Show current settings              e.Reload settings from EEPROM              
+	1.Midi USB Cable OUT routing         f.Restore all factory settings             
+	2.Midi IN Jack routing               r.Reset routing to factory default         
+	3.Intelligent Thru IN Jack routing   s.Save & quit                              
+	4.Intelligent Thru USB timeout       x.Abort                                    
+	5.USB Vendor ID & Product ID                                                    
+	6.USB product string                                                            
 
-	================ CURRENT SETTINGS ================                              
+	=>s                                                                             
+	-===========================================-                                  
+			CURRENT SETTINGS                                                
+	---------------------------------------------                                   
+	Magic number   : MDK7-1.181218.1605                                             
+	Next BootMode  : 2                                                              
+	Vendor Id      : 2912                                                           
+	Product Id     : 1970                                                           
+	Product string : USB MIDIKliK 4x4                                               
+	Sysex header   : F0 77 77 78                                                    
 
-	Magic - V - Build : MDK - 6 - 1.181207.0122                                     
-	BootMode          : 0                                                           
-	VID - PID - STR   : 2912 - 1970 - USB MIDIKliK 4x4                              
-
-	------------ Midi routing ------------                                          
-
-	Cable            Cable IN  |  Midi OUT                                          
-	USB OUT #  --->  1 2 3 4   |  1 2 3 4                                           
-	   1       --->  . . . .   |  X . . .                                           
-	   2       --->  . . . .   |  . X . .                                           
-	   3       --->  . . . .   |  . . X .                                           
-	   4       --->  . . . .   |  . . . X                                           
-
-	MIDI JACK        Cable IN  |  Midi OUT                                          
-	   IN #    --->  1 2 3 4   |  1 2 3 4                                           
-	   1       --->  X . . .   |  . . . .                                           
-	   2       --->  . X . .   |  . . . .                                           
-	   3       --->  . . X .   |  . . . .                                           
-	   4       --->  . . . X   |  . . . .                                           
-
-	 INTELLIGENT THRU | Filter       |  Midi OUT                                    
-	JACK IN # 1 2 3 4 | Ch Sc Rt Sx  |  1 2 3 4                                     
-		  . . . . |  X  .  .  .  |  X X X X                                     
-
-	Intelligent Midi Thru delay (USB timeout) : 30s                                 
-	(Intelligent Midi Thru is inactive).                                            
-
-	==================================================                              
+	-===========================================-                                   
+	|                MIDI ROUTING               |                                   
+	|-------------------------------------------|                                   
+	| Cable| Msg Filter   | Cable IN | Jack OUT |                                   
+	| OUT# | Ch Sc Rt Sx  | 1 2 3 4  | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  1-> |  X  X  X  X  | . . . .  | X . . .  |                                   
+	|  2-> |  X  X  X  X  | . . . .  | . X . .  |                                   
+	|  3-> |  X  X  X  X  | . . . .  | . . X .  |                                   
+	|  4-> |  X  X  X  X  | . . . .  | . . . X  |                                   
+	|-------------------------------------------|                                   
+	| Jack | Msg Filter   | Cable IN | Jack OUT |                                   
+	| IN # | Ch Sc Rt Sx  | 1 2 3 4  | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  1-> |  X  X  X  X  | X . . .  | . . . .  |                                   
+	|  2-> |  X  X  X  X  | . X . .  | . . . .  |                                   
+	|  3-> |  X  X  X  X  | . . X .  | . . . .  |                                   
+	|  4-> |  X  X  X  X  | . . . X  | . . . .  |                                   
+	|-------------------------------------------|                                   
+	|      Intelligent Thru mode (inactive)     |                                   
+	|-------------------------------------------|                                   
+	| Jack | Msg Filter   |          | Jack OUT |                                   
+	| IN # | Ch Sc Rt Sx  | (No USB) | 1 2 3 4  |                                   
+	|------+--------------+----------+----------|                                   
+	|  .-> |  X  X  X  X  |          | X . . .  |                                   
+	|  .-> |  X  X  X  X  |          | X X . .  |                                   
+	|  .-> |  X  X  X  X  |          | X X X .  |                                   
+	|  .-> |  X  X  X  X  |          | X X X X  |                                   
+	-===========================================-                                   
+	  Intelligent Midi Thru USB timeout : 30s                                       
+	-===========================================-  
 
 ## Change the device ProductStringName
 
@@ -123,25 +130,38 @@ so the complete SYSEX message will be :
 ## Set the "intelligent MIDI Thru" 
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
-In that mode, all midi messages received on the selected MIDI IN jacks are broadcasted to jacks outputs (1 to 4) accordingly to the serial bits mask specified.  If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. The sysex message structure is the following :
+In that mode, the routing rules are changed to the routing rules defined for the thru mode.
+If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. 
 
-    	F0 77 77 78 	<func id = 0x0E> 
-			< (bits 4-7 = Midi In Jack 1-4) (bits 0-3 = midiMsg filter mask) >
-			<serial Midi out bit mask 1-F>
-			<n = nb of 15s periods, 0-127> 
-	F7
+The sysex message structure is the following :
+
+	Header       = F0 77 77 78
+	Function     = 0E
+	Action       = 00 Reset to default
+		  OR   01 Disable
+		  OR   02 Set Delay <number of 15s periods 1-127>
+		  OR   03 Set thu mode jack routing +
+		  		. Midi In Jack = < Midi In Jack # 1-4 = 0-3>
+				. Midi Msg filter mask (can't be zero) :
+				. Serial midi Jack out targets Mask 4bits 1-F
+		                       Bit0 = Jack1, bit 3 = Jack 4
+	EOX = F7
 	
-Midi Msg filter masks (can be combined but can't be zero) are :
+Message filter masks (can be combined but can't be zero) are :
 
-	b0 = channel Voice (0001)
-	b1 = system Common (0010)
-	b2=realTime        (0100)
-	b3=sysEx           (1000)		
+	b0 = channel Voice    (0001)
+	b1 = system Common    (0010)
+	b2 = realTime         (0100)
+	b3 = system exlcusive (1000)		
 	
 The delay is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
-After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask. For example, to set the MIDI IN 3 (100) jack to be the input, realtime msg only, 4 outputs, 2 mn delay (8 periods) :
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask.  Examples :
 
-	F0 77 77 78 0E 34 0F 08 F7
+	F0 77 77 78 0E 00 F7    <= Reset to default 
+	F0 77 77 78 0E 01 F7    <= Disable midi thru mode
+	F0 77 77 78 0E 02 02 F7 <= Set delay to 30s (2 periods)
+	F0 77 77 78 0E 03 01 0F 0F F7 <= Set Midi In Jack 2 to Jacks out 1,2,3,4 All msg
+	F0 77 77 78 0E 03 03 04 0C F7 <= Set Midi In Jack 4 to Jack 3,4, real time only
 
 ## Define midi routing rules
 
@@ -153,59 +173,58 @@ You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, U
 
 Example of routing :
                   
-      Inputs        Source                                  Routing Targets            Target byte
-                                                                                           bit
-       USB       Host MIDI OUT 1 o-----------------+  +----o Host MIDI IN 1 (cable 0)    4                           
-       Cables    Host MIDI OUT 2 o--------------+  |  |    o Host MIDI IN 2 (cable 1)    5   USB
-                 Host MIDI OUT 3 o-----------+  |  |  |    o Host MIDI IN 3 (cable 2)    6   Cables
-                 Host MIDI OUT 4 o---------+ |  |  |  |    o Host MIDI IN 4 (cable 3)    7
-                                     +-+---|-|--|--|--+ 
-                                     | |   | |  |  +-------o MIDI OUT JACK 1             0
-                 MIDI IN Jack 1  o---+ |   | |  +----------o MIDI OUT JACK 2             1   Serial 
-       Serial    MIDI IN Jack 2  o-----+   | +-------------o MIDI OUT JACK 3             2
-                 MIDI IN Jack 3  o         +---------------o MIDI OUT JACK 4             3
-                 MIDI IN Jack 4  o
+      Inputs        Source                                  Routing Targets             Target byte
+                                                                                            bits
+       USB       Host MIDI OUT 1 o-->(filter)---------+  +----o Host MIDI IN 1 (cbl 0) 4                           
+       Cables    Host MIDI OUT 2 o-->(filter)------+  |  |    o Host MIDI IN 2 (cbl 1) 5   USB
+       OUT       Host MIDI OUT 3 o-->(filter)---+  |  |  |    o Host MIDI IN 3 (cbl 2) 6   Cables
+                 Host MIDI OUT 4 o-->(filter)-+ |  |  |  |    o Host MIDI IN 4 (cbl 3) 7   IN
+                                     +-+------|-|--|--|--+  
+                                     | |      | |  |  +-------o MIDI OUT JACK 1        0
+                 MIDI IN Jack 1  o---+ |      | |  +----------o MIDI OUT JACK 2        1   Serial 
+       Serial    MIDI IN Jack 2  o-----+      | +-------------o MIDI OUT JACK 3        2   Jacks
+        Jacks    MIDI IN Jack 3  o            +---------------o MIDI OUT JACK 4        3   OUT
+       IN        MIDI IN Jack 4  o
 
-To configure the routing for an input, you must set some bits of the target byte to 1 :
-Bits 0-3 are corresponding repesctively to Serial Midi out Jack targets 1-4
-Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
+The sysex message structure is the following :
 
-Sysex message structure :
+	Header       = F0 77 77 78	
+	Function     = 0F
+	Action       = <00 Reset to default midi routing>
+		   OR  <01 Set routing +
+		   		. source type     = <cable=0X0 | serial=0x1>
+				. id              = id for cable or serial 0-3
+				. Midi Msg filter mask
+				. routing targets = <cable mask> , <jack serial mask>
+	EOX 	     = F7
 
-      F0 77 77 78   <0x0F> 
-		    < 0x01 = set > 
-		    < 0X0 = cable  | 0x01 = serial > 
-		    < id:0-4 > 
-		    < target nibble cable > 
-		    < target nibble serial >
-      F7
+8 targets by input (a cable USB OUT or a jack Serial MIDI IN) are possible :
+. USB cable IN 0 to 3
+. Jack midi OUT to an external gear 1 to 4
 
-or
+Routing targets tables are stored in 2 bytes / 8 bits, 1 for each input. Bit 0 is starting at the top right. 
+. Bits 0-3 are corresponding respectively to Serial Midi out Jack targets 1-4
+. Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
 
-      F0 77 77 78 <0x0F> <0x00 = default factory routing> F7
-    
-For example, the following routing rule set MIDI IN JACK1/JACK2 to be merged to cable 0 :
+To configure the routing rule for an input, you must set some bits of the target byte to 1. For example,
+the mask 01010001 will activate the cable out 0 and 2, and jack serial 1.
 
-      F0 77 77 78 0F 01 01 00 01 00 F7
-      F0 77 77 78 0F 01 01 01 01 00 F7
-       
-The following sysex will restore default routing for all inputs :
+Message filter is defined as the midi thu mode (see above).
 
-       F0 77 77 78 0F 00 F7
+Some examples :
+
+	F0 77 77 78 0F 00 F7                <= reset to default midi routing
+	F0 77 77 78 0F 01 00 00 0F 00 03 F7 <= Set Cable 0 to Jack 1,2, all midi msg
+	F0 77 77 78 0F 01 00 00 0F 01 03 F7 <= Set Cable 0 to Cable In 0, Jack 1,2, all midi msg
+	F0 77 77 78 0F 01 01 01 04 00 0F F7 <= Set Serial jack In 2 to all serial jack out, realtime msg only
+	F0 77 77 78 0F 01 01 00 01 03 03 F7 <= Set Serial jack In 1 to 1,2 jack out,cable in 0,1, channel voice msg only
 
 Default routing is :
 
-       USB MIDI OUT 1 o------------->o MIDI OUT JACK 1 
-       USB MIDI OUT 2 o------------->o MIDI OUT JACK 2 
-       USB MIDI OUT 3 o------------->o MIDI OUT JACK 3 
-       USB MIDI OUT 4 o------------->o MIDI OUT JACK 4 
+       USB Cable OUT (0,3)  o------------->o MIDI OUT JACK (1,4) 
+       USB Jack IN   (1,4)  o------------->o USB Cable IN (0,3)
 
-       USB MIDI IN  1 o<-------------o MIDI IN JACK 1 
-       USB MIDI IN  2 o<-------------o MIDI IN JACK 2 
-       USB MIDI IN  3 o<-------------o MIDI IN JACK 3 
-       USB MIDI IN  4 o<-------------o MIDI IN JACK 4 
-
-The new routing is saved in the flash memory immediatly after the update. So it persists after power off.
+The new routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
 
 ## Use another STMF32x board
 
