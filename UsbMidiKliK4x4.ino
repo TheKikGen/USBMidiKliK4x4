@@ -764,10 +764,10 @@ static void ProcessSysExInternal() {
 void CheckEEPROM(bool factorySettings=false) {
 
   // Set EEPROM parameters for the STMF103RC
-
   EEPROM.PageBase0 = 0x801F000;
   EEPROM.PageBase1 = 0x801F800;
   EEPROM.PageSize  = 0x800;
+
 
   // Read the EEPROM parameters structure
   EEPROM_readBlock(0, (uint8 *)&EEPROM_Params, sizeof(EEPROM_Params) );
@@ -1306,6 +1306,7 @@ void ConfigRootMenu()
 				if ( getChoice("\nSave settings and exit to midi mode","") == 'y' ) {
 					//Write the whole param struct
 					EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+					delay(100);
 					nvic_sys_reset();
 				}
 				break;
