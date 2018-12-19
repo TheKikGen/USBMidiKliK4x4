@@ -69,6 +69,7 @@ HardwareTimer timer(2);
 static  const uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
 static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
+
 // MIDI USB packet lenght
 static const uint8_t CINToLenTable[] =
 {
@@ -173,14 +174,19 @@ void FlashAllLeds(uint8_t mode) {
 static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
 
   if (serialNo >= SERIAL_INTERFACE_MAX ) return;
-  serialHw[serialNo]->write(msg[0]);
-  serialHw[serialNo]->write(msg[1]);
-  serialHw[serialNo]->write(msg[2]);
-  #ifdef LEDS_MIDI
-  flashLED_OUT[serialNo]->start();
-  #else
-  flashLED_CONNECT->start();
-  #endif
+
+	uint8_t msgLen = midiXparser::getMidiStatusMsgLen(msg[0]);
+
+	if ( msgLen > 0 ) {
+	  if (msgLen >= 1 ) serialHw[serialNo]->write(msg[0]);
+	  if (msgLen >= 2 ) serialHw[serialNo]->write(msg[1]);
+	  if (msgLen >= 3 ) serialHw[serialNo]->write(msg[2]);
+	  #ifdef LEDS_MIDI
+	  flashLED_OUT[serialNo]->start();
+	  #else
+	  flashLED_CONNECT->start();
+	  #endif
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -361,27 +367,10 @@ static void ParseSysExInternal(const midiPacket_t *pk) {
 //-----------------------------------------------------------------------------
 // Route a packet from one MIDI IN / USB OUT to n MIDI OUT/USB IN
 // ----------------------------------------------------------------------------
-// 8 targets by midi input are possible (cable USB IN or Serial MIDI IN)
-// Routing targets are stored in 2 tables of 1 byte/ 8 bits.
-// When followings bits are set to 1, the midi message will be routed from
-// the corresponding Serial IN / USB cable IN to :
+// 8 targets for the cable USB OUT and Serial MIDI IN are possible
+// Routing targets tables are stored in 2 bytes / 8 bits.
 // Bit 0-3 : Serial1 - Serial4
 // Bit 4-7 : Cable 0 - Cable 4
-//
-// Example MIDI-MERGE :
-// To make SERIAL IN 1 and 2 to be merged to CABLE IN 1,
-// AND MIDI OUT 3, You must configure the serial table as following :
-//
-// midiSerialRoutingTarget[0] = B00010100;
-// midiSerialRoutingTarget[1] = B00010100;
-//
-// Example MIDI-SPLITTER :
-// To make USB MIDI OUT 1 to be split to SERIAL IN 1/2 and 3 :
-//
-// midiCableRoutingTarget[0] = B00000111;
-//
-// The default configuration will route cables 1-4 to Serial 1-4, as
-// the standard configuration of a MIDIPLUS/MIDITECH interface.
 ///////////////////////////////////////////////////////////////////////////////
 static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 
@@ -684,8 +673,8 @@ static void ProcessSysExInternal() {
 
 			// reset globals for a real time update
 			intelligentMidiThruDelayMillis = EEPROM_Params.intelligentMidiThruDelayPeriod * 15000;
-      midiUSBActive = true;
-      midiUSBLastPacketMillis = millis()  ;
+      // midiUSBActive = true;
+      // midiUSBLastPacketMillis = millis()  ;
 
       break;
 
@@ -704,9 +693,16 @@ static void ProcessSysExInternal() {
 		//          . id              = id for cable or serial 0-3
     //          . Midi Msg filter mask
 		//          . routing targets = <cable mask> , <jack serial mask>
-
 		// EOX = F7
     //
+		// Filter is defined as a midiXparser message type mask.
+		// noneMsgTypeMsk          = 0B0000,
+		// channelVoiceMsgTypeMsk  = 0B0001,
+		// systemCommonMsgTypeMsk  = 0B0010,
+		// realTimeMsgTypeMsk      = 0B0100,
+		// sysExMsgTypeMsk         = 0B1000,
+		// allMsgTypeMsk           = 0B1111
+		//
     // Examples :
 		// F0 77 77 78 0F 00 F7                 <= reset to default midi routing
     // F0 77 77 78 0F 01 00 00 0F 00 03 F7 <= Set Cable 0 to Jack 1,2, all midi msg
@@ -728,28 +724,30 @@ static void ProcessSysExInternal() {
 
 					uint8_t source      = sysExInternalBuffer[4];
 					uint8_t filtersMsk  = sysExInternalBuffer[5];
-					uint8_t cableInMsk  = sysExInternalBuffer[6];
-					uint8_t jackOutMsk  = sysExInternalBuffer[7];
+					uint8_t ruleMsk     = (sysExInternalBuffer[6] << 4) + sysExInternalBuffer[7];
+					uint8_t* filterRouting = &EEPROM_Params.midiMsgFilterRoutingTarget[source];
+
 
 					// Cable
           if (sysExInternalBuffer[3] == 0x00 ) {
-						EEPROM_Params.midiMsgFilterRoutingTarget[source] &= ( ( filtersMsk << 4) | 0x0F ) ;
-            EEPROM_Params.midiCableRoutingTarget[source] = (cableInMsk << 4 ) | jackOutMsk;
+						*filterRouting = (*filterRouting & 0x0F ) | ( filtersMsk << 4);
+            EEPROM_Params.midiCableRoutingTarget[source] = ruleMsk;
           } else
           // Serial
           if (sysExInternalBuffer[3] == 0x01 ) {
-						 EEPROM_Params.midiMsgFilterRoutingTarget[source] &=  ( filtersMsk | 0xF0 ) ;
-						 EEPROM_Params.midiSerialRoutingTarget[source] = (cableInMsk << 4 ) | jackOutMsk ;
+						 *filterRouting = (*filterRouting & 0xF0 ) | ( filtersMsk << 4);
+						 EEPROM_Params.midiSerialRoutingTarget[source] = ruleMsk ;
           }
 
-      } else break;
+      } else
+					return;
 
 			// Write the whole param struct
 			EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
 
 			// reset globals for a real time update
-			midiUSBActive = true;
-			midiUSBLastPacketMillis = millis()  ;
+			// midiUSBActive = true;
+			// midiUSBLastPacketMillis = millis()  ;
 
 			break;
 
@@ -995,7 +993,6 @@ void ShowMidiRouting(uint8_t rt) {
 		}
 
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Show current EEPROM settings
@@ -1396,8 +1393,6 @@ void setup() {
 ///////////////////////////////////////////////////////////////////////////////
 // LOOP
 ///////////////////////////////////////////////////////////////////////////////
-
-
 void loop() {
 
 		static bool isSerialBusy = false ;

@@ -74,7 +74,8 @@
 #define TIMER2_RATE_MICROS 1000
 
 // Sysex used to set some parameters of the interface.
-#define SYSEX_INTERNAL_HEADER 0xF0,0x77,0x77,0x78
+#define SYSEX_INTERNAL_HEADER 0xF0,0x77,0x77,0x78,
+#define SYSEX_INTERNAL_ACK 0x7F
 #define SYSEX_INTERNAL_BUFF_SIZE 32
 
 // LED light duration in milliseconds
