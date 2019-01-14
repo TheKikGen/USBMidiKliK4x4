@@ -226,10 +226,9 @@ Default routing is :
 
 The new routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
 
-## Use another STMF32x board
+## Bluepill and USBMidiKlik 3x3
 
-You can obviously use this project to build a midi interface with other STM32F boards. 
-I have succesfully tested USBMIDIKLIK4X4 on a 2$ "Blue pill", allowing 3x3 serial midi I/O.
+Derived from this project, and based on the same firmware, the 3x3 MIDI interface can be built with a 2$ "Bluepill".  I have realized a proto board, let's say a "MIDI shield", to easily allowing 3x3 serial midi I/O.
 
 https://wiki.stm32duino.com/index.php?title=Blue_Pill
 
