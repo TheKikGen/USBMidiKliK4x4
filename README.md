@@ -230,7 +230,5 @@ The new routing is saved in the flash memory, and is activated  immediatly after
 
 Derived from this project, and based on the same firmware, the 3x3 MIDI interface can be built with a 2$ "Bluepill".  I have realized a proto board, let's say a "MIDI shield", to easily allowing 3x3 serial midi I/O.
 
-https://wiki.stm32duino.com/index.php?title=Blue_Pill
-
-<img border="0" src="https://4.bp.blogspot.com/-2nP69Lwl-dU/WhrncwR_WdI/AAAAAAAAIAE/ugo2ail4EdAXxgveZqc_jh9kwQU6PXiUwCLcBGAs/s1600/stm32-arduino-ide.jpg"  />
+<img border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s320/20190113_221557.jpg"  />
 
