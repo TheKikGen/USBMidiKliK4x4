@@ -1,5 +1,5 @@
 # USBMidiKliK4x4 Dual - STM32DUINO
-A multi-port USB MIDI interface for the STMDUINO platform.
+A multi-port USB MIDI interface for the STM32DUINO platform.
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
