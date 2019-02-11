@@ -44,7 +44,7 @@ This sysex enables the configuration menu accessible from the USB serial.  Immed
 
        F0 77 77 78 08 F7
 
-The following menu should appear after pressing ENTER :
+The following menu should appear after connecting to the right serial USB port , and pressing ENTER :
 
 	USBMIDIKliK 4x4 MENU - BLUEPILL                                                 
 	(c)TheKikGen Labs                                                               
