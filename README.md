@@ -1,5 +1,5 @@
 NEWS : I'm selling my five USB MIDI 3X3 prototype boards on Ebay here : 
-https://www.ebay.fr/itm/303108933742?ssPageName=STRK:MESELX:IT&_trksid=p3984.m1555.l2649
+https://www.ebay.fr/itm/USB-MIDI-INTERFACE-3X3-WITH-ROUTING-MERGE-SPLIT-OPEN-SOURCE-FIRMWARE/303138783911?hash=item46947ac2a7:g:pCQAAOSwgPVcm0Df
 
 # USBMidiKliK4x4 Dual - STM32DUINO
 A multi-port USB MIDI interface for the STM32DUINO platform.
