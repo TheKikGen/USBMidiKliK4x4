@@ -1,3 +1,6 @@
+NEWS : I'm selling my five USB MIDI 3X3 prototype boards on Ebay here : 
+https://www.ebay.fr/itm/USB-MIDI-INTERFACE-3X3-WITH-ROUTING-MERGE-SPLIT-OPEN-SOURCE-FIRMWARE/303138783911?hash=item46947ac2a7:g:pCQAAOSwgPVcm0Df
+
 # USBMidiKliK4x4 Dual - STM32DUINO
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
@@ -109,7 +112,7 @@ The message structure is the following :
 
 For example : the following SYSEX will change the name of the MIDI interface to "USB MidiKliK" :
 
-       F0 77 77 77 0B 55 53 42 20 4D 69 64 69 4B 6C 69 4B F7
+       F0 77 77 78 0B 55 53 42 20 4D 69 64 69 4B 6C 69 4B F7
 
 The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
 
