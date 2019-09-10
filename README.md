@@ -235,3 +235,10 @@ I have realized a proto board, let's say a Bluepill "MIDI shield", to easily tra
 
 <img border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
 
+## MPC LIVE midi port C & D enabling
+
+Here is the SYSEX to emulate an Akai internal USB midi interface and get MPC Live port C+D accessible in standalone mode.
+
+	F0 77 77 78 0C 00 09 0E 08 00 00 03 0B F7 F0 77 77 78 0B 4D 50 43 20 4C 69 76 65 20 43 6F 6E 74 72 6F 6C 6C 65 72 F7
+
+The sequence must be sent to board via CABLE 0 OR MIDI IN JACK 1. 
