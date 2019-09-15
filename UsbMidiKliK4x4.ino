@@ -1405,12 +1405,7 @@ void setup() {
     }
 
     // MIDI USB initiate connection
-    // Specific to
-    #ifdef HAS_MIDITECH_HARDWARE
-     
-    #endif
-    
-    
+  
     MidiUSB.begin() ;
     delay(500);
     digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
