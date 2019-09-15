@@ -41,28 +41,6 @@
 #define _USBMIDIKLIK4X4_H_
 #pragma once
 
-#ifdef HAS_MIDITECH_HARDWARE
-  #warning "MIDITECH HARDWARE DETECTED"
-  #define HARDWARE_TYPE "MIDITECH HARDWARE"
-  // Miditech 4X4 has 4 cables and 4 serials
-  // NOT BEYOND 4 !!!
-  #define SERIAL_INTERFACE_MAX  4
-  #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
-
-  #define LED_CONNECT PC9
-
-#else
-  // Assume a "Blue Pill" like configuration
-  #warning "BLUEPILL HARDWARE ASSUMED"
-  #define HARDWARE_TYPE "BLUEPILL"
-  #define SERIAL_INTERFACE_MAX  3
-  #define SERIALS_PLIST &Serial1,&Serial2,&Serial3
-
-  // Blue Pill has only one LED...not optimal here...
-  #define LED_CONNECT PC13
-
-#endif
-
 // Routing targets can be greater than serial interfaces.
 // 4 Max however. e.g. 3 serials, 4 cables.
 #define MIDI_ROUTING_TARGET_MAX 4

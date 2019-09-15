@@ -39,8 +39,8 @@
 
 */
 
+#include "hardware_config.h"
 #include "usb_midi.h"
-
 #include <string.h>
 #include <stdint.h>
 #include <libmaple/nvic.h>
