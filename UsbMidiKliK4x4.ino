@@ -729,6 +729,9 @@ static void ProcessSysExInternal() {
 					uint8_t* filterRouting = &EEPROM_Params.midiMsgFilterRoutingTarget[source];
 
 
+          // Filter masks are stored in one byte :
+					// bits 0:3 serial filter .  bits 4:7 usb cable filter
+					
 					// Cable
           if (sysExInternalBuffer[3] == 0x00 ) {
 						*filterRouting = (*filterRouting & 0x0F ) | ( filtersMsk << 4);
@@ -736,7 +739,7 @@ static void ProcessSysExInternal() {
           } else
           // Serial
           if (sysExInternalBuffer[3] == 0x01 ) {
-						 *filterRouting = (*filterRouting & 0xF0 ) | ( filtersMsk << 4);
+						 *filterRouting = (*filterRouting & 0xF0 ) | filtersMsk ;
 						 EEPROM_Params.midiSerialRoutingTarget[source] = ruleMsk ;
           }
 
@@ -1107,7 +1110,7 @@ void ConfigRootMenu()
   		Serial.print(" - ");Serial.println(HARDWARE_TYPE);
   		Serial.println("(c)TheKikGen Labs");
       Serial.println("");
-  
+
   		Serial.println("0.Show current settings              e.Reload settings from EEPROM");
   		Serial.println("1.Midi USB Cable OUT routing         f.Restore all factory settings");
   		Serial.println("2.Midi IN Jack routing               r.Reset routing to factory default");
@@ -1405,7 +1408,7 @@ void setup() {
     }
 
     // MIDI USB initiate connection
-  
+
     MidiUSB.begin() ;
     delay(500);
     digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
