@@ -774,7 +774,7 @@ void CheckEEPROM(bool factorySettings=false) {
 
 
   // Read the EEPROM parameters structure
-  EEPROM_readBlock(0, (uint8 *)&EEPROM_Params, sizeof(EEPROM_Params) );
+  EEPROM_readBlock(0, (uint8_t *)&EEPROM_Params, sizeof(EEPROM_Params) );
 
   // If the signature is not found, of not the same version of parameters structure,
   // or new build, then initialize (factory settings)
@@ -810,17 +810,17 @@ void CheckEEPROM(bool factorySettings=false) {
 ///////////////////////////////////////////////////////////////////////////////
 // EEPROM EMULATION UTILITIES
 ///////////////////////////////////////////////////////////////////////////////
-int EEPROM_writeBlock(uint16 ee, const uint8 *bloc, uint16 size )
+int EEPROM_writeBlock(uint16_t ee, const uint8_t *bloc, uint16_t size )
 {
-    uint16 i;
+    uint16_t i;
     for (i = 0; i < size; i++) EEPROM.write(ee+i, *(bloc+i));
 
     return i;
 }
 
-int EEPROM_readBlock(uint16 ee, uint8 *bloc, uint16 size )
+int EEPROM_readBlock(uint16_t ee, uint8_t *bloc, uint16_t size )
 {
-    uint16 i;
+    uint16_t i;
     for (i = 0; i < size; i++) *(bloc +i) = EEPROM.read(ee+i);
     return i;
 }
@@ -1437,7 +1437,7 @@ void loop() {
 
 				// Read a Midi USB packet .
         if ( !isSerialBusy ) {
-					uint32 pk = MidiUSB.readPacket();
+					uint32_t pk = MidiUSB.readPacket();
         	// Route Packet to the appropriate cable and serial out
         	RoutePacketToTarget( FROM_USB,  (const midiPacket_t *) &pk );
 				} else {

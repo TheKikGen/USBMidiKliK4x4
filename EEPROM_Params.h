@@ -88,7 +88,7 @@ typedef struct {
         uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // defined in usb_midi_devce.h
 } EEPROM_Params_t;
 
-int EEPROM_writeBlock(uint16 ee, const uint8 *bloc, uint16 size );
-int EEPROM_readBlock(uint16 ee,  uint8 *bloc, uint16 size );
+int EEPROM_writeBlock(uint16_t ee, const uint8_t *bloc, uint16_t size );
+int EEPROM_readBlock(uint16_t ee,  uint8_t *bloc, uint16_t size );
 
 #endif

@@ -64,16 +64,16 @@ public:
 
     void begin();
     void end();
-    uint32 available(void);
+    uint32_t available(void);
     bool   isTransmitting(void);
-    uint32 readPackets(const void *buf, uint32 len);
-    uint32 readPacket();
-    uint32 peekPacket();
+    uint32_t readPackets(const void *buf, uint32_t len);
+    uint32_t readPacket();
+    uint32_t peekPacket();
     void   markPacketRead();
     void   writePacket(const uint32*);
     void   writePackets(const void*, uint32);
-    uint8  isConnected();
-    uint8  pending();
+    uint8_t  isConnected();
+    uint8_t  pending();
  };
 
 #endif
