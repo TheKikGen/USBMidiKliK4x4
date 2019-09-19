@@ -85,20 +85,20 @@ void USBMidi::end(void) {
 
 }
 
-void USBMidi::writePacket(const uint32  *pk) {
+void USBMidi::writePacket(const uint32_t  *pk) {
     this->writePackets(pk, 1);
 }
 
-void USBMidi::writePackets(const void *buf, uint32 len) {
+void USBMidi::writePackets(const void *buf, uint32_t len) {
     if (!this->isConnected() || !buf) {
         return;
     }
 
-    uint32 txed = 0;
-    uint32 old_txed = 0;
-    uint32 start = millis();
+    uint32_t txed = 0;
+    uint32_t old_txed = 0;
+    uint32_t start = millis();
 
-    uint32 sent = 0;
+    uint32_t sent = 0;
 
     while (txed < len && (millis() - start < USB_MIDI_TIMEOUT)) {
         sent = usb_midi_tx((const uint32*)buf + txed, len - txed);
@@ -118,7 +118,7 @@ void USBMidi::writePackets(const void *buf, uint32 len) {
     }
 }
 
-uint32 USBMidi::available(void) {
+uint32_t USBMidi::available(void) {
     return usb_midi_data_available();
 }
 
@@ -126,12 +126,12 @@ bool USBMidi::isTransmitting(void) {
    return usb_midi_is_transmitting();
 }
 
-uint32 USBMidi::readPackets(const void *buf, uint32 len) {
+uint32_t USBMidi::readPackets(const void *buf, uint32_t len) {
     if (!buf) {
         return 0;
     }
 
-    uint32 rxed = 0;
+    uint32_t rxed = 0;
     while (rxed < len) {
         rxed += usb_midi_rx((uint32*)buf + rxed, len - rxed);
     }
@@ -140,8 +140,8 @@ uint32 USBMidi::readPackets(const void *buf, uint32 len) {
 }
 
 /* Blocks forever until 1 byte is received */
-uint32 USBMidi::peekPacket() {
-      uint32 p;
+uint32_t USBMidi::peekPacket() {
+      uint32_t p;
       usb_midi_peek(&p,1);
       return p;
 }
@@ -151,16 +151,16 @@ void USBMidi::markPacketRead() {
 }
 
 /* Blocks forever until 1 byte is received */
-uint32 USBMidi::readPacket() {
-    uint32 p;
+uint32_t USBMidi::readPacket() {
+    uint32_t p;
     usb_midi_rx(&p,1);
     return p;
 }
 
-uint8 USBMidi::pending(void) {
+uint8_t USBMidi::pending(void) {
     return usb_midi_get_pending();
 }
 
-uint8 USBMidi::isConnected(void) {
+uint8_t USBMidi::isConnected(void) {
     return usb_is_connected(USBLIB) && usb_is_configured(USBLIB);
 }

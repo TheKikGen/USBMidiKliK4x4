@@ -3,8 +3,7 @@
   Based on the MIDITECH / MIDIPLUS 4X4 harware.
   Copyright (C) 2017/2018 by The KikGen labs.
 
-  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
-  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
+  SOME HARDWARE CONFIGURATION
 
   ------------------------   CAUTION  ----------------------------------
   THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.
@@ -38,42 +37,40 @@
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 */
-
+#ifndef _HARDWARE_CONFIG_H_
+#define _HARDWARE_CONFIG_H_
 #pragma once
 
-/**
- * @brief Wirish USB MIDI port (MidiUSB).
- */
+#ifdef MCU_STM32F103RC
+  #warning "MIDITECH OR MCU_STM32F103RC HARDWARE DETECTED"
+  
+  // Comment the line below for a generic STM32F103RC
+  // This drives the DISC pin for USB with the Miditech 4x4 
+  // and the connect LED pin #.
+  // Activated by default.
+  #define HAS_MIDITECH_HARDWARE
 
-#ifndef _WIRISH_USB_MIDI_H_
-#define _WIRISH_USB_MIDI_H_
+  #define SERIAL_INTERFACE_MAX  4
+  #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
+ 
+  #ifdef HAS_MIDITECH_HARDWARE
+     #define HARDWARE_TYPE "MIDITECH4x4 STM32F103RC"
+     #define LED_CONNECT PC9
+  #else
+     #define HARDWARE_TYPE "STM32F103RC"
+     #define LED_CONNECT PC13 
+  #endif
 
-#define USB_MIDI
-#define USB_HARDWARE
-
-#include <Print.h>
-#include <boards.h>
-
-
-class USBMidi {
-private:
-
-public:
-    // Constructor
-    USBMidi();
-
-    void begin();
-    void end();
-    uint32_t available(void);
-    bool   isTransmitting(void);
-    uint32_t readPackets(const void *buf, uint32_t len);
-    uint32_t readPacket();
-    uint32_t peekPacket();
-    void   markPacketRead();
-    void   writePacket(const uint32*);
-    void   writePackets(const void*, uint32);
-    uint8_t  isConnected();
-    uint8_t  pending();
- };
+#else 
+  #if defined(MCU_STM32F103C8) || defined(MCU_STM32F103CB)
+    #warning "BLUEPILL HARDWARE DETECTED"
+    #define HARDWARE_TYPE "BLUEPILL STMF103C8x"
+    #define SERIAL_INTERFACE_MAX  3
+    #define SERIALS_PLIST &Serial1,&Serial2,&Serial3    
+    #define LED_CONNECT PC13
+  #else
+   #error "PLEASE CHOOSE STM32F103RC (4 serial ports) or STM32F103RC (3 serial ports) variants to compile ."
+  #endif
+#endif
 
 #endif

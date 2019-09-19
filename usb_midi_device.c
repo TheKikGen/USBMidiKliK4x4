@@ -67,12 +67,12 @@ static void   usb_midi_DataTxCb(void);
 static void   usb_midi_DataRxCb(void);
 static void   usb_midi_Init(void);
 static void   usb_midi_Reset(void);
-static RESULT usb_midi_DataSetup(uint8 request);
-static RESULT usb_midi_NoDataSetup(uint8 request);
-static RESULT usb_midi_GetInterfaceSetting(uint8 interface, uint8 alt_setting);
-static uint8* usb_midi_GetDeviceDescriptor(uint16 length);
-static uint8* usb_midi_GetConfigDescriptor(uint16 length);
-static uint8* usb_midi_GetStringDescriptor(uint16 length);
+static RESULT usb_midi_DataSetup(uint8_t request);
+static RESULT usb_midi_NoDataSetup(uint8_t request);
+static RESULT usb_midi_GetInterfaceSetting(uint8_t interface, uint8_t alt_setting);
+static uint8* usb_midi_GetDeviceDescriptor(uint16_t length);
+static uint8* usb_midi_GetConfigDescriptor(uint16_t length);
+static uint8* usb_midi_GetStringDescriptor(uint16_t length);
 static void   usb_midi_SetConfiguration(void);
 static void   usb_midi_SetDeviceAddress(void);
 
@@ -83,19 +83,19 @@ static void   usb_midi_SetDeviceAddress(void);
 /* I/O state */
 
 /* Received data */
-static volatile uint32 midiBufferRx[MIDI_STREAM_EPSIZE/4];
+static volatile uint32_t midiBufferRx[MIDI_STREAM_EPSIZE/4];
 /* Read index into midiBufferRx */
-static volatile uint32 rx_offset = 0;
+static volatile uint32_t rx_offset = 0;
 /* Transmit data */
-static volatile uint32 midiBufferTx[MIDI_STREAM_EPSIZE/4];
+static volatile uint32_t midiBufferTx[MIDI_STREAM_EPSIZE/4];
 /* Write index into midiBufferTx */
-static volatile uint32 tx_offset = 0;
+static volatile uint32_t tx_offset = 0;
 /* Number of bytes left to transmit */
-static volatile uint32 n_unsent_packets = 0;
+static volatile uint32_t n_unsent_packets = 0;
 /* Are we currently sending an IN packet? */
-static volatile uint8 transmitting = 0;
+static volatile uint8_t transmitting = 0;
 /* Number of unread bytes */
-static volatile uint32 n_unread_packets = 0;
+static volatile uint32_t n_unread_packets = 0;
 
 
 // --------------------------------------------------------------------------------------
@@ -163,7 +163,7 @@ void (*usb_midi_ep_int_out[7])(void) =
 // DEVICE DESCRIPTOR MANIPULATION
 // --------------------------------------------------------------------------------------
 
-void usb_midi_set_vid_pid(uint16 vid, uint16 pid) {
+void usb_midi_set_vid_pid(uint16_t vid, uint16_t pid) {
   usbMIDIDescriptor_Device.idVendor           = vid;
   usbMIDIDescriptor_Device.idProduct          = pid;
 
@@ -178,7 +178,7 @@ void usb_midi_set_product_string(char stringDescriptor[]) {
   memset(&usbMIDIDescriptor_iProduct.bString,0, (USB_MIDI_PRODUCT_STRING_SIZE)*2+2);
 
   // Copy string to the descriptor. The string must be zero ending !!!
-  uint8 i = 0;
+  uint8_t i = 0;
   while ( stringDescriptor[i] != 0 ) {
     // The string is wide characters type.  2 bytes / char.
     usbMIDIDescriptor_iProduct.bString[i*2] = stringDescriptor[i];
@@ -195,7 +195,7 @@ void usb_midi_set_product_string(char stringDescriptor[]) {
 // --------------------------------------------------------------------------------------
 // ENABLE / DISABLE / POWERDOWN   MIDI DEVICE
 // --------------------------------------------------------------------------------------
-void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
+void usb_midi_enable(gpio_dev *disc_dev, uint8_t disc_bit, uint8_t level) {
     /* Present ourselves to the host. Writing 0 to "disc" pin must
      * pull USB_DP pin up while leaving USB_DM pulled down by the
      * transceiver. See USB 2.0 spec, section 7.1.7.3.
@@ -242,7 +242,7 @@ void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
       usb_init_usblib(USBLIB, usb_midi_ep_int_in, usb_midi_ep_int_out);
 }
 
-void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
+void usb_midi_disable(gpio_dev *disc_dev, uint8_t disc_bit, uint8_t level) {
     /* Turn off the interrupt and signal disconnect (see e.g. USB 2.0
      * spec, section 7.1.7.3).
      *
@@ -265,10 +265,10 @@ void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level) {
  * straightforward ports of the analogous ST code.  The PMA blit
  * routines in particular are obvious targets for performance
  * measurement and tuning. */
-static void usb_copy_to_pma(const uint8 *buf, uint16 len, uint16 pma_offset) {
-    uint16 *dst = (uint16*)usb_pma_ptr(pma_offset);
-    uint16 n = len >> 1;
-    uint16 i;
+static void usb_copy_to_pma(const uint8_t *buf, uint16_t len, uint16_t pma_offset) {
+    uint16_t *dst = (uint16*)usb_pma_ptr(pma_offset);
+    uint16_t n = len >> 1;
+    uint16_t i;
     for (i = 0; i < n; i++) {
         *dst = (uint16)(*buf) | *(buf + 1) << 8;
         buf += 2;
@@ -279,11 +279,11 @@ static void usb_copy_to_pma(const uint8 *buf, uint16 len, uint16 pma_offset) {
     }
 }
 
-static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
-    uint32 *src = (uint32*)usb_pma_ptr(pma_offset);
-    uint16 *dst = (uint16*)buf;
-    uint16 n = len >> 1;
-    uint16 i;
+static void usb_copy_from_pma(uint8_t *buf, uint16_t len, uint16_t pma_offset) {
+    uint32_t *src = (uint32*)usb_pma_ptr(pma_offset);
+    uint16_t *dst = (uint16*)buf;
+    uint16_t n = len >> 1;
+    uint16_t i;
     for (i = 0; i < n; i++) {
         *dst++ = *src++;
     }
@@ -301,8 +301,8 @@ static void usb_copy_from_pma(uint8 *buf, uint16 len, uint16 pma_offset) {
  *
  * It copies data from a usercode buffer into the USB peripheral TX
  * buffer, and returns the number of bytes copied. */
-uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
-    uint32 bytes=packets*4;
+uint32_t usb_midi_tx(const uint32* buf, uint32_t packets) {
+    uint32_t bytes=packets*4;
     /* Last transmission hasn't finished, so abort. */
     if (usb_midi_is_transmitting()) {
 		/* Copy to TxBuffer */
@@ -318,7 +318,7 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
 
     /* Queue bytes for sending. */
     if (packets) {
-        usb_copy_to_pma((uint8 *)buf, bytes, MIDI_STREAM_IN_EPADDR);
+        usb_copy_to_pma((uint8_t *)buf, bytes, MIDI_STREAM_IN_EPADDR);
     }
     // We still need to wait for the interrupt, even if we're sending
     // zero bytes. (Sending zero-size packets is useful for flushing
@@ -335,9 +335,9 @@ uint32 usb_midi_tx(const uint32* buf, uint32 packets) {
  *
  * Copies up to len bytes from our private data buffer (*NOT* the PMA)
  * into buf and deq's the FIFO. */
-uint32 usb_midi_rx(uint32* buf, uint32 packets) {
+uint32_t usb_midi_rx(uint32* buf, uint32_t packets) {
     /* Copy bytes to buffer. */
-    uint32 n_copied = usb_midi_peek(buf, packets);
+    uint32_t n_copied = usb_midi_peek(buf, packets);
 
     usb_midi_mark_read(n_copied);
 
@@ -359,7 +359,7 @@ uint32 usb_midi_rx(uint32* buf, uint32 packets) {
 /* Nonblocking byte lookahead.
  *
  * Looks at unread bytes without marking them as read. */
-uint32 usb_midi_peek(uint32* buf, uint32 packets) {
+uint32_t usb_midi_peek(uint32* buf, uint32_t packets) {
     int i;
     if (packets > n_unread_packets) {
         packets = n_unread_packets;
@@ -378,7 +378,7 @@ uint32 usb_midi_peek(uint32* buf, uint32 packets) {
  * Use readPacket instead if you need to read and mark
  */
 
-uint32 usb_midi_mark_read(uint32 n_copied) {
+uint32_t usb_midi_mark_read(uint32_t n_copied) {
     /* Mark bytes as read. */
     /* Mark bytes as read. */
     n_unread_packets -= n_copied;
@@ -400,15 +400,15 @@ uint32 usb_midi_mark_read(uint32 n_copied) {
 // USB MIDI STATE
 // --------------------------------------------------------------------------------------
 
-uint32 usb_midi_data_available(void) {
+uint32_t usb_midi_data_available(void) {
     return n_unread_packets;
 }
 
-uint8 usb_midi_is_transmitting(void) {
+uint8_t usb_midi_is_transmitting(void) {
     return transmitting;
 }
 
-uint16 usb_midi_get_pending(void) {
+uint16_t usb_midi_get_pending(void) {
     return n_unsent_packets;
 }
 
@@ -506,7 +506,7 @@ static void usb_midi_Reset(void) {
     rx_offset = 0;
 }
 
-static RESULT usb_midi_DataSetup(uint8 request) {
+static RESULT usb_midi_DataSetup(uint8_t request) {
     uint8* (*CopyRoutine)(uint16) = 0;
 
     // if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
@@ -523,7 +523,7 @@ static RESULT usb_midi_DataSetup(uint8 request) {
     return USB_SUCCESS;
 }
 
-static RESULT usb_midi_NoDataSetup(uint8 request) {
+static RESULT usb_midi_NoDataSetup(uint8_t request) {
     RESULT ret = USB_UNSUPPORT;
 
     // if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
@@ -531,7 +531,7 @@ static RESULT usb_midi_NoDataSetup(uint8 request) {
     return ret;
 }
 
-static RESULT usb_midi_GetInterfaceSetting(uint8 interface, uint8 alt_setting) {
+static RESULT usb_midi_GetInterfaceSetting(uint8_t interface, uint8_t alt_setting) {
     if (alt_setting > 0) {
         return USB_UNSUPPORT;
     } else if (interface > 1) {
@@ -541,16 +541,16 @@ static RESULT usb_midi_GetInterfaceSetting(uint8 interface, uint8 alt_setting) {
     return USB_SUCCESS;
 }
 
-static uint8* usb_midi_GetDeviceDescriptor(uint16 length) {
+static uint8* usb_midi_GetDeviceDescriptor(uint16_t length) {
     return Standard_GetDescriptorData(length, &usbMidiDevice_Descriptor);
 }
 
-static uint8* usb_midi_GetConfigDescriptor(uint16 length) {
+static uint8* usb_midi_GetConfigDescriptor(uint16_t length) {
     return Standard_GetDescriptorData(length, &usbMidiConfig_Descriptor);
 }
 
-static uint8* usb_midi_GetStringDescriptor(uint16 length) {
-    uint8 wValue0 = pInformation->USBwValue0;
+static uint8* usb_midi_GetStringDescriptor(uint16_t length) {
+    uint8_t wValue0 = pInformation->USBwValue0;
 
     if (wValue0 > USB_MIDI_N_STRING_DESCRIPTORS) {
         return NULL;

@@ -69,21 +69,21 @@ extern "C" {
 // USB MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
 
-void usb_midi_set_vid_pid(uint16 vid, uint16 pid);
+void usb_midi_set_vid_pid(uint16_t vid, uint16_t pid);
 void usb_midi_set_product_string(char stringDescriptor[]);
 
-void usb_midi_enable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
-void usb_midi_disable(gpio_dev *disc_dev, uint8 disc_bit, uint8 level);
+void usb_midi_enable(gpio_dev *disc_dev, uint8_t disc_bit, uint8_t level);
+void usb_midi_disable(gpio_dev *disc_dev, uint8_t disc_bit, uint8_t level);
 
 void usb_midi_putc(char ch);
-uint32 usb_midi_tx(const uint32* buf, uint32 len);
-uint32 usb_midi_rx(uint32* buf, uint32 len);
-uint32 usb_midi_peek(uint32* buf, uint32 len);
-uint32 usb_midi_mark_read(uint32 n_copied) ;
+uint32_t usb_midi_tx(const uint32* buf, uint32_t len);
+uint32_t usb_midi_rx(uint32* buf, uint32_t len);
+uint32_t usb_midi_peek(uint32* buf, uint32_t len);
+uint32_t usb_midi_mark_read(uint32_t n_copied) ;
 
-uint32 usb_midi_data_available(void); /* in RX buffer */
-uint16 usb_midi_get_pending(void);
-uint8 usb_midi_is_transmitting(void);
+uint32_t usb_midi_data_available(void); /* in RX buffer */
+uint16_t usb_midi_get_pending(void);
+uint8_t usb_midi_is_transmitting(void);
 
 // --------------------------------------------------------------------------------------
 // GLOBAL USB CONFIGURATION
@@ -174,66 +174,66 @@ uint8 usb_midi_is_transmitting(void);
 #define AC_CS_INTERFACE_DESCRIPTOR_SIZE(DataSize) (8 + DataSize)
 #define AC_CS_INTERFACE_DESCRIPTOR(DataSize)        \
  struct {                                           \
-      uint8  bLength;                               \
-      uint8  bDescriptorType;                       \
-      uint8  SubType;                               \
-      uint16 bcdADC;                                \
-      uint16 wTotalLength;                          \
-      uint8  bInCollection;                         \
-      uint8  baInterfaceNr[DataSize];               \
+      uint8_t  bLength;                               \
+      uint8_t  bDescriptorType;                       \
+      uint8_t  SubType;                               \
+      uint16_t bcdADC;                                \
+      uint16_t wTotalLength;                          \
+      uint8_t  bInCollection;                         \
+      uint8_t  baInterfaceNr[DataSize];               \
   } __packed
 
 typedef struct {
-      uint8  bLength;
-      uint8  bDescriptorType;
-      uint8  SubType;
-      uint16 bcdADC;
-      uint16 wTotalLength;
+      uint8_t  bLength;
+      uint8_t  bDescriptorType;
+      uint8_t  SubType;
+      uint16_t bcdADC;
+      uint16_t wTotalLength;
   } __packed MS_CS_INTERFACE_DESCRIPTOR;
 
 typedef struct {
-      uint8  bLength;
-      uint8  bDescriptorType;
-      uint8  SubType;
-      uint8  bJackType;
-      uint8  bJackId;
-      uint8  iJack;
+      uint8_t  bLength;
+      uint8_t  bDescriptorType;
+      uint8_t  SubType;
+      uint8_t  bJackType;
+      uint8_t  bJackId;
+      uint8_t  iJack;
   } __packed MIDI_IN_JACK_DESCRIPTOR;
 
 typedef struct  {
-    uint8  bLength;
-    uint8  bDescriptorType;
-    uint8  bEndpointAddress;
-    uint8  bmAttributes;
-    uint16 wMaxPacketSize;
-    uint8  bInterval;
-    uint8  bRefresh;
-    uint8  bSynchAddress;
+    uint8_t  bLength;
+    uint8_t  bDescriptorType;
+    uint8_t  bEndpointAddress;
+    uint8_t  bmAttributes;
+    uint16_t wMaxPacketSize;
+    uint8_t  bInterval;
+    uint8_t  bRefresh;
+    uint8_t  bSynchAddress;
 } __packed MIDI_USB_DESCRIPTOR_ENDPOINT;
 
 #define MIDI_OUT_JACK_DESCRIPTOR_SIZE(DataSize) (7 + 2*DataSize)
 #define MIDI_OUT_JACK_DESCRIPTOR(DataSize)        \
  struct {                                           \
-      uint8  bLength;                               \
-      uint8  bDescriptorType;                       \
-      uint8  SubType;                               \
-      uint8  bJackType;                             \
-      uint8  bJackId;                               \
-      uint8  bNrInputPins;                          \
-      uint8  baSourceId[DataSize];                  \
-      uint8  baSourcePin[DataSize];                 \
-      uint8  iJack;                                 \
+      uint8_t  bLength;                               \
+      uint8_t  bDescriptorType;                       \
+      uint8_t  SubType;                               \
+      uint8_t  bJackType;                             \
+      uint8_t  bJackId;                               \
+      uint8_t  bNrInputPins;                          \
+      uint8_t  baSourceId[DataSize];                  \
+      uint8_t  baSourcePin[DataSize];                 \
+      uint8_t  iJack;                                 \
   } __packed
 
 
 #define MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(DataSize) (4 + DataSize)
 #define MS_CS_BULK_ENDPOINT_DESCRIPTOR(DataSize)    \
  struct {                                           \
-      uint8  bLength;                               \
-      uint8  bDescriptorType;                       \
-      uint8  SubType;                               \
-      uint8  bNumEmbMIDIJack;                       \
-      uint8  baAssocJackID[DataSize];               \
+      uint8_t  bLength;                               \
+      uint8_t  bDescriptorType;                       \
+      uint8_t  SubType;                               \
+      uint8_t  bNumEmbMIDIJack;                       \
+      uint8_t  baAssocJackID[DataSize];               \
   } __packed
 
 
