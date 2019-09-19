@@ -91,6 +91,33 @@ uint8_t usb_midi_is_transmitting(void);
 #define USB_MIDI_TIMEOUT 50
 
 // --------------------------------------------------------------------------------------
+// MIDI PORTS
+// --------------------------------------------------------------------------------------
+// To define the number of Midi ports, uncomment the right line below.
+//#define USB_MIDI_4X4
+//#define USB_MIDI_8X8
+#define USB_MIDI_16X16
+
+#if !defined(USB_MIDI_4X4) && !defined(USB_MIDI_8X8) && !defined(USB_MIDI_16X16)
+  #define USB_MIDI_4X4
+  #warning "4 USB midi ports defined by default. Please check usb_midi_device.h"
+#endif
+
+#ifdef USB_MIDI_16X16
+  #define USB_MIDI_IO_PORT_NUM  16
+  #warning "16 USB midi ports defined"
+#else
+  #ifdef USB_MIDI_8X8
+    #define USB_MIDI_IO_PORT_NUM  8
+    #warning "8 USB midi ports defined"
+  #else
+    // By default
+    #define USB_MIDI_IO_PORT_NUM  4
+    #warning "4 USB midi ports defined"
+  #endif
+#endif
+
+// --------------------------------------------------------------------------------------
 // DESCRIPTOR IDS
 // --------------------------------------------------------------------------------------
 

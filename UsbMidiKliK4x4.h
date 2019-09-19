@@ -41,12 +41,7 @@
 #define _USBMIDIKLIK4X4_H_
 #pragma once
 
-// Routing targets can be greater than serial interfaces.
-// 4 Max however. e.g. 3 serials, 4 cables.
-#define MIDI_ROUTING_TARGET_MAX 4
 
-// USBDM (USB -) PIN
-#define PIN_USBDM PA11
 
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
@@ -59,9 +54,42 @@
 // LED light duration in milliseconds
 #define LED_PULSE_MILLIS  5
 
-// MIDI Routing
-#define FROM_SERIAL 0
-#define FROM_USB    1
+// Macro to flash LEDS IN
+#ifdef LEDS_MIDI
+  #define FLASH_LED_IN(thisLed) flashLED_IN[thisLed]->start()
+#else
+  #define FLASH_LED_IN(thisLed) flashLED_CONNECT->start()
+#endif
+
+// MIDI Routing rules
+
+#define FROM_SERIAL 1
+#define FROM_USB    2
+
+#define SERIAL_RULE 3
+#define USBCABLE_RULE 4
+
+#define ROUTING_RESET_ALL 0
+#define ROUTING_RESET_MIDIUSB 1
+#define ROUTING_RESET_INTELLITHRU 2
+#define ROUTING_INTELLITHRU_OFF 3
+
+// Filter all midi messages by default.
+#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111
+
+typedef struct {
+      uint8_t  filterMsk;
+      uint16_t cableInTargetsMsk;
+      uint16_t jackOutTargetsMsk;
+} midiRoutingRule_t;
+
+typedef struct {
+      uint8_t  filterMsk;
+      uint16_t jackOutTargetsMsk;
+} midiRoutingRuleJack_t;
+
+// Filter all midi messages by default.
+#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111,0B11111111,0B11111111,0B11111111
 
 // Routing from an USB cable OUT
 #define DEFAULT_MIDI_CABLE_ROUTING_TARGET  0B00000001,0B00000010,0B00000100,0B00001000
@@ -69,8 +97,6 @@
 // Routing from a serial jack MIDI IN
 #define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
 
-// All midi messages. Used for cable and serial routing.
-#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111,0B11111111,0B11111111,0B11111111
 
 // Intelligent Serial default MIDI Thru
 // No IN actives - Alls msg -

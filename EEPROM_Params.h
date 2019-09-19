@@ -42,7 +42,7 @@
 #define _EEPROM_PARAMS_H_
 #pragma once
 
-#include "usb_midi_device.h"
+
 
 // EEPROM parameters
 // The signature is used to check if EEPROM is correctly initialized
@@ -51,7 +51,7 @@
 // The following structure start at the first address of the EEPROM
 
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 7
+#define EE_PRMVER 8
 
 // Boot modes
 enum nextBootMode {
@@ -65,23 +65,14 @@ typedef struct {
         uint8_t         TimestampedVersion[14];
         uint8_t         nextBootMode;
 
-        // Bits 0-3 Serial IN thru mode activated. 0 = inactivated
-        uint8_t         intelligentMidiThruIn;
+        // Incoming events routing rules
+        midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
+        midiRoutingRule_t midiRoutingRulesSerial[SERIAL_INTERFACE_MAX];
 
-        // Bits 0-3 : Serial OUT targets - Bits 4-7  : midi msg filter
-        uint8_t         intelligentMidiThruOut[MIDI_ROUTING_TARGET_MAX]; // defined in usbmidiklik4x4.h
-
-        // 1 to 255 periods of 15s.
-        uint8_t         intelligentMidiThruDelayPeriod;
-
-        // Targets : Bits 0-3 : Serial targets - Bits 4-7 : Cable targets
-        uint8_t         midiCableRoutingTarget[MIDI_ROUTING_TARGET_MAX];
-        uint8_t         midiSerialRoutingTarget[MIDI_ROUTING_TARGET_MAX];
-
-        // Filters are midiXparser format.  Bits 0-3 : Serial - 4-7 : Cable
-        //    noneMsgType = 0B0000, channelVoiceMsgType = 0B0001, systemCommonMsgType = 0B0010,
-        //    realTimeMsgType = 0B0100, sysExMsgType = 0B1000
-        uint8_t         midiMsgFilterRoutingTarget[MIDI_ROUTING_TARGET_MAX];
+        // IntelliThru
+        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[SERIAL_INTERFACE_MAX];
+        uint16_t          intelliThruJackInMsk;
+        uint8_t           intelliThruDelayPeriod; // 1 to 255 periods of 15s.
 
         uint16_t        vendorID;
         uint16_t        productID;

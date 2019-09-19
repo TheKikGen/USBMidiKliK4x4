@@ -46,6 +46,7 @@
 #define USB_MIDI_DEVICE_H
 #pragma once
 
+#include "hardware_config.h"
 #include "usb_midi_device.h"
 
 #include <libmaple/usb.h>

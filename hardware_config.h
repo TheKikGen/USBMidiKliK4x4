@@ -52,11 +52,12 @@
 
   #define SERIAL_INTERFACE_MAX  4
   #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
- 
   #ifdef HAS_MIDITECH_HARDWARE
+     #warning "MIDITECH4X4 STM32F103RC HARDWARE DETECTED"
      #define HARDWARE_TYPE "MIDITECH4x4 STM32F103RC"
      #define LED_CONNECT PC9
   #else
+     #warning "STM32F103RC HARDWARE DETECTED"
      #define HARDWARE_TYPE "STM32F103RC"
      #define LED_CONNECT PC13 
   #endif
@@ -73,4 +74,35 @@
   #endif
 #endif
 
+   // Double check Serial interfaces
+  #if SERIAL_INTERFACE_MAX > 4
+  #error "SERIAL_INTERFACE IS 4 MAX"
+  #endif
+ 
+  // To define more than 4 Midi ports, uncomment the right line below.
+  #define USB_MIDI_8X8
+  //#define USB_MIDI_16X16
+
+  // Routing targets can be greater than serial interfaces.
+  // 4 Max however. e.g. 3 serials, 4 cables. For 1 board.
+  
+  #define USBCABLE_INTERFACE_MAX USB_MIDI_IO_PORT_NUM
+
+  #define MIDI_ROUTING_TARGET_MAX USBCABLE_INTERFACE_MAX+SERIAL_INTERFACE_MAX
+  
+  // USBDM (USB -) PIN
+  #define PIN_USBDM PA11
+
+
 #endif
+
+
+
+
+
+
+
+
+
+
+
