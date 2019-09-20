@@ -68,6 +68,7 @@
 
 #define SERIAL_RULE 3
 #define USBCABLE_RULE 4
+#define INTELLITHRU_RULE 5
 
 #define ROUTING_RESET_ALL 0
 #define ROUTING_RESET_MIDIUSB 1
@@ -129,10 +130,11 @@ int EEPROM_readBlock(uint16_t , uint8_t *, uint16_t  );
 static uint8_t GetInt8FromHexChar(char);
 static uint16_t GetInt16FromHex4Char(char *);
 static uint16_t GetInt16FromHex4Bin(char * );
+static uint16_t USBSerialGetNumber(uint8_t) ;
 static char USBSerialGetDigit();
 static char USBSerialGetChar();
 static uint8_t USBSerialScanHexChar(char *, uint8_t ,char,char);
-static void ShowCurrentSettings();
-void ConfigRootMenu();
+static void ShowGlobalSettings();
+void ConfigMenu();
 
 #endif

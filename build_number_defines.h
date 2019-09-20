@@ -42,7 +42,7 @@
 #ifndef BUILD_DEFS_H
 #define BUILD_DEFS_H
 
-#define VERSION_MAJOR 1
+#define VERSION_MAJOR 2
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890
