@@ -124,17 +124,17 @@ static void RouteSysExMidiMsg( uint8_t , midiXparser*  ) ;
 static void ParseSysExInternal(const midiPacket_t *) ;
 static void RoutePacketToTarget(uint8_t, const midiPacket_t *) ;
 static void ProcessSysExInternal() ;
-void CheckEEPROM(bool);
+void EEPROM_Check(bool);
 int EEPROM_writeBlock(uint16_t , const uint8_t *, uint16_t  );
 int EEPROM_readBlock(uint16_t , uint8_t *, uint16_t  );
 static uint8_t GetInt8FromHexChar(char);
 static uint16_t GetInt16FromHex4Char(char *);
 static uint16_t GetInt16FromHex4Bin(char * );
-static uint16_t USBSerialGetNumber(uint8_t) ;
-static char USBSerialGetDigit();
-static char USBSerialGetChar();
-static uint8_t USBSerialScanHexChar(char *, uint8_t ,char,char);
+static uint16_t AsknNumber(uint8_t) ;
+static char AskDigit();
+static char AskChar();
+static uint8_t AsknHexChar(char *, uint8_t ,char,char);
 static void ShowGlobalSettings();
-void ConfigMenu();
+void ShowConfigMenu();
 
 #endif

@@ -56,6 +56,7 @@ HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
 // EEPROMS parameters
 EEPROM_Params_t EEPROM_Params;
+uint16_t EEPROM_ParamsSize=sizeof(EEPROM_Params);
 
 // Timer
 HardwareTimer timer(2);
@@ -450,7 +451,7 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 // ROUTING_RESET_INTELLITHRU : Intellithru to factory defaults
 // ROUTING_INTELLITHRU_OFF   : Stop IntelliThru
 ///////////////////////////////////////////////////////////////////////////////
-void SetmidiRoutingRules(uint8_t mode) {
+void ResetMidiRoutingRules(uint8_t mode) {
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 		// Cables
@@ -476,7 +477,6 @@ void SetmidiRoutingRules(uint8_t mode) {
 		}
 		EEPROM_Params.intelliThruJackInMsk = 0;
 	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
-
 	}
 
 	// Disable "Intelligent thru" serial mode
@@ -526,7 +526,7 @@ static void ProcessSysExInternal() {
 		case 0x08:
 			// Set serial boot mode & Write the whole param struct
 			EEPROM_Params.nextBootMode = bootModeConfigMenu;
-      EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
+      EEPROM_ParamsSave(&EEPROM_Params);
       nvic_sys_reset();
 			break;
 
@@ -555,7 +555,7 @@ static void ProcessSysExInternal() {
       memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
 
       // Write the whole param struct
-      EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
+      EEPROM_ParamsSave(&EEPROM_Params);
 
       break;
 
@@ -574,7 +574,7 @@ static void ProcessSysExInternal() {
                                      (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
       EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
                                      (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
-      EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+      EEPROM_ParamsSave(&EEPROM_Params);
 
       break;
 
@@ -619,12 +619,12 @@ static void ProcessSysExInternal() {
 
 			// reset to default midi thru routing
       if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
-				 SetmidiRoutingRules(ROUTING_RESET_INTELLITHRU);
+				 ResetMidiRoutingRules(ROUTING_RESET_INTELLITHRU);
 			} else
 
 			// Disable thru mode
 			if (sysExInternalBuffer[2] == 0x01  && msgLen == 3) {
-					SetmidiRoutingRules(ROUTING_INTELLITHRU_OFF);
+					ResetMidiRoutingRules(ROUTING_INTELLITHRU_OFF);
 			}
 
 			else
@@ -677,7 +677,7 @@ static void ProcessSysExInternal() {
 			else	break;
 
 			// Write the whole param struct
-      EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+      EEPROM_ParamsSave(&EEPROM_Params);
 
 			// reset globals for a real time update
 			intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
@@ -728,7 +728,7 @@ static void ProcessSysExInternal() {
       // reset to default routing
 
       if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
-					SetmidiRoutingRules(ROUTING_RESET_MIDIUSB);
+					ResetMidiRoutingRules(ROUTING_RESET_MIDIUSB);
       } else
 
 			// Set filter
@@ -804,7 +804,7 @@ static void ProcessSysExInternal() {
 					return;
 
 			// Write the whole param struct
-			EEPROM_writeBlock(0, (uint8*)&EEPROM_Params, sizeof(EEPROM_Params));
+			EEPROM_ParamsSave(&EEPROM_Params);
 
 			// reset globals for a real time update
 			// midiUSBActive = true;
@@ -822,7 +822,7 @@ static void ProcessSysExInternal() {
 // Retrieve global parameters from EEPROM, or Initalize it
 // If factorySetting is true, all settings will be forced to factory default
 //////////////////////////////////////////////////////////////////////////////
-void CheckEEPROM(bool factorySettings=false) {
+void EEPROM_Check(bool factorySettings=false) {
 
   // Set EEPROM parameters for the STMF103RC
   EEPROM.PageBase0 = 0x801F000;
@@ -831,7 +831,7 @@ void CheckEEPROM(bool factorySettings=false) {
 
 
   // Read the EEPROM parameters structure
-  EEPROM_readBlock(0, (uint8_t *)&EEPROM_Params, sizeof(EEPROM_Params) );
+  EEPROM_ParamsLoad(&EEPROM_Params);
 
   // If the signature is not found, of not the same version of parameters structure,
   // or new build, then initialize (factory settings)
@@ -841,7 +841,7 @@ void CheckEEPROM(bool factorySettings=false) {
         memcmp( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) )
      )
   {
-    memset( &EEPROM_Params,0,sizeof(EEPROM_Params) );
+    memset( &EEPROM_Params,0,EEPROM_ParamsSize );
     memcpy( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) );
 
     EEPROM_Params.prmVer = EE_PRMVER;
@@ -851,7 +851,7 @@ void CheckEEPROM(bool factorySettings=false) {
     // Default boot mode when new firmware uploaded
     EEPROM_Params.nextBootMode = bootModeConfigMenu;
 
-		SetmidiRoutingRules(ROUTING_RESET_ALL);
+		ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
     EEPROM_Params.vendorID  = USB_MIDI_VENDORID;
     EEPROM_Params.productID = USB_MIDI_PRODUCTID;
@@ -859,15 +859,37 @@ void CheckEEPROM(bool factorySettings=false) {
     memcpy(EEPROM_Params.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
     //Write the whole param struct
-    EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+    EEPROM_ParamsSave(&EEPROM_Params);
 
   }
 
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// HIGH LEVEL LOAD PARAMETERS FROM EEPROM
+//----------------------------------------------------------------------------
+// High level abstraction parameters read function
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_ParamsLoad(EEPROM_Params_t *EE_Prms) {
+
+	EEPROM_readBlock(0, (uint8_t *)EE_Prms, sizeof(EEPROM_Params_t));
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// HIGH LEVEL SAVE PARAMETERS TO EEPROM
+//----------------------------------------------------------------------------
+// High level abstraction parameters read function
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_ParamsSave(EEPROM_Params_t *EE_Prms) {
+  EEPROM_writeBlock(0, (uint8*)EE_Prms,sizeof(EEPROM_Params_t) );
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // EEPROM EMULATION UTILITIES
 ///////////////////////////////////////////////////////////////////////////////
-int EEPROM_writeBlock(uint16_t ee, const uint8_t *bloc, uint16_t size )
+int EEPROM_WriteBlock(uint16_t ee, const uint8_t *bloc, uint16_t size )
 {
     uint16_t i;
     for (i = 0; i < size; i++) EEPROM.write(ee+i, *(bloc+i));
@@ -875,7 +897,7 @@ int EEPROM_writeBlock(uint16_t ee, const uint8_t *bloc, uint16_t size )
     return i;
 }
 
-int EEPROM_readBlock(uint16_t ee, uint8_t *bloc, uint16_t size )
+int EEPROM_ReadBlock(uint16_t ee, uint8_t *bloc, uint16_t size )
 {
     uint16_t i;
     for (i = 0; i < size; i++) *(bloc +i) = EEPROM.read(ee+i);
@@ -915,11 +937,11 @@ static uint16_t GetInt16FromHex4Bin(char * buff) {
 ///////////////////////////////////////////////////////////////////////////////
 // USB serial get a number of N digit (long)
 ///////////////////////////////////////////////////////////////////////////////
-static uint16_t USBSerialGetNumber(uint8_t n) {
+static uint16_t AsknNumber(uint8_t n) {
 	uint16_t v=0;
 	uint8_t choice;
 	while (n--) {
-		v += ( (choice = USBSerialGetDigit() ) - '0' )*pow(10,n);
+		v += ( (choice = AskDigit() ) - '0' )*pow(10,n);
 		Serial.print(choice - '0');
 	}
 	return v;
@@ -928,15 +950,15 @@ static uint16_t USBSerialGetNumber(uint8_t n) {
 ///////////////////////////////////////////////////////////////////////////////
 // USB serial getdigit
 ///////////////////////////////////////////////////////////////////////////////
-static char USBSerialGetDigit() {
+static char AskDigit() {
   char c;
-  while ( ( c = USBSerialGetChar() ) <'0' && c > '9');
+  while ( ( c = AskChar() ) <'0' && c > '9');
   return c;
 }
 ///////////////////////////////////////////////////////////////////////////////
 // USB serial getchar
 ///////////////////////////////////////////////////////////////////////////////
-static char USBSerialGetChar() {
+static char AskChar() {
   while (!Serial.available() >0);
   char c = Serial.read();
   // Flush
@@ -948,12 +970,12 @@ static char USBSerialGetChar() {
 // "Scanf like" for hexadecimal inputs
 ///////////////////////////////////////////////////////////////////////////////
 
-static uint8_t USBSerialScanHexChar(char *buff, uint8_t len,char exitchar,char sepa) {
+static uint8_t AsknHexChar(char *buff, uint8_t len,char exitchar,char sepa) {
 
 	uint8_t i = 0, c = 0;
 
 	while ( i < len ) {
-		c = USBSerialGetChar();
+		c = AskChar();
 		if ( (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'  ) ) {
 			Serial.write(c);
 			if (sepa) Serial.write(sepa);
@@ -966,7 +988,7 @@ static uint8_t USBSerialScanHexChar(char *buff, uint8_t len,char exitchar,char s
 ///////////////////////////////////////////////////////////////////////////////
 // Get a choice from a question
 ///////////////////////////////////////////////////////////////////////////////
-char getChoice(const char * qLabel, char * choices) {
+char AskChoice(const char * qLabel, char * choices) {
 	char c;
 	char * yn = "yn";
 	char * ch;
@@ -978,7 +1000,7 @@ char getChoice(const char * qLabel, char * choices) {
 	Serial.print(") ? ");
 
 	while (1) {
-		c = USBSerialGetChar();
+		c = AskChar();
 		uint8_t i=0;
 		while (ch[i] )
 				if ( c == ch[i++] ) { Serial.write(c); return c; }
@@ -1010,7 +1032,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule) {
 
 	// No display if port is not exsiting or not concerned by IntelliThru
 	if ( port >= maxPorts ) return;
-	if (ruleType == INTELLITHRU_RULE && !EEPROM_Params.intelliThruJackInMsk & port ) return;
+	if (ruleType == INTELLITHRU_RULE && !(EEPROM_Params.intelliThruJackInMsk & (1<< port)) ) return;
 
 	// print a full new line
 	Serial.print("|");
@@ -1148,6 +1170,25 @@ static void ShowGlobalSettings() {
 	Serial.print("Harware type        : ");
 	Serial.println(HARDWARE_TYPE);
 
+	Serial.print("EEPROM param. size  : ");
+	Serial.println(EEPROM_ParamsSize);
+
+	Serial.print("Size midiRoutingRule_t : ");
+	Serial.println(sizeof(midiRoutingRule_t));
+	Serial.print("Size midiRoutingRuleJack_t : ");
+	Serial.println(sizeof(midiRoutingRuleJack_t));
+	Serial.print("Size EEPROM_Params.midiRoutingRulesCable : ");
+	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesCable));
+	Serial.print("Size EEPROM_Params.midiRoutingRulesSerial : ");
+	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesSerial));
+	Serial.print("Size EEPROM_Params.midiRoutingRulesIntelliThru : ");
+	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesIntelliThru));
+	Serial.print("Size  : ");
+	Serial.println();
+
+
+
+
 	Serial.print("MIDI USB ports      : ");
 	Serial.println(USBCABLE_INTERFACE_MAX);
 	Serial.print("MIDI serial ports   : ");
@@ -1163,17 +1204,17 @@ static void ShowGlobalSettings() {
 	Serial.print("Product string      : ");
 	Serial.write(EEPROM_Params.productString, sizeof(EEPROM_Params.productString));
 	Serial.println();
-
-	Serial.println();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Setup a Midi routing target on screen
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t ConfigMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t port) {
+uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t port) {
 	uint16_t targetsMsk = 0;
 	uint8_t  portMax = (ruleTypeOut == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_MAX);
 	uint8_t choice;
+
+	if (ruleType == INTELLITHRU_RULE && ruleTypeOut == USBCABLE_RULE ) return 0;
 
 	for ( uint8_t i=0 ; i< portMax  ; i++ ){
 		Serial.print("Route ");
@@ -1184,17 +1225,115 @@ uint16_t ConfigMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t 
 		Serial.print(ruleTypeOut == USBCABLE_RULE ? "Cable IN#":"Jack OUT#");
 		if (i+1 < 10) Serial.print("0");
 		Serial.print(i+1);
-		choice = getChoice("(x to stop)","ynx");
+		choice = AskChoice("  (x to exit)","ynx");
 		if (choice == 'x') {Serial.println(); break;}
 		else if ( choice == 'y') targetsMsk |= (1 << i);
 		Serial.println();
 	}
 	return targetsMsk;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Setup a Midi routing target on screen
+///////////////////////////////////////////////////////////////////////////////
+void AskMidiRouting(uint8_t ruleType) {
+	uint16_t targetsMsk = 0;
+	uint8_t  portMax = (ruleType == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_MAX);
+	uint8_t  choice;
+
+	Serial.print("-- Set ");
+	Serial.print(ruleType == USBCABLE_RULE ? "USB Cable OUT":"Jack IN");
+	if (ruleType == INTELLITHRU_RULE ) Serial.print(" IntelliThru ");
+	Serial.println(" routing --");
+
+	Serial.print("Enter ");
+	Serial.print(ruleType == USBCABLE_RULE ? "Cable OUT":"Jack IN");
+	Serial.print (" # (01-");
+	Serial.print( portMax > 9 ? "":"0");
+	Serial.print( portMax);
+	Serial.print(" / 00 to exit) :");
+	while (1) {
+		choice = AsknNumber(2);
+		Serial.println();
+		if ( choice > 0 && choice > portMax) {
+			Serial.print("# error. Please try again :");
+		} else break;
+	}
+
+	if (choice > 0) {
+		uint8_t port =  choice - 1;
+		Serial.println();
+
+		if (ruleType == INTELLITHRU_RULE ) {
+			Serial.print("Jack #");
+			Serial.print( port+1 > 9 ? "":"0");Serial.print(port+1);
+			if ( AskChoice(" : enable thru mode routing","") != 'y') {
+				Serial.println();
+				Serial.print("Jack IN #");Serial.print(port+1);
+				Serial.println(" disabled.");
+				EEPROM_Params.intelliThruJackInMsk &= ~(1 << port);
+				return;
+			}
+			EEPROM_Params.intelliThruJackInMsk |= (1 << port);
+			Serial.println();
+			if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk )
+			{
+				if ( AskChoice("Keep existing Midi routing & filtering","") == 'y') {
+					Serial.println();
+					return;
+				}
+				Serial.println();
+			}
+			Serial.println();
+		}
+
+		// Filters
+		uint8_t flt = AskMidiFilter(ruleType,port);
+		if ( flt == 0 ) {
+			Serial.println("No filters set. No change made.");
+			return;
+		}
+		Serial.println();
+
+		uint16_t cTargets=0;
+		uint16_t jTargets=0;
+
+		if (ruleType != INTELLITHRU_RULE ) {
+			// Cable
+			cTargets = AskMidiRoutingTargets(ruleType,USBCABLE_RULE,port);
+			Serial.println();
+		}
+
+		// Midi jacks
+		jTargets = AskMidiRoutingTargets(ruleType,SERIAL_RULE,port);
+
+		if ( jTargets + cTargets == 0 ) {
+			Serial.println("No targets set. No change made.");
+			return;
+		}
+
+		if (ruleType == USBCABLE_RULE ) {
+			EEPROM_Params.midiRoutingRulesCable[port].filterMsk = flt;
+			EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk = cTargets;
+			EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk = jTargets ;
+		} else
+		if (ruleType == SERIAL_RULE ) {
+			EEPROM_Params.midiRoutingRulesSerial[port].filterMsk = flt;
+			EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk = cTargets;
+			EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk = jTargets ;
+		} else
+		if (ruleType == INTELLITHRU_RULE ) {
+			EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk = flt;
+			EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk = jTargets ;
+		}
+
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Setup a Midi filter routing  on screen
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t ConfigMidiFilter(uint8_t ruleType, uint8_t port) {
+uint8_t AskMidiFilter(uint8_t ruleType, uint8_t port) {
 	uint8_t flt = 0;
 
 	Serial.print("Set filter Midi messages for ");
@@ -1212,23 +1351,58 @@ uint8_t ConfigMidiFilter(uint8_t ruleType, uint8_t port) {
 	Serial.print(port+1);
   Serial.println(" :");
 
-	if ( getChoice("Channel Voice   ","") == 'y')
+	if ( AskChoice("Channel Voice   ","") == 'y')
 			flt |= midiXparser::channelVoiceMsgTypeMsk;
 	Serial.println();
 
-	if ( getChoice("System Common   ","") == 'y')
+	if ( AskChoice("System Common   ","") == 'y')
 			flt |= midiXparser::systemCommonMsgTypeMsk;
 	Serial.println();
 
-	if ( getChoice("Realtime        ","") == 'y' )
+	if ( AskChoice("Realtime        ","") == 'y' )
 			flt |= midiXparser::realTimeMsgTypeMsk;
 	Serial.println();
 
-	if ( getChoice("System Exclusive","") == 'y')
+	if ( AskChoice("System Exclusive","") == 'y')
 			flt |= midiXparser::sysExMsgTypeMsk;
 	Serial.println();
 
 	return flt;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Setup Product String on screen
+///////////////////////////////////////////////////////////////////////////////
+void AskProductString() {
+	uint8_t i = 0;
+	char c;
+	char buff [32];
+
+	Serial.println("Enter product string - ENTER to terminate :");
+	while ( i < USB_MIDI_PRODUCT_STRING_SIZE && (c = AskChar() ) !=13 ) {
+		if ( c >= 32 && c < 127 ) {
+			Serial.write(c);
+			buff[i++]	= c;
+		}
+	}
+	if ( i > 0 ) {
+		memset(EEPROM_Params.productString,0,sizeof(EEPROM_Params.productString) );
+		memcpy(EEPROM_Params.productString,buff,i);
+	}
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Setup PID and VID on screen
+///////////////////////////////////////////////////////////////////////////////
+void AskVIDPID() {
+	char buff [5];
+	Serial.println("Enter VID - PID, in hex (0-9,a-f) :");
+	AsknHexChar( (char *) buff, 4, 0, 0);
+	EEPROM_Params.vendorID  = GetInt16FromHex4Bin((char*)buff);
+	Serial.print("-");
+	AsknHexChar( (char * ) buff, 4, 0, 0);
+	EEPROM_Params.productID = GetInt16FromHex4Bin((char*)buff);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1237,13 +1411,12 @@ uint8_t ConfigMidiFilter(uint8_t ruleType, uint8_t port) {
 // Allow USBMidLKLIK configuration by using a menu as a user interface
 // from the USB serial port.
 ///////////////////////////////////////////////////////////////////////////////
-void ConfigMenu()
+void ShowConfigMenu()
 {
 	char choice=0;
-	char buff [32];
-	uint8_t i,j;
-	char c;
+	uint8_t i;
   boolean showMenu = true;
+
 	for ( ;; )
 	{
 		if (showMenu) {
@@ -1261,7 +1434,7 @@ void ConfigMenu()
     showMenu = true;
 		Serial.println();
 		Serial.print("=>");
-		choice = USBSerialGetChar();
+		choice = AskChar();
 		Serial.println(choice);
     Serial.println();
 
@@ -1271,8 +1444,9 @@ void ConfigMenu()
 			// Show global settings
 			case '0':
 				ShowGlobalSettings();
+				Serial.println();
         showMenu = false;
-			break;
+			  break;
 
 			// Show midi routing
 			case '1':
@@ -1281,216 +1455,90 @@ void ConfigMenu()
 			  ShowMidiRouting(SERIAL_RULE);
 				Serial.println();
 			  ShowMidiRouting(INTELLITHRU_RULE);
+				Serial.println();
 	      showMenu = false;
-			break;
+			  break;
 
-		// Change VID & PID
+			// Change VID & PID
 			case '2':
-        Serial.println("Enter VID - PID, in hex (0-9,a-f) :");
-				USBSerialScanHexChar( (char *) buff, 4, 0, 0);
-				EEPROM_Params.vendorID  = GetInt16FromHex4Bin((char*)buff);
-				Serial.print("-");
-				USBSerialScanHexChar( (char * ) buff, 4, 0, 0);
-				EEPROM_Params.productID = GetInt16FromHex4Bin((char*)buff);
+				AskVIDPID();
+				Serial.println();
 				break;
 
 			// Change the product string
 			case '3':
-				Serial.println("Enter product string - ENTER to terminate :");
-				i = 0;
-				while ( i < USB_MIDI_PRODUCT_STRING_SIZE && (c = USBSerialGetChar() ) !=13 ) {
-					if ( c >= 32 && c < 127 ) {
-						Serial.write(c);
-						buff[i++]	= c;
-					}
-				}
-				if ( i > 0 ) {
-					memset(EEPROM_Params.productString,0,sizeof(EEPROM_Params.productString) );
-					memcpy(EEPROM_Params.productString,buff,i);
-				}
+				AskProductString();
+				Serial.println();
 				break;
 
 			// Cables midi routing
 			case '4':
-				Serial.println("-- Set USB cable Out routing --");
-				Serial.print("Enter Cable OUT # (01-");
-				Serial.print( USBCABLE_INTERFACE_MAX > 9 ? "":"0");
-				Serial.print( USBCABLE_INTERFACE_MAX);
-				Serial.print(" / 00 to exit) :");
-				while (1) {
-					choice = USBSerialGetNumber(2);
-					Serial.println();
-				  if ( choice > 0 && choice > USBCABLE_INTERFACE_MAX) {
-						Serial.println("Cable # error. Please try again :");
-					} else break;
-				}
-
-				if (choice > 0) {
-					uint8_t cableOut =  choice - 1;
-					Serial.println();
-					// Filters
-					uint8_t flt = ConfigMidiFilter(USBCABLE_RULE,cableOut);
-					if ( flt == 0 ) {
-						Serial.println("No filters set. No change made.");
-						break;
-					}
-					Serial.println();
-
-					// Cable
-					uint16_t cTargets = ConfigMidiRoutingTargets(USBCABLE_RULE,USBCABLE_RULE,cableOut);
-					Serial.println();
-
-					// Midi jacks
-					uint16_t jTargets = ConfigMidiRoutingTargets(USBCABLE_RULE,SERIAL_RULE,cableOut);
-
-					if ( jTargets + cTargets == 0 ) {
-						Serial.println("No targets set. No change made.");
-						break;
-					}
-					EEPROM_Params.midiRoutingRulesCable[cableOut].filterMsk = flt;
-					EEPROM_Params.midiRoutingRulesCable[cableOut].cableInTargetsMsk = cTargets;
-					EEPROM_Params.midiRoutingRulesCable[cableOut].jackOutTargetsMsk = jTargets ;
-				}
-
+				AskMidiRouting(USBCABLE_RULE);
+				Serial.println();
 				break;
-				//
-				// // Midi IN jack routing
-				// case '2':
-				// 	Serial.println("-- Set Jack IN routing --");
-				// 	Serial.print("Enter Jack IN # (1-4 / 0 to exit) :");
-				// 	while ( (choice = USBSerialGetDigit() - '0' ) > MIDI_ROUTING_TARGET_MAX ) ;
-				// 	Serial.println((uint8_t)choice);
-				// 	if (choice > 0) {
-				// 		uint8_t jackIn =  choice - 1;
-				//
-				// 		// Filters
-				// 		uint8_t flt = ConfigMidiFilter(true,jackIn);
-				// 		if ( flt == 0 ) {
-				// 			Serial.println("No filters set. No change made.");
-				// 			break;
-				// 		}
-				// 		Serial.println();
-				//
-				// 		// Cable
-				// 		uint8_t cTargets = ConfigMidiRootTargets(true,false,jackIn);
-				// 		Serial.println();
-				//
-				// 		// Midi jacks
-				// 		uint8_t jTargets = ConfigMidiRootTargets(true,true,jackIn);
-				// 		if ( jTargets + cTargets == 0 ) {
-				// 			Serial.println("No targets set. No change made.");
-				// 			break;
-				// 		}
-				//
-				// 		EEPROM_Params.midiSerialRoutingTarget[jackIn] = jTargets | (cTargets<<4);
-				// 		flt = (EEPROM_Params.midiMsgFilterRoutingTarget[jackIn] & 0xF0) + flt;
-				// 		EEPROM_Params.midiMsgFilterRoutingTarget[jackIn] = flt;
-				// 	}
-				//
-				// 	break;
-				//
-				// 	// Intelligent MIDI Thru settings
-				// 	case '3':
-				// 		Serial.println("-- Set intelligent Midi Thru mode --");
-				// 		Serial.print("Enter Jack IN # (1-4 / 0 to exit) :");
-				// 		while ( (choice = USBSerialGetDigit() - '0' ) > MIDI_ROUTING_TARGET_MAX ) ;
-				// 		Serial.println((uint8_t)choice);
-				// 		if (choice > 0) {
-				// 			uint8_t jackIn =  (uint8_t)choice - 1;
-				// 			Serial.print("Jack #"); Serial.print(jackIn+1);
-				// 			if ( getChoice(" : enable thru mode routing","") != 'y') {
-				// 				Serial.println();
-				// 				Serial.print("Jack IN #");Serial.print(jackIn+1);
-				// 				Serial.println(" disabled.");
-				// 				EEPROM_Params.intelligentMidiThruIn &= ~(1 << jackIn);
-				// 				break;
-				// 			}
-				// 			Serial.println();
-				// 			EEPROM_Params.intelligentMidiThruIn |= (1 << jackIn);
-				// 			if ( (EEPROM_Params.intelligentMidiThruOut[jackIn] & 0xF)  &&
-				// 			EEPROM_Params.intelligentMidiThruOut[jackIn] & 0xF0 )
-				// 			{
-				// 				if ( getChoice("Keep existing Midi routing & filtering","") == 'y')
-				// 				break;
-				// 			}
-				//
-				// 			Serial.println();
-				// 			// Filters
-				// 			uint8_t flt = ConfigMidiFilter(true,jackIn);
-				// 			if ( flt == 0 ) {
-				// 				Serial.print("No filters set - Jack IN #");Serial.print(jackIn+1);Serial.println(" disabled.");
-				// 				EEPROM_Params.intelligentMidiThruIn &= ~(1 << jackIn);
-				// 				break;
-				// 			}
-				// 			flt = flt<<4;
-				//
-				// 			// Jacks
-				// 			Serial.println();
-				// 			uint8_t targets = ConfigMidiRootTargets(true,true,jackIn);
-				// 			if ( targets == 0 ) {
-				// 				Serial.print("No Jack(s) OUT set. Jack IN #");Serial.print(jackIn+1);Serial.println(" disabled.");
-				// 				EEPROM_Params.intelligentMidiThruIn &= ~(1 << jackIn);
-				// 				break;
-				// 			}
-				// 			EEPROM_Params.intelligentMidiThruOut[jackIn] = flt + targets;
-				// 		}
-				//
-				// 		break;
-				//
-				// // USB Timeout <number of 15s periods 1-127>
-				// case '4':
-				// 	Serial.println("Enter the number of 15s delay periods for USB timeout (001-127 / 000 to exit) :");
-				// 	i = 0; j = 0;
-				// 	while ( i < 3 ) {
-				// 		c  = USBSerialGetDigit();Serial.write(c);
-				// 		j +=  ( (uint8_t) (c - '0' ) ) * pow(10 ,2-i);
-				// 		i++;
-				// 	}
-				// 	if (j == 0 or j >127 )
-				// 	Serial.println(". No change made. Incorrect value.");
-				// 	else {
-				// 		EEPROM_Params.intelligentMidiThruDelayPeriod = j;
-				// 		Serial.print(" <= Delay set to ");Serial.print(j*15);Serial.println("s");
-				// 	}
-				// 	break;
-				//
 
+			// Jack IN midi routing
+			case '5':
+				AskMidiRouting(SERIAL_RULE);
+				Serial.println();
+				break;
 
+			// IntelliThru IN midi routing
+			case '6':
+				AskMidiRouting(INTELLITHRU_RULE);
+				Serial.println();
+				break;
 
+			// USB Timeout <number of 15s periods 1-127>
+
+			case '7':
+				Serial.println("Enter the number of 15s delay periods for USB timeout (001-127 / 000 to exit) :");
+				i = AsknNumber(3);
+				if (i == 0 || i >127 )
+					Serial.println(". No change made. Incorrect value.");
+				else {
+					EEPROM_Params.intelliThruDelayPeriod = i;
+					Serial.print(" <= Delay set to ");Serial.print(i*15);Serial.println("s");
+				}
+				Serial.println();
+				break;
 
 			// Reload the EEPROM parameters structure
 			case 'e':
-				if ( getChoice("Reload current settings from EEPROM","") == 'y' ) {
-					CheckEEPROM();
+				if ( AskChoice("Reload current settings from EEPROM","") == 'y' ) {
+					EEPROM_Check();
           Serial.println();
 					Serial.println("Settings reloaded from EEPROM.");
+					Serial.println();
 				}
 				break;
 
 			// Restore factory settings
 			case 'f':
-				if ( getChoice("Restore all factory settings","") == 'y' ) {
+				if ( AskChoice("Restore all factory settings","") == 'y' ) {
           Serial.println();
-					if ( getChoice("Your own settings will be erased. Are you really sure","") == 'y' ) {
-						CheckEEPROM(true);
+					if ( AskChoice("Your own settings will be erased. Are you really sure","") == 'y' ) {
+						EEPROM_Check(true);
             Serial.println();
 						Serial.println("Factory settings restored.");
+						Serial.println();
 					}
 				}
 				break;
 
 			// Default midi routing
 			case 'r':
-				if ( getChoice("Reset all Midi and thru mode routing to default","") == 'y')
-					SetmidiRoutingRules(ROUTING_RESET_ALL);
+				if ( AskChoice("Reset all Midi and thru mode routing to default","") == 'y')
+					ResetMidiRoutingRules(ROUTING_RESET_ALL);
+					Serial.println();
 				break;
 
 			// Save & quit
 			case 's':
 				ShowGlobalSettings();
-				if ( getChoice("Save settings and exit to midi mode","") == 'y' ) {
+				if ( AskChoice("Save settings and exit to midi mode","") == 'y' ) {
 					//Write the whole param struct
-					EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+					EEPROM_ParamsSave(&EEPROM_Params);
 					delay(100);
 					nvic_sys_reset();
 				}
@@ -1498,10 +1546,9 @@ void ConfigMenu()
 
 			// Abort
 			case 'x':
-				if ( getChoice("Abort","") == 'y' ) nvic_sys_reset();
+				if ( AskChoice("Abort","") == 'y' ) nvic_sys_reset();
 				break;
 		}
-
 	}
 }
 
@@ -1511,7 +1558,7 @@ void ConfigMenu()
 void setup() {
 
     // Retrieve EEPROM parameters
-    CheckEEPROM();
+    EEPROM_Check();
 
     // Configure the TIMER2
     timer.pause();
@@ -1533,7 +1580,7 @@ EEPROM_Params.nextBootMode = bootModeConfigMenu;
     // if so, prepare the next boot in MIDI mode and jump to menu
     if  ( EEPROM_Params.nextBootMode == bootModeConfigMenu ) {
         EEPROM_Params.nextBootMode = bootModeMidi;
-        EEPROM_writeBlock(0, (uint8*)&EEPROM_Params,sizeof(EEPROM_Params) );
+        EEPROM_ParamsSave(&EEPROM_Params);
 
         #ifdef HAS_MIDITECH_HARDWARE
           // Assert DISC PIN (PA8 usually for Miditech) to enable USB
@@ -1553,7 +1600,7 @@ EEPROM_Params.nextBootMode = bootModeConfigMenu;
             flashLED_CONNECT->start();delay(300);
           }
         digitalWrite(LED_CONNECT, LOW);
-        ConfigMenu(); // INFINITE LOOP
+        ShowConfigMenu(); // INFINITE LOOP
     }
 
     // MIDI MODE START HERE ==================================================
