@@ -526,7 +526,7 @@ static void ProcessSysExInternal() {
 		case 0x08:
 			// Set serial boot mode & Write the whole param struct
 			EEPROM_Params.nextBootMode = bootModeConfigMenu;
-      EEPROM_ParamsSave(&EEPROM_Params);
+      EEPROM_ParamsSave();
       nvic_sys_reset();
 			break;
 
@@ -555,7 +555,7 @@ static void ProcessSysExInternal() {
       memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
 
       // Write the whole param struct
-      EEPROM_ParamsSave(&EEPROM_Params);
+      EEPROM_ParamsSave();
 
       break;
 
@@ -574,7 +574,7 @@ static void ProcessSysExInternal() {
                                      (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
       EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
                                      (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
-      EEPROM_ParamsSave(&EEPROM_Params);
+      EEPROM_ParamsSave();
 
       break;
 
@@ -677,7 +677,7 @@ static void ProcessSysExInternal() {
 			else	break;
 
 			// Write the whole param struct
-      EEPROM_ParamsSave(&EEPROM_Params);
+      EEPROM_ParamsSave();
 
 			// reset globals for a real time update
 			intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
@@ -804,7 +804,7 @@ static void ProcessSysExInternal() {
 					return;
 
 			// Write the whole param struct
-			EEPROM_ParamsSave(&EEPROM_Params);
+			EEPROM_ParamsSave();
 
 			// reset globals for a real time update
 			// midiUSBActive = true;
@@ -824,14 +824,8 @@ static void ProcessSysExInternal() {
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_Check(bool factorySettings=false) {
 
-  // Set EEPROM parameters for the STMF103RC
-  EEPROM.PageBase0 = 0x801F000;
-  EEPROM.PageBase1 = 0x801F800;
-  EEPROM.PageSize  = 0x800;
-
-
   // Read the EEPROM parameters structure
-  EEPROM_ParamsLoad(&EEPROM_Params);
+  EEPROM_ParamsLoad();
 
   // If the signature is not found, of not the same version of parameters structure,
   // or new build, then initialize (factory settings)
@@ -841,7 +835,7 @@ void EEPROM_Check(bool factorySettings=false) {
         memcmp( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) )
      )
   {
-    memset( &EEPROM_Params,0,EEPROM_ParamsSize );
+    memset( &EEPROM_Params,0,sizeof(EEPROM_Params_t) );
     memcpy( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) );
 
     EEPROM_Params.prmVer = EE_PRMVER;
@@ -859,10 +853,105 @@ void EEPROM_Check(bool factorySettings=false) {
     memcpy(EEPROM_Params.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
     //Write the whole param struct
-    EEPROM_ParamsSave(&EEPROM_Params);
+    EEPROM_ParamsSave();
 
   }
 
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// DUMP a byte buffer to screen
+//////////////////////////////////////////////////////////////////////////////
+void ShowBufferHexDump(uint8_t* bloc, uint16_t sz) {
+	Serial.print("DUMP buffer of size ");
+	Serial.println(sz);
+	uint8_t j=0;
+	uint8_t * pp = bloc;
+	for (uint16_t i=0; i<sz; i++) {
+				if ( *pp < 0x10 ) Serial.print("0");
+				Serial.print(*pp,HEX);
+				Serial.print(" ");
+				if (++j > 16 ) { Serial.println(); j=0; }
+				pp++;
+	}
+	Serial.println();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Show the EEPROM configuration on screen
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_ShowConfig(void)
+{
+	Serial.println ("EEPROM CONFIG");
+	Serial.println();
+	Serial.print  ("EEPROM.PageBase0 : 0x");
+	Serial.println(EEPROM.PageBase0, HEX);
+	Serial.print  ("EEPROM.PageBase1 : 0x");
+	Serial.println(EEPROM.PageBase1, HEX);
+	Serial.print  ("EEPROM.PageSize  : 0x");
+	Serial.print  (EEPROM.PageSize, HEX);
+	Serial.print  (" (");
+	Serial.print  (EEPROM.PageSize, DEC);
+	Serial.println(")");
+	Serial.print  ("EEPROM.Pages     : ");
+	Serial.println(EEPROM.Pages, DEC);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Optimized put byte buffer to EEPROM
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_Put(uint8_t* bloc,uint16_t sz) {
+	uint16_t addressWrite = 0x10;
+	uint8_t * pp = bloc;
+	uint16_t value = 0;
+
+	// Write 2 uint8_t in an uint16t
+	for (uint16_t i=1; i<=sz; i++) {
+			if ( i % 2 ) {
+				value = *pp;
+				value = value << 8;
+			} else {
+				value |= *pp;
+				EEPROM.write(addressWrite++, value);
+			}
+			pp++;
+	}
+	// Proceed the last write eventually
+	if (sz % 2 ) EEPROM.write(addressWrite, value);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Optimized get byte buffer to EEPROM
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_Get(uint8_t* bloc,uint16_t sz) {
+	uint16_t addressRead = 0x10;
+	uint8_t * pp = bloc;
+	uint16_t value = 0;
+
+	// Read 2 uint8_t in an uint16t
+	for (uint16_t i=1; i<=sz; i++) {
+			if ( i % 2 ) {
+				EEPROM.read(addressRead++, &value);
+				*pp = value >> 8;
+			} else {
+				*pp = value & 0x00FF;
+			}
+			pp++;
+	}
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Hidden option Z for tests purpose
+//////////////////////////////////////////////////////////////////////////////
+void ShowHiddenMenuZ() {
+	EEPROM_Params_t newEEParams;
+	Serial.println("EEPROM TESTS : ");
+	EEPROM_ShowConfig();
+	Serial.println("Dump parameters stored in EEPROM :");
+	EEPROM_Get((uint8_t*) &newEEParams,sizeof(EEPROM_Params_t));
+	Serial.println();
+	ShowBufferHexDump((uint8_t*)&newEEParams,sizeof(EEPROM_Params_t)) ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -870,9 +959,9 @@ void EEPROM_Check(bool factorySettings=false) {
 //----------------------------------------------------------------------------
 // High level abstraction parameters read function
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsLoad(EEPROM_Params_t *EE_Prms) {
+void EEPROM_ParamsLoad() {
 
-	EEPROM_readBlock(0, (uint8_t *)EE_Prms, sizeof(EEPROM_Params_t));
+	EEPROM_Get((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t));
 
 }
 
@@ -881,28 +970,12 @@ void EEPROM_ParamsLoad(EEPROM_Params_t *EE_Prms) {
 //----------------------------------------------------------------------------
 // High level abstraction parameters read function
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsSave(EEPROM_Params_t *EE_Prms) {
-  EEPROM_writeBlock(0, (uint8*)EE_Prms,sizeof(EEPROM_Params_t) );
+void EEPROM_ParamsSave() {
+
+	EEPROM_Put((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
+
 }
 
-
-///////////////////////////////////////////////////////////////////////////////
-// EEPROM EMULATION UTILITIES
-///////////////////////////////////////////////////////////////////////////////
-int EEPROM_WriteBlock(uint16_t ee, const uint8_t *bloc, uint16_t size )
-{
-    uint16_t i;
-    for (i = 0; i < size; i++) EEPROM.write(ee+i, *(bloc+i));
-
-    return i;
-}
-
-int EEPROM_ReadBlock(uint16_t ee, uint8_t *bloc, uint16_t size )
-{
-    uint16_t i;
-    for (i = 0; i < size; i++) *(bloc +i) = EEPROM.read(ee+i);
-    return i;
-}
 ///////////////////////////////////////////////////////////////////////////////
 // Get an Int8 From a hex char.  letters are minus.
 // Warning : No control of the size or hex validity!!
@@ -1075,8 +1148,6 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule) {
 
 }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // Show the midi routing map
 ///////////////////////////////////////////////////////////////////////////////
@@ -1163,7 +1234,6 @@ static void ShowGlobalSettings() {
 			Serial.print(sysExInternalHeader[i],HEX);Serial.print(" ");
 	}
 	Serial.println();
-
 	Serial.print("Next BootMode       : ");
 	Serial.println(EEPROM_Params.nextBootMode);
 
@@ -1173,26 +1243,12 @@ static void ShowGlobalSettings() {
 	Serial.print("EEPROM param. size  : ");
 	Serial.println(EEPROM_ParamsSize);
 
-	Serial.print("Size midiRoutingRule_t : ");
-	Serial.println(sizeof(midiRoutingRule_t));
-	Serial.print("Size midiRoutingRuleJack_t : ");
-	Serial.println(sizeof(midiRoutingRuleJack_t));
-	Serial.print("Size EEPROM_Params.midiRoutingRulesCable : ");
-	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesCable));
-	Serial.print("Size EEPROM_Params.midiRoutingRulesSerial : ");
-	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesSerial));
-	Serial.print("Size EEPROM_Params.midiRoutingRulesIntelliThru : ");
-	Serial.println(sizeof(EEPROM_Params.midiRoutingRulesIntelliThru));
-	Serial.print("Size  : ");
-	Serial.println();
-
-
-
-
 	Serial.print("MIDI USB ports      : ");
 	Serial.println(USBCABLE_INTERFACE_MAX);
+
 	Serial.print("MIDI serial ports   : ");
 	Serial.println(SERIAL_INTERFACE_MAX);
+
 	Serial.print("Max routing targets : ");
 	Serial.println(MIDI_ROUTING_TARGET_MAX);
 
@@ -1440,6 +1496,11 @@ void ShowConfigMenu()
 
 		switch (choice)
 		{
+			// Hidden menu
+			case 'Z':
+				ShowHiddenMenuZ();
+				Serial.println();
+				break;
 
 			// Show global settings
 			case '0':
@@ -1490,7 +1551,6 @@ void ShowConfigMenu()
 				break;
 
 			// USB Timeout <number of 15s periods 1-127>
-
 			case '7':
 				Serial.println("Enter the number of 15s delay periods for USB timeout (001-127 / 000 to exit) :");
 				i = AsknNumber(3);
@@ -1538,8 +1598,8 @@ void ShowConfigMenu()
 				ShowGlobalSettings();
 				if ( AskChoice("Save settings and exit to midi mode","") == 'y' ) {
 					//Write the whole param struct
-					EEPROM_ParamsSave(&EEPROM_Params);
-					delay(100);
+					EEPROM_ParamsSave();
+					delay(500);
 					nvic_sys_reset();
 				}
 				break;
@@ -1557,7 +1617,15 @@ void ShowConfigMenu()
 ///////////////////////////////////////////////////////////////////////////////
 void setup() {
 
-    // Retrieve EEPROM parameters
+		// EEPROM initialization
+		// Set EEPROM parameters for the STMF103RC
+	  EEPROM.PageBase0 = 0x801F000;
+	  EEPROM.PageBase1 = 0x801F800;
+	  EEPROM.PageSize  = 0x800;
+
+		EEPROM.init();
+
+		// Retrieve EEPROM parameters
     EEPROM_Check();
 
     // Configure the TIMER2
@@ -1573,14 +1641,11 @@ void setup() {
     // Start the LED Manager
     flashLEDManager.begin();
 
-//DEBUG !!!!!!!
-EEPROM_Params.nextBootMode = bootModeConfigMenu;
-
     // Does the config menu boot mode is active ?
     // if so, prepare the next boot in MIDI mode and jump to menu
     if  ( EEPROM_Params.nextBootMode == bootModeConfigMenu ) {
         EEPROM_Params.nextBootMode = bootModeMidi;
-        EEPROM_ParamsSave(&EEPROM_Params);
+        EEPROM_ParamsSave();
 
         #ifdef HAS_MIDITECH_HARDWARE
           // Assert DISC PIN (PA8 usually for Miditech) to enable USB
