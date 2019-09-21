@@ -51,7 +51,7 @@
 // The following structure start at the first address of the EEPROM
 
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 9
+#define EE_PRMVER 20
 
 // Boot modes
 enum nextBootMode {
@@ -61,16 +61,28 @@ enum nextBootMode {
 
 typedef struct {
         uint8_t         signature[3];
-        uint8_t         prmVer;
+        uint16_t        size;
+        uint8_t         majorVersion;
+        uint8_t         minorVersion;
+        uint8_t         prmVersion;
         uint8_t         TimestampedVersion[14];
         uint8_t         nextBootMode;
 
+        // I2C device when not master
+        uint8_t         I2C_DeviceId;
+
+        // I2C BUS Mode state
+        uint8_t         I2C_BusModeState;
+
         // Incoming events routing rules
+        // Storage space is set to the max i.e. INTERFACE_MAX for all
+        // To allow dynamic change of bus mode.
+
         midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesSerial[SERIAL_INTERFACE_MAX];
+        midiRoutingRule_t midiRoutingRulesSerial[BUS_MODE_SERIAL_INTERFACE_MAX];
 
         // IntelliThru
-        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[SERIAL_INTERFACE_MAX];
+        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[BUS_MODE_SERIAL_INTERFACE_MAX];
         uint16_t          intelliThruJackInMsk;
         uint8_t           intelliThruDelayPeriod; // 1 to 255 periods of 15s.
 

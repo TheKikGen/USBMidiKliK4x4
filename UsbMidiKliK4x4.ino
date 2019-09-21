@@ -48,7 +48,7 @@
 #include "usb_midi.h"
 #include "usb_midi_device.h"
 #include "EEPROM_Params.h"
-
+#include <Wire_slave.h>
 
 
 // Serial interfaces Array
@@ -56,7 +56,6 @@ HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
 // EEPROMS parameters
 EEPROM_Params_t EEPROM_Params;
-uint16_t EEPROM_ParamsSize=sizeof(EEPROM_Params);
 
 // Timer
 HardwareTimer timer(2);
@@ -128,6 +127,7 @@ unsigned long midiUSBLastPacketMillis    = 0;
 bool intelliThruActive = false;
 unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // Timer2 interrupt handler
 ///////////////////////////////////////////////////////////////////////////////
@@ -138,13 +138,13 @@ void Timer2Handler(void) {
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// FlashAllLeds . Nb flash = nb of Serial routing point
+// FlashAllLeds .
 // Mode 0 = Alls
 // Mode 1 = In
 // Mode 2 = Out
 ///////////////////////////////////////////////////////////////////////////////
 void FlashAllLeds(uint8_t mode) {
-	for ( uint8_t f=0 ; f< MIDI_ROUTING_TARGET_MAX ; f++ ) {
+	for ( uint8_t f=0 ; f< 4 ; f++ ) {
 		#ifdef LEDS_MIDI
 			for ( uint8_t i=0 ; i< SERIAL_INTERFACE_MAX ; i++ ) {
 					if ( mode == 0 || mode ==1 ) flashLED_IN[i]->start();
@@ -161,50 +161,58 @@ void FlashAllLeds(uint8_t mode) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send a midi msg to serial MIDI. 0 is Serial1.
 ///////////////////////////////////////////////////////////////////////////////
-static void SendMidiMsgToSerial(uint8_t const *msg, uint8_t serialNo) {
+static void SerialSendMidiMsg(uint8_t const *msg, uint8_t serialNo) {
 
   if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
 	uint8_t msgLen = midiXparser::getMidiStatusMsgLen(msg[0]);
 
 	if ( msgLen > 0 ) {
-	  if (msgLen >= 1 ) serialHw[serialNo]->write(msg[0]);
-	  if (msgLen >= 2 ) serialHw[serialNo]->write(msg[1]);
-	  if (msgLen >= 3 ) serialHw[serialNo]->write(msg[2]);
-	  #ifdef LEDS_MIDI
-	  flashLED_OUT[serialNo]->start();
-	  #else
-	  flashLED_CONNECT->start();
-	  #endif
+	  serialHw[serialNo]->write(msg,msgLen);
+		FLASH_LED_OUT(serialNo);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Send a USB midi packet to ad-hoc serial MIDI
 ///////////////////////////////////////////////////////////////////////////////
-static void SerialWritePacket(const midiPacket_t *pk, uint8_t serialNo) {
+static void SerialSendMidiPacket(const midiPacket_t *pk, uint8_t serialNo) {
 
-  //if (serialNo >= SERIAL_INTERFACE_MAX ) return;
-  // Sendpacket to serial at the right size
   uint8_t msgLen = CINToLenTable[pk->packet[0] & 0x0F] ;
 
-	// if (msgLen >= 1 ) serialHw[serialNo]->write(pk->packet[1]); //  1 byte blocking transmission
-	// if (msgLen >= 2 ) serialHw[serialNo]->write(pk->packet[2]);
-	// if (msgLen >= 3 ) serialHw[serialNo]->write(pk->packet[3]);
-
-	serialHw[serialNo]->write(&pk->packet[1],msgLen);
-
-  #ifdef LEDS_MIDI
-  flashLED_OUT[serialNo]->start();
-  #else
-  flashLED_CONNECT->start();
-  #endif
+	if ( msgLen > 0 ) {
+		serialHw[serialNo]->write(&pk->packet[1],msgLen);
+		FLASH_LED_OUT(serialNo);
+	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Send a USB midi packet to I2C remote device serial MIDI
+///////////////////////////////////////////////////////////////////////////////
+static void I2C_SendMidiPacket(const midiPacket_t *pk, uint8_t serialNo) {
+
+	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_DISABLED) return;
+
+	// Compute the device ID from the serial port Id
+	uint8_t deviceId = serialNo / SERIAL_INTERFACE_MAX + BUS_MODE_SLAVE_DEVICE_BASE_ADDR;
+
+	// Replace the cable with the target serial port at the remote device
+	midiPacket_t pk2 = *pk ;
+	pk2.i = pk->i;
+  pk2.packet[0] = serialNo;
+
+	Wire.beginTransmission(deviceId);
+	for ( uint8_t i=0 ; i < sizeof(pk2.packet) ; i++ ) {
+	  Wire.write(pk2.packet[i]);
+	}
+	Wire.endTransmission();    // stop I2C transmission
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Send a serial midi msg to the right USB midi cable
 ///////////////////////////////////////////////////////////////////////////////
-static void RouteStdMidiMsg( uint8_t cable, midiXparser* xpMidi ) {
+static void RouteMidiMsg( uint8_t cable, midiXparser* xpMidi ) {
 
     midiPacket_t usbMidiPacket;
 
@@ -364,6 +372,7 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
   uint8_t cable = pk->packet[0] >> 4;
   uint8_t serialJack = cable;
 
+	// Check at the physical level (i.e. not the bus)
   if ( source == FROM_USB && cable >= USBCABLE_INTERFACE_MAX ) return;
   else if ( source == FROM_SERIAL && serialJack >= SERIAL_INTERFACE_MAX ) return;
 
@@ -417,8 +426,13 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 
 	// Do we have serial targets ?
 	if ( *serialOutTargets) {
-				for (t=0; t<SERIAL_INTERFACE_MAX ; t++)
-					if ( (*serialOutTargets & ( 1 << t ) ) ) SerialWritePacket(pk,t);
+				for (t=0; t<SERIAL_INTERFACE_COUNT ; t++)
+					if ( (*serialOutTargets & ( 1 << t ) ) )
+								// If requested serial beyond physical serial, route via the BUS
+								if ( t >= SERIAL_INTERFACE_MAX )
+									I2C_SendMidiPacket(pk, t);
+								else // Route to local serial
+									SerialSendMidiPacket(pk,t);
 	}
 
   // Stop here if IntelliThru active (no USB active but maybe connected)
@@ -454,15 +468,18 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 void ResetMidiRoutingRules(uint8_t mode) {
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
-		// Cables
+
 	  for ( uint8_t i = 0 ; i < USBCABLE_INTERFACE_MAX ; i++ ) {
+
+			// Cables
 	    EEPROM_Params.midiRoutingRulesCable[i].filterMsk = midiXparser::allMsgTypeMsk;
 	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
 	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
-	  }
+		}
 
-	  // Jack serial
-	  for ( uint8_t i = 0 ; i < SERIAL_INTERFACE_MAX ; i++ ) {
+		for ( uint8_t i = 0 ; i < BUS_MODE_SERIAL_INTERFACE_MAX ; i++ ) {
+
+			// Jack serial
 	    EEPROM_Params.midiRoutingRulesSerial[i].filterMsk = midiXparser::allMsgTypeMsk;
 	    EEPROM_Params.midiRoutingRulesSerial[i].cableInTargetsMsk = 1 << i ;
 	    EEPROM_Params.midiRoutingRulesSerial[i].jackOutTargetsMsk = 0  ;
@@ -471,7 +488,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
-	  for ( uint8_t i = 0 ; i < SERIAL_INTERFACE_MAX ; i++ ) {
+	  for ( uint8_t i = 0 ; i < BUS_MODE_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].filterMsk = midiXparser::allMsgTypeMsk;
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0B1111 ;
 		}
@@ -481,7 +498,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 
 	// Disable "Intelligent thru" serial mode
 	if (mode == ROUTING_INTELLITHRU_OFF ) {
-		for ( uint8_t i = 0 ; i < SERIAL_INTERFACE_MAX ; i++ ) {
+		for ( uint8_t i = 0 ; i < BUS_MODE_SERIAL_INTERFACE_MAX ; i++ ) {
 			EEPROM_Params.intelliThruJackInMsk = 0;
 		}
 	}
@@ -817,33 +834,42 @@ static void ProcessSysExInternal() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// CHECK EEPROM
+// Intialize parameters stores in EEPROM
 //----------------------------------------------------------------------------
 // Retrieve global parameters from EEPROM, or Initalize it
 // If factorySetting is true, all settings will be forced to factory default
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_Check(bool factorySettings=false) {
+void EEPROM_ParamsInit(bool factorySettings=false) {
 
   // Read the EEPROM parameters structure
   EEPROM_ParamsLoad();
 
   // If the signature is not found, of not the same version of parameters structure,
-  // or new build, then initialize (factory settings)
+  // or new version, or new size then initialize (factory settings)
   if (  factorySettings ||
         memcmp( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) ) ||
-        EEPROM_Params.prmVer != EE_PRMVER ||
-        memcmp( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) )
+        EEPROM_Params.prmVersion != EE_PRMVER ||
+				( EEPROM_Params.majorVersion != VERSION_MAJOR && EEPROM_Params.minorVersion != VERSION_MINOR) ||
+				EEPROM_Params.size != sizeof(EEPROM_Params_t)
      )
   {
     memset( &EEPROM_Params,0,sizeof(EEPROM_Params_t) );
     memcpy( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) );
 
-    EEPROM_Params.prmVer = EE_PRMVER;
+		EEPROM_Params.majorVersion = VERSION_MAJOR;
+		EEPROM_Params.minorVersion = VERSION_MINOR;
+
+		EEPROM_Params.prmVersion = EE_PRMVER;
+		EEPROM_Params.size = sizeof(EEPROM_Params_t);
 
     memcpy( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) );
 
     // Default boot mode when new firmware uploaded
     EEPROM_Params.nextBootMode = bootModeConfigMenu;
+
+		// Default I2C Device ID and bus mode
+		EEPROM_Params.I2C_DeviceId = BUS_MODE_MASTERID;
+		EEPROM_Params.I2C_BusModeState = BUS_MODE_DISABLED;
 
 		ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
@@ -857,6 +883,65 @@ void EEPROM_Check(bool factorySettings=false) {
 
   }
 
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// I2C Synchronize slave parameters with master
+//////////////////////////////////////////////////////////////////////////////
+void I2C_EEPROM_SyncFromMaster(EEPROM_Params_t* EE_Master,uint16_t sz) {
+
+  // Adjust parameters as a slave for comparison and avoid update for nothing
+	EE_Master->I2C_DeviceId = EEPROM_Params.I2C_DeviceId;
+	EE_Master->I2C_BusModeState = EEPROM_Params.I2C_BusModeState;
+//	memcpy( EE_Master->TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) );
+
+  if ( memcmp( &EEPROM_Params, &EE_Master,sizeof(EEPROM_Params_t) ) ) {
+
+		// Note the same configuration as the master..we must update
+		memcpy( &EEPROM_Params, &EE_Master,sizeof(EEPROM_Params_t) );
+		EEPROM_ParamsSave();
+
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// I2C Receive event trigger
+//////////////////////////////////////////////////////////////////////////////
+void I2C_ReceiveEvent(int howMany){
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//  I2C Request event trigger
+//////////////////////////////////////////////////////////////////////////////
+void I2C_RequestEvent () {
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+//  I2C Bus Setup. Start I2C Bus mode eventually and check if master or slave
+//////////////////////////////////////////////////////////////////////////////
+void I2C_BusInit() {
+
+	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_ENABLED ) {
+
+			if ( EEPROM_Params.I2C_DeviceId != BUS_MODE_MASTERID ) {
+					if ( EEPROM_Params.I2C_DeviceId >= BUS_MODE_SLAVE_DEVICE_BASE_ADDR &&
+							 EEPROM_Params.I2C_DeviceId <= BUS_MODE_SLAVE_DEVICE_LAST_ADDR )
+						 {
+							 Wire.setClock(BUS_MODE_FREQ) ;
+							 Wire.onReceive(I2C_ReceiveEvent); // register event
+							 Wire.onRequest(I2C_RequestEvent); // register event
+							 Wire.begin(EEPROM_Params.I2C_DeviceId);
+
+						 } else EEPROM_Params.I2C_BusModeState = BUS_MODE_DISABLED; // Overwrite setting
+			}
+			else {
+				Wire.setClock(BUS_MODE_FREQ) ;
+				Wire.begin();
+			}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -952,6 +1037,13 @@ void ShowHiddenMenuZ() {
 	EEPROM_Get((uint8_t*) &newEEParams,sizeof(EEPROM_Params_t));
 	Serial.println();
 	ShowBufferHexDump((uint8_t*)&newEEParams,sizeof(EEPROM_Params_t)) ;
+	Serial.println();
+	Serial.println("Force EEPROM update with current parameters memory :");
+	ShowBufferHexDump((uint8_t*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
+	EEPROM_Put((uint8_t*) &EEPROM_Params,sizeof(EEPROM_Params_t));
+	Serial.println("Read EEPROM again :");
+	EEPROM_Get((uint8_t*) &newEEParams,sizeof(EEPROM_Params_t));
+	ShowBufferHexDump((uint8_t*)&newEEParams,sizeof(EEPROM_Params_t)) ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1042,7 +1134,6 @@ static char AskChar() {
 ///////////////////////////////////////////////////////////////////////////////
 // "Scanf like" for hexadecimal inputs
 ///////////////////////////////////////////////////////////////////////////////
-
 static uint8_t AsknHexChar(char *buff, uint8_t len,char exitchar,char sepa) {
 
 	uint8_t i = 0, c = 0;
@@ -1091,12 +1182,12 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule) {
 	uint16_t jackOutTargetsMsk = 0 ;
 
 	if (ruleType == USBCABLE_RULE || ruleType == SERIAL_RULE ) {
-			maxPorts = ( ruleType == USBCABLE_RULE ? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_MAX );
+			maxPorts = ( ruleType == USBCABLE_RULE ? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT );
 			filterMsk = ((midiRoutingRule_t *)anyRule)->filterMsk;
 			cableInTargetsMsk = ((midiRoutingRule_t *)anyRule)->cableInTargetsMsk;
 			jackOutTargetsMsk = ((midiRoutingRule_t *)anyRule)->jackOutTargetsMsk;
 	}	else if (ruleType == INTELLITHRU_RULE ) {
-			maxPorts = SERIAL_INTERFACE_MAX;
+			maxPorts = SERIAL_INTERFACE_COUNT;
 			filterMsk = ((midiRoutingRuleJack_t *)anyRule)->filterMsk;
 			jackOutTargetsMsk = ((midiRoutingRuleJack_t *)anyRule)->jackOutTargetsMsk;
 	}
@@ -1137,7 +1228,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule) {
 	// Jack Out
 	Serial.print(" | ");
 	for ( uint8_t jk=0; jk < 16 ; jk++) {
-					if (jk >= SERIAL_INTERFACE_MAX ) {
+					if (jk >= SERIAL_INTERFACE_COUNT ) {
 						Serial.print(" ");
 					} else
 					if ( jackOutTargetsMsk & ( 1 << jk) )
@@ -1165,14 +1256,14 @@ void ShowMidiRouting(uint8_t ruleType) {
 	else
 	if (ruleType == SERIAL_RULE) {
 			Serial.print("MIDI IN JACK ROUTING ");
-			maxPorts = SERIAL_INTERFACE_MAX;
+			maxPorts = SERIAL_INTERFACE_COUNT;
 
 	}
   else
 	// IntelliThru
 	if (ruleType == INTELLITHRU_RULE) {
 			Serial.print("MIDI IN JACK INTELLITHRU ROUTING ");
-			maxPorts = SERIAL_INTERFACE_MAX;
+			maxPorts = SERIAL_INTERFACE_COUNT;
 	}
 	else return;
 
@@ -1212,7 +1303,10 @@ void ShowMidiRouting(uint8_t ruleType) {
 // Show MidiKlik Header on screen
 ///////////////////////////////////////////////////////////////////////////////
 static void ShowMidiKliKHeader() {
-	Serial.print("USBMIDIKLIK 4x4 - ");Serial.println(HARDWARE_TYPE);
+	Serial.print("USBMIDIKLIK 4x4 - ");
+	Serial.print(HARDWARE_TYPE);
+	Serial.print(" - V");
+	Serial.print(VERSION_MAJOR);Serial.print(".");Serial.println(VERSION_MINOR);
 	Serial.println("(c) TheKikGen Labs");
 	Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
@@ -1224,9 +1318,14 @@ static void ShowGlobalSettings() {
 
 	Serial.println("GLOBAL SETTINGS");
 	Serial.println();
+	Serial.print("Firmware version    : ");
+	Serial.print(EEPROM_Params.majorVersion);Serial.print(".");
+	Serial.println(EEPROM_Params.minorVersion);
 	Serial.print("Magic number        : ");
 	Serial.write(EEPROM_Params.signature , sizeof(EEPROM_Params.signature));
-	Serial.print( EEPROM_Params.prmVer);Serial.print("-")	;
+	Serial.println(EEPROM_Params.prmVersion);
+
+	Serial.print("Build               : ");
 	Serial.println( (char *)EEPROM_Params.TimestampedVersion);
 
 	Serial.print("Sysex header        : ");
@@ -1241,16 +1340,27 @@ static void ShowGlobalSettings() {
 	Serial.println(HARDWARE_TYPE);
 
 	Serial.print("EEPROM param. size  : ");
-	Serial.println(EEPROM_ParamsSize);
+	Serial.println(sizeof(EEPROM_Params_t));
+
+	Serial.print("I2C Bus mode        : ");
+	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_DISABLED )
+			Serial.println("DISABLED");
+  else
+			Serial.println("ENABLED");
+
+	Serial.print("I2C Device ID       : ");
+	Serial.print(EEPROM_Params.I2C_DeviceId);
+	if ( EEPROM_Params.I2C_DeviceId == 0 )
+			Serial.print(" (master)");
+	else
+			Serial.print(" (slave)");
+	Serial.println();
 
 	Serial.print("MIDI USB ports      : ");
 	Serial.println(USBCABLE_INTERFACE_MAX);
 
 	Serial.print("MIDI serial ports   : ");
-	Serial.println(SERIAL_INTERFACE_MAX);
-
-	Serial.print("Max routing targets : ");
-	Serial.println(MIDI_ROUTING_TARGET_MAX);
+	Serial.println(SERIAL_INTERFACE_COUNT);
 
 	Serial.print("VID - PID           : ");
 	Serial.print( EEPROM_Params.vendorID,HEX);
@@ -1267,7 +1377,7 @@ static void ShowGlobalSettings() {
 ///////////////////////////////////////////////////////////////////////////////
 uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t port) {
 	uint16_t targetsMsk = 0;
-	uint8_t  portMax = (ruleTypeOut == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_MAX);
+	uint8_t  portMax = (ruleTypeOut == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
 	uint8_t choice;
 
 	if (ruleType == INTELLITHRU_RULE && ruleTypeOut == USBCABLE_RULE ) return 0;
@@ -1294,7 +1404,7 @@ uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t por
 ///////////////////////////////////////////////////////////////////////////////
 void AskMidiRouting(uint8_t ruleType) {
 	uint16_t targetsMsk = 0;
-	uint8_t  portMax = (ruleType == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_MAX);
+	uint8_t  portMax = (ruleType == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
 	uint8_t  choice;
 
 	Serial.print("-- Set ");
@@ -1467,8 +1577,7 @@ void AskVIDPID() {
 // Allow USBMidLKLIK configuration by using a menu as a user interface
 // from the USB serial port.
 ///////////////////////////////////////////////////////////////////////////////
-void ShowConfigMenu()
-{
+void ShowConfigMenu() {
 	char choice=0;
 	uint8_t i;
   boolean showMenu = true;
@@ -1481,11 +1590,13 @@ void ShowConfigMenu()
 			Serial.println("0.Show global settings        e.Reload settings from EEPROM");
 			Serial.println("1.Show Midi routing           f.Restore all factory settings");
   		Serial.println("2.USB Vendor ID & Product ID  r.Reset routing to factory default");
-			Serial.println("3.USB product string          s.Save & quit");
-  		Serial.println("4.USB Cable OUT routing       x.Abort");
+			Serial.println("3.USB product string          s.Save settings");
+  		Serial.println("4.USB Cable OUT routing       x.Exit");
 			Serial.println("5.Midi IN Jack routing");
 			Serial.println("6.IntelliThru routing");
 			Serial.println("7.IntelliThru USB timeout");
+			Serial.println("8.Toggle I2C bus mode");
+			Serial.println("9.Set I2C bus mode device Id");
 		}
     showMenu = true;
 		Serial.println();
@@ -1552,7 +1663,7 @@ void ShowConfigMenu()
 
 			// USB Timeout <number of 15s periods 1-127>
 			case '7':
-				Serial.println("Enter the number of 15s delay periods for USB timeout (001-127 / 000 to exit) :");
+				Serial.println("Enter the nb of 15s periods for USB timeout (001-127 / 000 to exit) :");
 				i = AsknNumber(3);
 				if (i == 0 || i >127 )
 					Serial.println(". No change made. Incorrect value.");
@@ -1563,10 +1674,50 @@ void ShowConfigMenu()
 				Serial.println();
 				break;
 
+				// Toogle Bus mode
+			 case '8':
+					if ( AskChoice("Activate I2C bus mode","") == 'y' ) {
+						EEPROM_Params.I2C_BusModeState = BUS_MODE_ENABLED;
+						Serial.println();
+						Serial.println("Bus mode enabled.");
+						Serial.println();
+					} else {
+						EEPROM_Params.I2C_BusModeState = BUS_MODE_DISABLED;
+						Serial.println();
+						Serial.println("Bus mode disabled.");
+						Serial.println();
+					}
+					break;
+
+				// Set device ID.
+			 case '9':
+			 			Serial.print("Enter a device ID ( ");
+						Serial.print(BUS_MODE_MASTERID < 9 ? "0": "");
+						Serial.print(BUS_MODE_MASTERID);
+						Serial.print(":Master, Slaves ");
+						Serial.print(BUS_MODE_SLAVE_DEVICE_BASE_ADDR < 9 ? "0": "");
+						Serial.print(BUS_MODE_SLAVE_DEVICE_BASE_ADDR);
+						Serial.print("-");
+						Serial.print(BUS_MODE_SLAVE_DEVICE_LAST_ADDR < 9 ? "0": "");
+						Serial.print(BUS_MODE_SLAVE_DEVICE_LAST_ADDR);
+						Serial.print(") :");
+						while (1) {
+							i = AsknNumber(2);
+							if ( i != BUS_MODE_MASTERID ) {
+								if ( i > BUS_MODE_SLAVE_DEVICE_LAST_ADDR || i < BUS_MODE_SLAVE_DEVICE_BASE_ADDR ) {
+										Serial.println();
+										Serial.print("Id error. Please try again :");
+								} else break;
+							} else break;
+						}
+						Serial.println();
+						EEPROM_Params.I2C_DeviceId = i;
+					break;
+
 			// Reload the EEPROM parameters structure
 			case 'e':
 				if ( AskChoice("Reload current settings from EEPROM","") == 'y' ) {
-					EEPROM_Check();
+					EEPROM_ParamsInit();
           Serial.println();
 					Serial.println("Settings reloaded from EEPROM.");
 					Serial.println();
@@ -1577,8 +1728,8 @@ void ShowConfigMenu()
 			case 'f':
 				if ( AskChoice("Restore all factory settings","") == 'y' ) {
           Serial.println();
-					if ( AskChoice("Your own settings will be erased. Are you really sure","") == 'y' ) {
-						EEPROM_Check(true);
+					if ( AskChoice("Your own settings will be erased. Sure","") == 'y' ) {
+						EEPROM_ParamsInit(true);
             Serial.println();
 						Serial.println("Factory settings restored.");
 						Serial.println();
@@ -1588,7 +1739,7 @@ void ShowConfigMenu()
 
 			// Default midi routing
 			case 'r':
-				if ( AskChoice("Reset all Midi and thru mode routing to default","") == 'y')
+				if ( AskChoice("Reset all Midi routing to default","") == 'y')
 					ResetMidiRoutingRules(ROUTING_RESET_ALL);
 					Serial.println();
 				break;
@@ -1596,11 +1747,10 @@ void ShowConfigMenu()
 			// Save & quit
 			case 's':
 				ShowGlobalSettings();
-				if ( AskChoice("Save settings and exit to midi mode","") == 'y' ) {
+				if ( AskChoice("Save settings","") == 'y' ) {
 					//Write the whole param struct
 					EEPROM_ParamsSave();
-					delay(500);
-					nvic_sys_reset();
+					delay(100);
 				}
 				break;
 
@@ -1622,11 +1772,13 @@ void setup() {
 	  EEPROM.PageBase0 = 0x801F000;
 	  EEPROM.PageBase1 = 0x801F800;
 	  EEPROM.PageSize  = 0x800;
+		EEPROM.Pages     = 1;
+
 
 		EEPROM.init();
 
 		// Retrieve EEPROM parameters
-    EEPROM_Check();
+    EEPROM_ParamsInit();
 
     // Configure the TIMER2
     timer.pause();
@@ -1654,7 +1806,7 @@ void setup() {
         #endif
 
         // start USB serial
-        Serial.begin();
+        Serial.begin(115200);
 
         // wait for a serial monitor to be connected.
         // 3 short flash
@@ -1669,6 +1821,8 @@ void setup() {
     }
 
     // MIDI MODE START HERE ==================================================
+
+		I2C_BusInit();
 
     intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
 
@@ -1686,7 +1840,6 @@ void setup() {
     }
 
     // MIDI USB initiate connection
-
     MidiUSB.begin() ;
     delay(500);
     digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
@@ -1747,8 +1900,7 @@ void loop() {
 				#endif
 		}
 
-		// SERIAL MIDI PROCESS
-
+		// SERIAL JACK MIDI IN PROCESS
 		for ( uint8_t s = 0; s< SERIAL_INTERFACE_MAX ; s++ )
 		{
 		    // Do we have any MIDI msg on Serial 1 to n ?
@@ -1760,7 +1912,7 @@ void loop() {
 
 								// Not a sysex. The message is complete.
 								else
-		            	RouteStdMidiMsg( s, &midiSerial[s]);
+		            	RouteMidiMsg( s, &midiSerial[s]);
 		       }
 		       else
 					 // Acknowledge any sysex error

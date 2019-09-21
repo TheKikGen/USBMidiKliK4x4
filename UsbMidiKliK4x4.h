@@ -57,9 +57,12 @@
 // Macro to flash LEDS IN
 #ifdef LEDS_MIDI
   #define FLASH_LED_IN(thisLed) flashLED_IN[thisLed]->start()
+  #define FLASH_LED_OUT(thisLed) flashLED_OUT[thisLed]->start()
 #else
   #define FLASH_LED_IN(thisLed) flashLED_CONNECT->start()
+  #define FLASH_LED_OUT(thisLed) flashLED_CONNECT->start()
 #endif
+
 
 // MIDI Routing rules
 
@@ -75,8 +78,24 @@
 #define ROUTING_RESET_INTELLITHRU 2
 #define ROUTING_INTELLITHRU_OFF 3
 
-// Filter all midi messages by default.
-#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111
+// BUS MODE (I2C)
+
+#define BUS_MODE_MAX_NB_DEVICE 4 // DO NOT CHANGE
+
+#define BUS_MODE_SLAVE_DEVICE_BASE_ADDR 4
+#define BUS_MODE_SLAVE_DEVICE_LAST_ADDR BUS_MODE_SLAVE_DEVICE_BASE_ADDR + BUS_MODE_MAX_NB_DEVICE -1
+#define BUS_MODE_DISABLED 0
+#define BUS_MODE_ENABLED 1
+#define BUS_MODE_MASTERID 0
+#define BUS_MODE_FREQ 100000
+#define BUS_MODE_SERIAL_INTERFACE_MAX BUS_MODE_MAX_NB_DEVICE * SERIAL_INTERFACE_MAX
+
+// Macro to compute the max serial port in bus mode or not.
+#define SERIAL_INTERFACE_COUNT (EEPROM_Params.I2C_BusModeState == BUS_MODE_ENABLED ? BUS_MODE_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
+
+// Default number of 15 secs periods to start after USB midi inactivity
+// Can be changed by SYSEX
+#define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
 
 typedef struct {
       uint8_t  filterMsk;
@@ -89,26 +108,6 @@ typedef struct {
       uint16_t jackOutTargetsMsk;
 } midiRoutingRuleJack_t;
 
-// Filter all midi messages by default.
-#define DEFAULT_MIDI_MSG_ROUTING_FILTER 0B11111111,0B11111111,0B11111111,0B11111111
-
-// Routing from an USB cable OUT
-#define DEFAULT_MIDI_CABLE_ROUTING_TARGET  0B00000001,0B00000010,0B00000100,0B00001000
-
-// Routing from a serial jack MIDI IN
-#define DEFAULT_MIDI_SERIAL_ROUTING_TARGET 0B00010000,0B00100000,0B01000000,0B10000000
-
-
-// Intelligent Serial default MIDI Thru
-// No IN actives - Alls msg -
-// IN1->OUT1 - IN2->OUT1,2 IN3->OUT->1,2,3 IN4->OUT1,2,3,4
-#define DEFAULT_INTELLIGENT_MIDI_THRU_OUT   0B11110001,0B11110011,0B11110111,0B11111111
-#define DEFAULT_INTELLIGENT_MIDI_THRU_IN    0B0000
-
-// Default number of 15 secs periods to start after USB midi inactivity
-// Can be changed by SYSEX
-#define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
-
 // Use this structure to send and receive packet to/from USB
 typedef union  {
     uint32_t i;
@@ -117,16 +116,17 @@ typedef union  {
 
 // Functions prototypes
 void Timer2Handler(void);
-static void SendMidiMsgToSerial(uint8_t const *, uint8_t);
-static void SerialWritePacket(const midiPacket_t *, uint8_t);
-static void RouteStdMidiMsg( uint8_t, midiXparser* ) ;
+static void SerialSendMidiMsg(uint8_t const *, uint8_t);
+static void SerialSendMidiPacket(const midiPacket_t *, uint8_t);
+static void RouteMidiMsg( uint8_t, midiXparser* ) ;
 static void RouteSysExMidiMsg( uint8_t , midiXparser*  ) ;
 static void ParseSysExInternal(const midiPacket_t *) ;
 static void RoutePacketToTarget(uint8_t, const midiPacket_t *) ;
 static void ProcessSysExInternal() ;
 void EEPROM_Check(bool);
-int EEPROM_writeBlock(uint16_t , const uint8_t *, uint16_t  );
-int EEPROM_readBlock(uint16_t , uint8_t *, uint16_t  );
+void EEPROM_ParamsLoad();
+void EEPROM_ParamsSave();
+
 static uint8_t GetInt8FromHexChar(char);
 static uint16_t GetInt16FromHex4Char(char *);
 static uint16_t GetInt16FromHex4Bin(char * );
