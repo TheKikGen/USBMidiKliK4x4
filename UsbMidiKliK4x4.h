@@ -80,10 +80,15 @@
 
 // BUS MODE (I2C)
 
-#define BUS_MODE_MAX_NB_DEVICE 4 // DO NOT CHANGE
+#define BUS_MODE_RING_BUFFER_SIZE 8*sizeof(midiPacket_t)
+#if SERIAL_INTERFACE_MAX > 3
+ #define BUS_MODE_MAX_NB_DEVICE 4 // DO NOT CHANGE
+#else
+ #define BUS_MODE_MAX_NB_DEVICE 5 // DO NOT CHANGE
+#endif
 
 #define BUS_MODE_SLAVE_DEVICE_BASE_ADDR 4
-#define BUS_MODE_SLAVE_DEVICE_LAST_ADDR BUS_MODE_SLAVE_DEVICE_BASE_ADDR + BUS_MODE_MAX_NB_DEVICE -1
+#define BUS_MODE_SLAVE_DEVICE_LAST_ADDR BUS_MODE_SLAVE_DEVICE_BASE_ADDR + BUS_MODE_MAX_NB_DEVICE -2
 #define BUS_MODE_DISABLED 0
 #define BUS_MODE_ENABLED 1
 #define BUS_MODE_MASTERID 0
@@ -136,5 +141,6 @@ static char AskChar();
 static uint8_t AsknHexChar(char *, uint8_t ,char,char);
 static void ShowGlobalSettings();
 void ShowConfigMenu();
+void PrintCleanHEX(uint8_t);
 
 #endif

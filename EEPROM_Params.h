@@ -51,7 +51,7 @@
 // The following structure start at the first address of the EEPROM
 
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 20
+#define EE_PRMVER 21
 
 // Boot modes
 enum nextBootMode {

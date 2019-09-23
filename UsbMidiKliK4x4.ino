@@ -49,6 +49,7 @@
 #include "usb_midi_device.h"
 #include "EEPROM_Params.h"
 #include <Wire_slave.h>
+#include "RingBuffer.h"
 
 
 // Serial interfaces Array
@@ -70,22 +71,22 @@ static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 // MIDI USB packet lenght
 static const uint8_t CINToLenTable[] =
 {
-	0,
-	0,
-	2, // 0x02
-	3, // 0x03
-	3, // 0x04
-	1, // 0x05
-	2, // 0x06
-	3, // 0x07
-	3, // 0x08
-	3, // 0x09
-	3, // 0x0A
-	3, // 0x0B
-	2, // 0x0C
-	2, // 0x0D
-	3, // 0x0E
-	1  // 0x0F
+	0, // 0X00 Miscellaneous function codes. Reserved for future extensions.
+	0, // 0X01 Cable events.Reserved for future expansion.
+	2, // 0x02 Two-byte System Common messages like  MTC, SongSelect, etc.
+	3, // 0x03 Three-byte System Common messages like SPP, etc.
+	3, // 0x04 SysEx starts or continues
+	1, // 0x05 Single-byte System Common Message or SysEx ends with following single byte.
+	2, // 0x06 SysEx ends with following two bytes.
+	3, // 0x07 SysEx ends withfollowing three bytes.
+	3, // 0x08 Note-off
+	3, // 0x09 Note-on
+	3, // 0x0A Poly-KeyPress
+	3, // 0x0B Control Change
+	2, // 0x0C Program Change
+	2, // 0x0D Channel Pressure
+	3, // 0x0E PitchBend Change
+	1  // 0x0F Single Byte
 };
 
 // Prepare LEDs pulse for Connect, MIDIN and MIDIOUT
@@ -127,6 +128,9 @@ unsigned long midiUSBLastPacketMillis    = 0;
 bool intelliThruActive = false;
 unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
 
+// RingBuffer to manage I2C reception outside the ISR
+RingBuffer<byte,BUS_MODE_RING_BUFFER_SIZE> I2C_RingBufferPk;
+midiPacket_t I2C_pk;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Timer2 interrupt handler
@@ -178,36 +182,92 @@ static void SerialSendMidiMsg(uint8_t const *msg, uint8_t serialNo) {
 ///////////////////////////////////////////////////////////////////////////////
 static void SerialSendMidiPacket(const midiPacket_t *pk, uint8_t serialNo) {
 
-  uint8_t msgLen = CINToLenTable[pk->packet[0] & 0x0F] ;
+	if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
-	if ( msgLen > 0 ) {
+	uint8_t msgLen = CINToLenTable[pk->packet[0] & 0x0F] ;
+
+ 	if ( msgLen > 0 ) {
 		serialHw[serialNo]->write(&pk->packet[1],msgLen);
 		FLASH_LED_OUT(serialNo);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a USB midi packet to I2C remote device serial MIDI
+// Send a midi packet to I2C remote MIDI device on BUS
 ///////////////////////////////////////////////////////////////////////////////
-static void I2C_SendMidiPacket(const midiPacket_t *pk, uint8_t serialNo) {
+static void I2C_BusSendMidiPacket(const midiPacket_t *pk, uint8_t serialNo) {
 
 	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_DISABLED) return;
 
 	// Compute the device ID from the serial port Id
-	uint8_t deviceId = serialNo / SERIAL_INTERFACE_MAX + BUS_MODE_SLAVE_DEVICE_BASE_ADDR;
+	uint8_t deviceId = serialNo / SERIAL_INTERFACE_MAX + BUS_MODE_SLAVE_DEVICE_BASE_ADDR -1;
+
+	// Copy the original packet being a const
+	midiPacket_t pk2;
+	pk2.i = pk->i;
 
 	// Replace the cable with the target serial port at the remote device
-	midiPacket_t pk2 = *pk ;
-	pk2.i = pk->i;
-  pk2.packet[0] = serialNo;
+  pk2.packet[0] = ( (serialNo % SERIAL_INTERFACE_MAX ) << 4 ) + (pk->packet[0] & 0x0F) ;
 
+	// Send to device
 	Wire.beginTransmission(deviceId);
-	for ( uint8_t i=0 ; i < sizeof(pk2.packet) ; i++ ) {
-	  Wire.write(pk2.packet[i]);
-	}
-	Wire.endTransmission();    // stop I2C transmission
+	Wire.write(&pk2,sizeof(midiPacket_t));
+	Wire.endTransmission();
+
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// I2C Read and send a packet to the local serial
+//////////////////////////////////////////////////////////////////////////////
+void I2C_SerialSendMidiPacket() {
+	midiPacket_t pk;
+
+	I2C_RingBufferPk.readBytes((byte*)&pk,sizeof(midiPacket_t));
+	SerialSendMidiPacket(&pk, (uint8_t)(pk.packet[0] >> 4) );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// I2C Receive event trigger
+//////////////////////////////////////////////////////////////////////////////
+void I2C_ReceiveEvent(int howMany){
+
+	if (Wire.available() >= sizeof(midiPacket_t) ) {
+		// Write a packet in the ring buffer
+		uint8_t i = sizeof(midiPacket_t);
+		while ( i-- ) I2C_RingBufferPk.write(Wire.read());
+		flashLED_CONNECT->start();
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//  I2C Request event trigger
+//////////////////////////////////////////////////////////////////////////////
+void I2C_RequestEvent () {
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//  I2C Bus Setup. Start I2C Bus mode eventually and check if master or slave
+//////////////////////////////////////////////////////////////////////////////
+void I2C_BusInit() {
+
+	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_ENABLED ) {
+
+			if ( EEPROM_Params.I2C_DeviceId != BUS_MODE_MASTERID ) {
+					if ( EEPROM_Params.I2C_DeviceId >= BUS_MODE_SLAVE_DEVICE_BASE_ADDR &&
+							 EEPROM_Params.I2C_DeviceId <= BUS_MODE_SLAVE_DEVICE_LAST_ADDR )
+						 {
+							 Wire.begin(EEPROM_Params.I2C_DeviceId);
+							 Wire.onReceive(I2C_ReceiveEvent);
+							 Wire.onRequest(I2C_RequestEvent);
+						 } else EEPROM_Params.I2C_BusModeState = BUS_MODE_DISABLED; // Overwrite setting
+			}
+			else {
+				Wire.begin();
+				Wire.setClock(BUS_MODE_FREQ) ;
+			}
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Send a serial midi msg to the right USB midi cable
@@ -361,13 +421,13 @@ static void ParseSysExInternal(const midiPacket_t *pk) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// midi packet Router
+// THE MIDI PACKET ROUTER
 //-----------------------------------------------------------------------------
 // Route a packet from a midi IN jack / USB OUT to n midi OUT jacks / USB IN
 ///////////////////////////////////////////////////////////////////////////////
 static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 
-  // NB : we use the same routine to route USB and serial.
+  // NB : we use the same routine to route USB and serial/ I2C .
 
   uint8_t cable = pk->packet[0] >> 4;
   uint8_t serialJack = cable;
@@ -430,7 +490,7 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk) {
 					if ( (*serialOutTargets & ( 1 << t ) ) )
 								// If requested serial beyond physical serial, route via the BUS
 								if ( t >= SERIAL_INTERFACE_MAX )
-									I2C_SendMidiPacket(pk, t);
+									I2C_BusSendMidiPacket(pk, t);
 								else // Route to local serial
 									SerialSendMidiPacket(pk,t);
 	}
@@ -904,44 +964,13 @@ void I2C_EEPROM_SyncFromMaster(EEPROM_Params_t* EE_Master,uint16_t sz) {
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// I2C Receive event trigger
-//////////////////////////////////////////////////////////////////////////////
-void I2C_ReceiveEvent(int howMany){
-
-}
 
 ///////////////////////////////////////////////////////////////////////////////
-//  I2C Request event trigger
+// Serial print a formated hex value
 //////////////////////////////////////////////////////////////////////////////
-void I2C_RequestEvent () {
-
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-//  I2C Bus Setup. Start I2C Bus mode eventually and check if master or slave
-//////////////////////////////////////////////////////////////////////////////
-void I2C_BusInit() {
-
-	if ( EEPROM_Params.I2C_BusModeState == BUS_MODE_ENABLED ) {
-
-			if ( EEPROM_Params.I2C_DeviceId != BUS_MODE_MASTERID ) {
-					if ( EEPROM_Params.I2C_DeviceId >= BUS_MODE_SLAVE_DEVICE_BASE_ADDR &&
-							 EEPROM_Params.I2C_DeviceId <= BUS_MODE_SLAVE_DEVICE_LAST_ADDR )
-						 {
-							 Wire.setClock(BUS_MODE_FREQ) ;
-							 Wire.onReceive(I2C_ReceiveEvent); // register event
-							 Wire.onRequest(I2C_RequestEvent); // register event
-							 Wire.begin(EEPROM_Params.I2C_DeviceId);
-
-						 } else EEPROM_Params.I2C_BusModeState = BUS_MODE_DISABLED; // Overwrite setting
-			}
-			else {
-				Wire.setClock(BUS_MODE_FREQ) ;
-				Wire.begin();
-			}
-	}
+void PrintCleanHEX(uint8_t hexVal) {
+          if ( hexVal < 0x10 ) Serial.print("0");
+          Serial.print(hexVal,HEX);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -953,8 +982,7 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz) {
 	uint8_t j=0;
 	uint8_t * pp = bloc;
 	for (uint16_t i=0; i<sz; i++) {
-				if ( *pp < 0x10 ) Serial.print("0");
-				Serial.print(*pp,HEX);
+				PrintCleanHEX(*pp);
 				Serial.print(" ");
 				if (++j > 16 ) { Serial.println(); j=0; }
 				pp++;
@@ -1310,6 +1338,7 @@ static void ShowMidiKliKHeader() {
 	Serial.println("(c) TheKikGen Labs");
 	Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 // Show current EEPROM settings
 ///////////////////////////////////////////////////////////////////////////////
@@ -1635,12 +1664,14 @@ void ShowConfigMenu() {
 			case '2':
 				AskVIDPID();
 				Serial.println();
+				showMenu = false;
 				break;
 
 			// Change the product string
 			case '3':
 				AskProductString();
 				Serial.println();
+				showMenu = false;
 				break;
 
 			// Cables midi routing
@@ -1672,6 +1703,7 @@ void ShowConfigMenu() {
 					Serial.print(" <= Delay set to ");Serial.print(i*15);Serial.println("s");
 				}
 				Serial.println();
+				showMenu = false;
 				break;
 
 				// Toogle Bus mode
@@ -1687,6 +1719,7 @@ void ShowConfigMenu() {
 						Serial.println("Bus mode disabled.");
 						Serial.println();
 					}
+				  showMenu = false;
 					break;
 
 				// Set device ID.
@@ -1710,8 +1743,11 @@ void ShowConfigMenu() {
 								} else break;
 							} else break;
 						}
-						Serial.println();
 						EEPROM_Params.I2C_DeviceId = i;
+						Serial.println();
+						Serial.println();
+						showMenu = false;
+
 					break;
 
 			// Reload the EEPROM parameters structure
@@ -1722,6 +1758,7 @@ void ShowConfigMenu() {
 					Serial.println("Settings reloaded from EEPROM.");
 					Serial.println();
 				}
+				showMenu = false;
 				break;
 
 			// Restore factory settings
@@ -1735,6 +1772,7 @@ void ShowConfigMenu() {
 						Serial.println();
 					}
 				}
+				showMenu = false;
 				break;
 
 			// Default midi routing
@@ -1742,21 +1780,27 @@ void ShowConfigMenu() {
 				if ( AskChoice("Reset all Midi routing to default","") == 'y')
 					ResetMidiRoutingRules(ROUTING_RESET_ALL);
 					Serial.println();
+					showMenu = false;
 				break;
 
 			// Save & quit
 			case 's':
 				ShowGlobalSettings();
+				Serial.println();
 				if ( AskChoice("Save settings","") == 'y' ) {
+					Serial.println();
 					//Write the whole param struct
 					EEPROM_ParamsSave();
 					delay(100);
+					showMenu = false;
 				}
 				break;
 
 			// Abort
 			case 'x':
-				if ( AskChoice("Abort","") == 'y' ) nvic_sys_reset();
+				if ( AskChoice("Exit","") == 'y' ) {
+						nvic_sys_reset();
+				}
 				break;
 		}
 	}
@@ -1822,13 +1866,8 @@ void setup() {
 
     // MIDI MODE START HERE ==================================================
 
-		I2C_BusInit();
-
     intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
 
-    // Set USB descriptor strings
-    usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
-    usb_midi_set_product_string((char *) &EEPROM_Params.productString);
 
     // MIDI SERIAL PORTS set Baud rates
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
@@ -1839,11 +1878,20 @@ void setup() {
       midiSerial[s].setMidiMsgFilter( midiXparser::allMsgTypeMsk );
     }
 
-    // MIDI USB initiate connection
-    MidiUSB.begin() ;
-    delay(500);
-    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
-		midiUSBActive = true;
+
+		if ( EEPROM_Params.I2C_DeviceId == BUS_MODE_MASTERID ) {
+	    // MIDI USB initiate connection if master
+			// Set USB descriptor strings
+			usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
+			usb_midi_set_product_string((char *) &EEPROM_Params.productString);
+
+	    MidiUSB.begin() ;
+	    delay(500);
+	    digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
+			midiUSBActive = true;
+	  }  else Serial.begin(115200);
+
+		I2C_BusInit();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1930,5 +1978,8 @@ void loop() {
 				// This implies to use non blocking Serial.write(buff,len).
 				if (  midiUSBCx &&  !serialHw[s]->availableForWrite() ) isSerialBusy = true; // 1 round without reading USB
 	  }
+
+		// I2C. Packet available ?
+		if ( I2C_RingBufferPk.available() ) I2C_SerialSendMidiPacket();
 
 }
