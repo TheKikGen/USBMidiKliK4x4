@@ -79,10 +79,10 @@ typedef struct {
         // To allow dynamic change of bus mode.
 
         midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesSerial[BUS_MODE_SERIAL_INTERFACE_MAX];
+        midiRoutingRule_t midiRoutingRulesSerial[B_SERIAL_INTERFACE_MAX];
 
         // IntelliThru
-        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[BUS_MODE_SERIAL_INTERFACE_MAX];
+        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];
         uint16_t          intelliThruJackInMsk;
         uint8_t           intelliThruDelayPeriod; // 1 to 255 periods of 15s.
 

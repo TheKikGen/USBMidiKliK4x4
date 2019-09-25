@@ -42,6 +42,23 @@
 #pragma once
 
 
+typedef struct {
+      uint8_t  filterMsk;
+      uint16_t cableInTargetsMsk;
+      uint16_t jackOutTargetsMsk;
+} midiRoutingRule_t;
+
+typedef struct {
+      uint8_t  filterMsk;
+      uint16_t jackOutTargetsMsk;
+} midiRoutingRuleJack_t;
+
+// Use this structure to send and receive packet to/from USB
+typedef union  {
+    uint32_t i;
+    uint8_t  packet[4];
+} midiPacket_t;
+
 
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
@@ -80,44 +97,57 @@
 
 // BUS MODE (I2C)
 
-#define BUS_MODE_RING_BUFFER_SIZE 8*sizeof(midiPacket_t)
-#if SERIAL_INTERFACE_MAX > 3
- #define BUS_MODE_MAX_NB_DEVICE 4 // DO NOT CHANGE
-#else
- #define BUS_MODE_MAX_NB_DEVICE 5 // DO NOT CHANGE
-#endif
+#define B_RING_BUFFER_SIZE 8*sizeof(midiPacket_t)
+// 16 cables/jacks is the maximum value allowed by the midi usb standard
+#define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
+#define B_SERIAL_INTERFACE_MAX B_MAX_NB_DEVICE * SERIAL_INTERFACE_MAX
+#define B_MASTERID 4
+#define B_SLAVE_DEVICE_BASE_ADDR B_MASTERID + 1
+#define B_SLAVE_DEVICE_LAST_ADDR B_SLAVE_DEVICE_BASE_ADDR + B_MAX_NB_DEVICE -2
+#define B_DISABLED 0
+#define B_ENABLED 1
+#define B_FREQ 100000
 
-#define BUS_MODE_SLAVE_DEVICE_BASE_ADDR 4
-#define BUS_MODE_SLAVE_DEVICE_LAST_ADDR BUS_MODE_SLAVE_DEVICE_BASE_ADDR + BUS_MODE_MAX_NB_DEVICE -2
-#define BUS_MODE_DISABLED 0
-#define BUS_MODE_ENABLED 1
-#define BUS_MODE_MASTERID 0
-#define BUS_MODE_FREQ 100000
-#define BUS_MODE_SERIAL_INTERFACE_MAX BUS_MODE_MAX_NB_DEVICE * SERIAL_INTERFACE_MAX
+// Bus commands
+enum BusCommand {
+  B_CMD_NONE = 0 ,
+  B_CMD_ISPACKET_AVAIL,
+  B_CMD_GET_PACKET,
+  B_CMD_RESET_ALL_SLAVE,
+  B_CMD_SYNC_ROUTING,
+  B_CMD_ENABLE_INTELLITHRU,
+  B_CMD_DISABLE_INTELLITHRU,
+} ;
+
+// Corresponding "requestFrom" size
+uint8_t BusCommandRequestSize[]= {
+  0,                        // B_CMD_NONE ,
+  1,                        // B_CMD_ISPACKET_AVAIL
+  sizeof(midiPacket_t),     // B_CMD_GET_PACKET
+  0,                        // B_CMD_RESET_ALL_SLAVE
+  0,                        // B_CMD_SYNC_ROUTING
+  0,                        // B_CMD_ENABLE_INTELLITHRU
+  0                         // B_CMD_DISABLE_INTELLITHRU
+};
 
 // Macro to compute the max serial port in bus mode or not.
-#define SERIAL_INTERFACE_COUNT (EEPROM_Params.I2C_BusModeState == BUS_MODE_ENABLED ? BUS_MODE_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
+#define SERIAL_INTERFACE_COUNT (EEPROM_Params.I2C_BusModeState == B_ENABLED ? B_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
+
+// Macro to compute if Master/Slave On Bus
+#define B_IS_MASTER (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId == B_MASTERID)
+#define B_IS_SLAVE (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId == B_MASTERID)
+
+// Macro to compute a device Id from a serial ports
+#define GET_DEVICEID_FROM_SERIALNO(s) ((s) / SERIAL_INTERFACE_MAX + B_MASTERID)
+
+// Macro to compute a "virtual bus serial port" from a local device and serial port
+#define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
+
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
 #define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
 
-typedef struct {
-      uint8_t  filterMsk;
-      uint16_t cableInTargetsMsk;
-      uint16_t jackOutTargetsMsk;
-} midiRoutingRule_t;
-
-typedef struct {
-      uint8_t  filterMsk;
-      uint16_t jackOutTargetsMsk;
-} midiRoutingRuleJack_t;
-
-// Use this structure to send and receive packet to/from USB
-typedef union  {
-    uint32_t i;
-    uint8_t  packet[4];
-} midiPacket_t;
 
 // Functions prototypes
 void Timer2Handler(void);
