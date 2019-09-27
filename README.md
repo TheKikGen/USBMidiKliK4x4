@@ -2,7 +2,7 @@ NEWS : THE V2 WILL COMME SOON WITH 16 PORTS ROUTING CAPABILITY....
 
 
 NEWS : I'm selling my five USB MIDI 3X3 prototype boards on Ebay here : 
-https://www.ebay.fr/itm/USB-MIDI-INTERFACE-3X3-WITH-ROUTING-MERGE-SPLIT-OPEN-SOURCE-FIRMWARE/303138783911?hash=item46947ac2a7:g:pCQAAOSwgPVcm0Df
+https://www.ebay.fr/itm/303138783911
 
 PCB ONLY HERE :
 https://www.ebay.fr/itm/303287160112
