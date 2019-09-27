@@ -59,6 +59,8 @@ class USBMidi {
 private:
 
 public:
+    // Len of packets. Direct access allowed.
+    static const uint8_t CINToLenTable[16];
     // Constructor
     USBMidi();
 
@@ -77,3 +79,5 @@ public:
  };
 
 #endif
+
+

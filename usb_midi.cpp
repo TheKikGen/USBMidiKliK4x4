@@ -56,6 +56,26 @@
 // It can work for any device, but was optimized for the MIDI 4X4 board from Miditech
 // based on a STM32F103RC.
 
+// MIDI USB packet lenght
+const uint8_t USBMidi::CINToLenTable[] =
+{
+  0, // 0X00 Miscellaneous function codes. Reserved for future extensions.
+  0, // 0X01 Cable events.Reserved for future expansion.
+  2, // 0x02 Two-byte System Common messages like  MTC, SongSelect, etc.
+  3, // 0x03 Three-byte System Common messages like SPP, etc.
+  3, // 0x04 SysEx starts or continues
+  1, // 0x05 Single-byte System Common Message or SysEx ends with following single byte.
+  2, // 0x06 SysEx ends with following two bytes.
+  3, // 0x07 SysEx ends withfollowing three bytes.
+  3, // 0x08 Note-off
+  3, // 0x09 Note-on
+  3, // 0x0A Poly-KeyPress
+  3, // 0x0B Control Change
+  2, // 0x0C Program Change
+  2, // 0x0D Channel Pressure
+  3, // 0x0E PitchBend Change
+  1  // 0x0F Single Byte
+};
 // Constructor
 USBMidi::USBMidi(void) {
 
@@ -141,7 +161,7 @@ uint32_t USBMidi::readPackets(const void *buf, uint32_t len) {
 
 /* Blocks forever until 1 byte is received */
 uint32_t USBMidi::peekPacket() {
-      uint32_t p;
+      uint32_t p=0;
       usb_midi_peek(&p,1);
       return p;
 }
@@ -152,7 +172,7 @@ void USBMidi::markPacketRead() {
 
 /* Blocks forever until 1 byte is received */
 uint32_t USBMidi::readPacket() {
-    uint32_t p;
+    uint32_t p=0;
     usb_midi_rx(&p,1);
     return p;
 }
@@ -164,3 +184,5 @@ uint8_t USBMidi::pending(void) {
 uint8_t USBMidi::isConnected(void) {
     return usb_is_connected(USBLIB) && usb_is_configured(USBLIB);
 }
+
+

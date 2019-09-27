@@ -59,6 +59,7 @@ typedef union  {
     uint8_t  packet[4];
 } midiPacket_t;
 
+const midiPacket_t NULL_MIDI_PACKET = { .i = 0 };
 
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
@@ -83,8 +84,12 @@ typedef union  {
 
 // MIDI Routing rules
 
-#define FROM_SERIAL 1
-#define FROM_USB    2
+enum MidiRouteSourceDest {
+  FROM_SERIAL,
+  FROM_USB,
+  TO_SERIAL,
+  TO_USB,
+} ;
 
 #define SERIAL_RULE 3
 #define USBCABLE_RULE 4
@@ -97,7 +102,9 @@ typedef union  {
 
 // BUS MODE (I2C)
 
-#define B_RING_BUFFER_SIZE 8*sizeof(midiPacket_t)
+#define B_RING_BUFFER_PACKET_SIZE  16*sizeof(midiPacket_t)
+#define B_RING_BUFFER_MPACKET_SIZE 16* (sizeof(midiPacket_t)+1)
+
 // 16 cables/jacks is the maximum value allowed by the midi usb standard
 #define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
 #define B_SERIAL_INTERFACE_MAX B_MAX_NB_DEVICE * SERIAL_INTERFACE_MAX
@@ -110,24 +117,26 @@ typedef union  {
 
 // Bus commands
 enum BusCommand {
-  B_CMD_NONE = 0 ,
+  B_CMD_NONE,
   B_CMD_ISPACKET_AVAIL,
   B_CMD_GET_PACKET,
   B_CMD_RESET_ALL_SLAVE,
   B_CMD_SYNC_ROUTING,
   B_CMD_ENABLE_INTELLITHRU,
   B_CMD_DISABLE_INTELLITHRU,
+  B_CMD_USB_NO_CX
 } ;
 
-// Corresponding "requestFrom" size
-uint8_t BusCommandRequestSize[]= {
-  0,                        // B_CMD_NONE ,
+// Corresponding "requestFrom" answer bytes size without command
+uint8_t static const BusCommandRequestSize[]= {
+  0,                        // B_CMD_NONE
   1,                        // B_CMD_ISPACKET_AVAIL
   sizeof(midiPacket_t),     // B_CMD_GET_PACKET
   0,                        // B_CMD_RESET_ALL_SLAVE
   0,                        // B_CMD_SYNC_ROUTING
   0,                        // B_CMD_ENABLE_INTELLITHRU
-  0                         // B_CMD_DISABLE_INTELLITHRU
+  0,                        // B_CMD_DISABLE_INTELLITHRU
+  0,                        // B_CMD_USB_NO_CX
 };
 
 // Macro to compute the max serial port in bus mode or not.
@@ -135,13 +144,20 @@ uint8_t BusCommandRequestSize[]= {
 
 // Macro to compute if Master/Slave On Bus
 #define B_IS_MASTER (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId == B_MASTERID)
-#define B_IS_SLAVE (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId == B_MASTERID)
+#define B_IS_SLAVE (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId != B_MASTERID)
 
 // Macro to compute a device Id from a serial ports
 #define GET_DEVICEID_FROM_SERIALNO(s) ((s) / SERIAL_INTERFACE_MAX + B_MASTERID)
 
 // Macro to compute a "virtual bus serial port" from a local device and serial port
 #define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
+
+// Macro for debugging purpose
+
+#define DEBUG_PRINT(txt,val) Serial.print((txt));Serial.println((val))
+#define DEBUG_PRINT_BIN(txt,val) Serial.print((txt));Serial.println((val),BIN)
+#define DEBUG_PRINT_HEX(txt,val) Serial.print((txt));Serial.println((val),HEX)
+
 
 
 // Default number of 15 secs periods to start after USB midi inactivity

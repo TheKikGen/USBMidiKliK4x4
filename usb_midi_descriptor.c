@@ -1084,3 +1084,5 @@ static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = 
     {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },
     {(uint8*)&usbMIDIDescriptor_iJackOut1,    USB_DESCRIPTOR_STRING_LEN(10) },
 };
+
+
