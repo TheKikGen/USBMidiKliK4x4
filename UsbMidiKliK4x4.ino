@@ -174,7 +174,9 @@ static void SerialMidi_SendMsg(uint8_t const *msg, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 static void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 {
-  DEBUG_PRINT("SerialMidi_SendPacket","");
+  DEBUG_PRINT("SerialMidi_SendPacket to",serialNo);
+DEBUG_PRINT("SerialMidi_SendPacket %",serialNo % SERIAL_INTERFACE_MAX );
+DEBUG_PRINT("SERIAL_INTERFACE_MAX ",SERIAL_INTERFACE_MAX );
 
 	if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
@@ -189,16 +191,14 @@ static void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 // Send a midi packet to I2C remote MIDI device on BUS
 ///////////////////////////////////////////////////////////////////////////////
-static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t serialNo)
+static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPort)
 {
 	if ( EEPROM_Params.I2C_BusModeState == B_DISABLED) return;
-DEBUG_PRINT("I2C_BusSerialSendMidiPacket","");
 
 	// Check if it is a local port to avoid bus
 	// bus traffic for Nothing
-	if ( EEPROM_Params.I2C_DeviceId == GET_DEVICEID_FROM_SERIALNO(serialNo) ) {
-    DEBUG_PRINT("LOCAL port","");
-		SerialMidi_SendPacket(pk,serialNo % SERIAL_INTERFACE_MAX);
+	if ( EEPROM_Params.I2C_DeviceId == GET_DEVICEID_FROM_SERIALNO(targetPort) ) {
+		SerialMidi_SendPacket(pk, targetPort % SERIAL_INTERFACE_MAX );
 		return;
 	}
 
@@ -215,11 +215,11 @@ DEBUG_PRINT("I2C_BusSerialSendMidiPacket","");
 
 	// We are a MASTER !
 	// Compute the device ID from the serial port Id
-	uint8_t deviceId = GET_DEVICEID_FROM_SERIALNO(serialNo);
+	uint8_t deviceId = GET_DEVICEID_FROM_SERIALNO(targetPort);
 
 	// Send to device
 	Wire.beginTransmission(deviceId);
-	Wire.write((uint8_t *)&pk,sizeof(midiPacket_t));
+	Wire.write((uint8_t *)pk,sizeof(midiPacket_t));
 	Wire.endTransmission();
 
 }
@@ -235,19 +235,12 @@ void I2C_SlaveReceiveEvent(int howMany)
 
   // Commands are managed in the requestEvent ISR
   // We ony store packet here.
-
-	//  Packet receive
 	if (howMany == sizeof(midiPacket_t) ) {
 		// Write a packet in the ring buffer
-    DEBUG_PRINT("I2C_SlaveReceiveEvent","");
-    DEBUG_PRINT("I2C_QPacketsFromMaster.write","");
 		midiPacket_t pk;
 		uint8_t nb = ( Wire.readBytes((uint8_t*)&pk,sizeof(midiPacket_t) ));
-    DEBUG_PRINT("Wire.readBytes ",nb);
-    ShowBufferHexDump((uint8_t *)&pk,sizeof(midiPacket_t));
+ShowBufferHexDump((uint8_t *)&pk,sizeof(midiPacket_t));
 		I2C_QPacketsFromMaster.write((uint8_t *)&pk,sizeof(midiPacket_t) );
-
-    DEBUG_PRINT("I2C_QPacketsFromMaster.available() after : ",I2C_QPacketsFromMaster.available());
 	}
 }
 
@@ -619,24 +612,24 @@ DEBUG_PRINT("RoutePacketToTarget","");
 	// Apply midi filters
 	if (! (msgType & *inFilters) ) return;
 
-	// Apply serial routing rules
-	// Do we have serial targets ?
-  	if ( *serialOutTargets) {
+	// ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
+	// A target match ?
+  if ( *serialOutTargets) {
 				for (	uint16_t t=0; t<SERIAL_INTERFACE_COUNT ; t++)
 					if ( (*serialOutTargets & ( 1 << t ) ) ) {
-								// Route to bus
+								// Route via the bus
 								if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-                    I2C_BusSerialSendMidiPacket(pk, t);
+                     I2C_BusSerialSendMidiPacket(pk, t);
 								}
-								// Route to local serial
-								else {
-									SerialMidi_SendPacket(pk,t);
-  							}
+								// Route to local serial if bus mode disabled
+								else SerialMidi_SendPacket(pk,t);
 					}
-	}
+	} // serialOutTargets
 
   // Stop here if IntelliThru active (no USB active but maybe connected)
-  if ( intelliThruActive ) return;
+  // Intellithru is always activated by the master in bus mode.
+
+  if ( intelliThruActive ) ; // return; TODO
 
   // Stop here if no USB connection owned by the master.
   //if ( EEPROM_Params.I2C_DeviceId == B_MASTERID && (! midiUSBCx) ) return;
@@ -2221,8 +2214,9 @@ DEBUG_PRINT("I2C_ProcessSlave () - I2C_QPacketsFromMaster.available() : ",I2C_QP
 			I2C_QPacketsFromMaster.readBytes((uint8_t *)&pk,sizeof(midiPacket_t));
 
 ShowBufferHexDump(pk.packet,sizeof(midiPacket_t));
+      uint8_t targetPort = (pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX;
 
-			SerialMidi_SendPacket(&pk, (uint8_t)(pk.packet[0] >> 4) );
+			SerialMidi_SendPacket(&pk, targetPort );
 	}
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
