@@ -1,21 +1,27 @@
+NEWS : THE V2 WILL COMME SOON WITH 16 PORTS ROUTING CAPABILITY....
+
 NEWS : I'm selling my five USB MIDI 3X3 prototype boards on Ebay here : 
-https://www.ebay.fr/itm/USB-MIDI-INTERFACE-3X3-WITH-ROUTING-MERGE-SPLIT-OPEN-SOURCE-FIRMWARE/303138783911?hash=item46947ac2a7:g:pCQAAOSwgPVcm0Df
+https://www.ebay.fr/itm/303138783911
+
+PCB ONLY HERE :
+https://www.ebay.fr/itm/303287160112
+
 
 # USBMidiKliK4x4 Dual - STM32DUINO
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
-Check also the wiki dedicated to the Miditech hack here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
-
-<img border="0" src="https://medias.audiofanzine.com/images/normal/miditech-midiface-4x4-1642123.jpg"  />
+Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
 The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
-Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8. This is mainly because of identical product/vendor ID and serial, and , according to the Miditech support, as that usb midi interface is not updateable at all, I was stucked....That was motivating me enough to go deep in the detail, and try, at less to change the PID or VID.
+Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
+I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
 
-The MCU of the Miditech / Midiplus 4x4 midi interface is a high density STM32F103RC, a common uC ARM STM32F1 chip family used on most musical gears like the Arturia Minilab, the Novation Launchkey and Launchpad for example. It is a very powerful chip, especially when you compare it to the Arduino Uno (ATMEGA328P). 
+## Bluepill and USBMidiKlik 3x3
 
-As a former AVR platform developper, I choose to use STM32DUINO to preserve a part of my knowledge and to reuse my existing software libraries.  STMDUINO is a port of the famous Arduino platform for the Maple Mini and other STM32 F1 and F4 boards, continuing by Roger Clark where Leaflabs left off.
+I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  Contact me for more details.
 
-To hack the Miditech interface, I had to remove some resistors on the motherboard because they were disabling the low level bootloader thought the UART1. After an upload of a STM32DUINO generic bootloader, I was able to compile and load from the USB a "blink" hello world sketch with the Arduino standard IDE.
+<img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
+
 
 ## USBMidiKliK4x4 firmware
 
@@ -228,12 +234,6 @@ Default routing is :
        USB Jack IN   (1,4)  o------------->o USB Cable IN (0,3)
 
 The new routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
-
-## Bluepill and USBMidiKlik 3x3
-
-I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  Contact me for more details.
-
-<img border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
 
 ## MPC LIVE midi port C & D enabling
 
