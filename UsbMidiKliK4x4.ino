@@ -174,16 +174,11 @@ static void SerialMidi_SendMsg(uint8_t const *msg, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 static void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 {
-  DEBUG_PRINT("SerialMidi_SendPacket to",serialNo);
-DEBUG_PRINT("SerialMidi_SendPacket %",serialNo % SERIAL_INTERFACE_MAX );
-DEBUG_PRINT("SERIAL_INTERFACE_MAX ",SERIAL_INTERFACE_MAX );
-
-	if (serialNo >= SERIAL_INTERFACE_MAX ) return;
+  if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
 	uint8_t msgLen = USBMidi::CINToLenTable[pk->packet[0] & 0x0F] ;
-
  	if ( msgLen > 0 ) {
-		serialHw[serialNo]->write(&pk->packet[1],msgLen);
+		serialHw[serialNo]->write(&(pk->packet[1]),msgLen);
 		FLASH_LED_OUT(serialNo);
 	}
 }
@@ -204,12 +199,12 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
 
 	// If we are a slave, we can't talk directly to the bus.
 	// So, store the "to transmit" packet, waiting for a RequestFrom.
+  // Master packet have  a "dest" byte before the midi packet.
   if ( EEPROM_Params.I2C_DeviceId != B_MASTERID ) {
-    uint8_t mpk[sizeof(midiPacket_t)+1];
-    mpk[0] = TO_SERIAL;
-    memcpy(&mpk[1],pk->packet,sizeof(midiPacket_t)); // Copy the midi packet
-		I2C_QPacketsToMaster.write(mpk,sizeof(mpk));
-    DEBUG_PRINT("Queue master serial packet. nb=",I2C_QPacketsToMaster.available());
+    masterMidiPacket_t mpk;
+    mpk.mpk.dest = TO_SERIAL;
+    mpk.mpk.pk.i = pk->i;// Copy the midi packet and queue it
+		I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
 		return;
 	}
 
@@ -217,7 +212,7 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
 	// Compute the device ID from the serial port Id
 	uint8_t deviceId = GET_DEVICEID_FROM_SERIALNO(targetPort);
 
-	// Send to device
+	// Send a midi packet to device
 	Wire.beginTransmission(deviceId);
 	Wire.write((uint8_t *)pk,sizeof(midiPacket_t));
 	Wire.endTransmission();
@@ -229,6 +224,8 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveReceiveEvent(int howMany)
 {
+  // Avoid empty transmission when scanning active devices
+  if (!howMany) return;
 
   // Update timer to avoid a permanent flash due to polling
   if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
@@ -236,49 +233,43 @@ void I2C_SlaveReceiveEvent(int howMany)
   // Commands are managed in the requestEvent ISR
   // We ony store packet here.
 	if (howMany == sizeof(midiPacket_t) ) {
-		// Write a packet in the ring buffer
 		midiPacket_t pk;
-		uint8_t nb = ( Wire.readBytes((uint8_t*)&pk,sizeof(midiPacket_t) ));
-ShowBufferHexDump((uint8_t *)&pk,sizeof(midiPacket_t));
+    // Read the bus and Write a packet in the ring buffer
+    Wire.readBytes( (uint8_t*)&pk,sizeof(midiPacket_t) );
 		I2C_QPacketsFromMaster.write((uint8_t *)&pk,sizeof(midiPacket_t) );
 	}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS AN ISR ! - I2C Request From Master event trigger. SLAVE ONLY..
+// ---------------------------------------------------------------------------
+// This handler is trigged immediatly after a RequestFrom  the MASTER
+// As the command byte wasn't red in the ReceiveEvent, it is available here.
+// This avoids to manage a global volatile variable to pass the command value.
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveRequestEvent ()
 {
-
-  // This handler is trigged immediatly after a RequestFrom  the MASTER
-  // As the command byte wasn't red in the ReceiveEvent, it is available here.
-  // This avoids to manage a global volatile variable.
-
   // A  command should exist
   if ( Wire.available() != 1 ) return;
+
+  if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
 
   uint8_t cmd = Wire.read();
 
   if (cmd == B_CMD_ISPACKET_AVAIL ) {
-    uint8_t nb = I2C_QPacketsToMaster.available() / (sizeof(midiPacket_t) +1) ;
+    uint8_t nb = I2C_QPacketsToMaster.available() / sizeof(masterMidiPacket_t);
     Wire.write(nb);
     return;
   }
 
   if (cmd == B_CMD_GET_PACKET ) {
-    Serial.println("----");
-    DEBUG_PRINT("I2C_SlaveRequestEvent GET PACKET","");
-    DEBUG_PRINT("In the Master Q :",I2C_QPacketsToMaster.available()/ (sizeof(midiPacket_t) +1));
-
-    uint8_t mpk[sizeof(midiPacket_t)+1];
+    masterMidiPacket_t mpk;
     if (I2C_QPacketsToMaster.available()) {
-      I2C_QPacketsToMaster.readBytes(mpk,sizeof(mpk));
+      I2C_QPacketsToMaster.readBytes(mpk.packet,sizeof(masterMidiPacket_t));
     }
-    else memset(mpk,0,sizeof(mpk));  // a null packet
-    Wire.write(mpk,sizeof(mpk));
-    DEBUG_PRINT("Packet sent to master","");
-    DEBUG_PRINT("sizeof(mpk) ",sizeof(mpk));
-    ShowBufferHexDump(mpk,sizeof(mpk));
+    else memset(mpk.packet,0,sizeof(masterMidiPacket_t));  // a null packet
+    Wire.write(mpk.packet,sizeof(masterMidiPacket_t));
     return;
   }
 
@@ -325,17 +316,20 @@ void I2C_BusStartWire()
 			Wire.begin();
       delay(500);
 
-			// Scan BUS for active slave DEVICES. Table used only by the master.
-			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-					Wire.beginTransmission(d + B_SLAVE_DEVICE_BASE_ADDR);
-          delay(10);
-					I2C_DeviceActive[d] = Wire.endTransmission() == 0 ? true : false;
-			}
-
+  		// Scan BUS for active slave DEVICES. Table used only by the master.
+      // 3 rounds to collect all devices.
+      for ( uint8_t i=1; i <= 3 ; i ++ )  {
+  			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
+  					Wire.beginTransmission(d + B_SLAVE_DEVICE_BASE_ADDR);
+  					I2C_DeviceActive[d] = Wire.endTransmission() == 0 ? true : false;
+            delay(100);
+  			}
+        delay(1000);
+       }
 		}
 		// Slave initialization
 		else 	{
-			Wire.begin(EEPROM_Params.I2C_DeviceId);
+      Wire.begin(EEPROM_Params.I2C_DeviceId);
 	  	Wire.onRequest(I2C_SlaveRequestEvent);
 			Wire.onReceive(I2C_SlaveReceiveEvent);
 
@@ -549,7 +543,6 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk)
 {
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
-DEBUG_PRINT("RoutePacketToTarget","");
   uint8_t port  = pk->packet[0] >> 4;
 
 	// Check at the physical level (i.e. not the bus)
@@ -562,7 +555,6 @@ DEBUG_PRINT("RoutePacketToTarget","");
 			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,port);
     }
   }
-  DEBUG_PRINT("port =",port);
 
   uint8_t cin   = pk->packet[0] & 0x0F ;
 
@@ -587,7 +579,6 @@ DEBUG_PRINT("RoutePacketToTarget","");
 	uint8_t *inFilters ;
 
   if (source == FROM_SERIAL ){
-    DEBUG_PRINT("FROM SERIAL","");
     // IntelliThru active ? If so, take the good routing rules
     if ( intelliThruActive ) {
 			if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
@@ -601,13 +592,13 @@ DEBUG_PRINT("RoutePacketToTarget","");
     }
   }
   else if (source == FROM_USB ) {
-    DEBUG_PRINT("FROM USB","");
       cableInTargets = &EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
       serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
       inFilters = &EEPROM_Params.midiRoutingRulesCable[port].filterMsk;
   }
 
   else return; // Error.
+
 
 	// Apply midi filters
 	if (! (msgType & *inFilters) ) return;
@@ -651,11 +642,11 @@ DEBUG_PRINT("RoutePacketToTarget","");
             // A slave in bus mode ?
             // We need to add a master packet to the Master's queue.
             if (B_IS_SLAVE ) {
-                uint8_t mpk[sizeof(midiPacket_t)+1];
-                mpk[0] = TO_USB;
-                memcpy(&mpk[1],pk2.packet,sizeof(midiPacket_t)); // Copy the midi packet
-                I2C_QPacketsToMaster.write(mpk,sizeof(mpk));
-                DEBUG_PRINT("Queued to I2C_QPacketsToMaster",I2C_QPacketsToMaster.available());
+                masterMidiPacket_t mpk;
+                mpk.mpk.dest = TO_USB;
+                mpk.mpk.pk.i = pk2.i;
+                //mpk.pk.i = pk2.i; // Copy the midi packet to the master packet
+                I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
             }
 
 	          #ifdef LEDS_MIDI
@@ -2137,27 +2128,26 @@ void SerialMidi_Process()
 // I2C Loop Process for a MASTER
 ///////////////////////////////////////////////////////////////////////////////
 
-uint8_t i2c_countPacket(uint8_t deviceId)
+int16_t i2c_countPacket(uint8_t deviceId)
 {
-    uint8_t err=0;
     Wire.beginTransmission(deviceId);
     Wire.write(B_CMD_ISPACKET_AVAIL);
-    err = Wire.endTransmission() ;
-    if (err) return 0;
+    uint8_t err = Wire.endTransmission() ;
+    if (err) return err*-1;
     Wire.requestFrom(deviceId,1) ;
     return Wire.read();
 }
 
-int16_t i2c_getPacket(uint8_t deviceId, uint8_t mpk[])
+int16_t i2c_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
 {
-    uint8_t err=0;
     Wire.beginTransmission(deviceId);
     Wire.write(B_CMD_GET_PACKET);
-    err = Wire.endTransmission() ;
+    uint8_t err = Wire.endTransmission() ;
     if (err) return -1*err;
-    uint8_t nb = Wire.requestFrom(deviceId,sizeof(midiPacket_t)+1) ;
-    if ( nb ) Wire.readBytes( mpk,sizeof(midiPacket_t)+1 );
+    uint8_t nb = Wire.requestFrom(deviceId,sizeof(masterMidiPacket_t)) ;
+    if ( nb ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
     else return -1;
+
     return (nb) ;
 }
 
@@ -2168,31 +2158,29 @@ boolean i2c_isActive(uint8_t deviceId) {
 
 void I2C_ProcessMaster ()
 {
-  uint8_t mpk[sizeof(midiPacket_t)+1];
+  masterMidiPacket_t mpk;
+  uint8_t deviceId;
 
-	for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-	 		// Active ? then request for a packet available from this device  ?
-      uint8_t deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
-	    if ( ! i2c_isActive[deviceId] ) continue;
-      if ( ! i2c_countPacket(deviceId) ) continue;  // No packets
-      if ( i2c_getPacket(deviceId,mpk) <= 0 ) continue; // Error or nothing
+	for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
 
-      // Make a midi packet
-      midiPacket_t pk;
-      memcpy(&pk, &(mpk[1]),sizeof(midiPacket_t));
+      if ( ! I2C_DeviceActive[d] ) continue; // not active on the bus
+      deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
+      //if ( ! i2c_isActive(deviceId) ) continue;
+      if ( i2c_countPacket(deviceId) <= 0) continue;  // No packets
+      if ( i2c_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing
 
       // Process only non empty packets
-      if ( pk.i == 0 ) continue;
+      if ( mpk.mpk.pk.i == 0 ) continue;
 
-      if ( mpk[0] == TO_SERIAL ) {
-          uint8_t serialNo = pk.packet[0] >> 4;
-          I2C_BusSerialSendMidiPacket(&pk, serialNo );
+      if ( mpk.mpk.dest == TO_SERIAL ) {
+          uint8_t targetPort = mpk.mpk.pk.packet[0] >> 4;
+          I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
 
       // Send to a cable IN only if USB is available on the master
-    } else if ( mpk[0] == TO_USB )
+    } else if ( mpk.mpk.dest == TO_USB )
         //&& midiUSBCx && midiUSBActive && !intelliThruActive)
       {
-          MidiUSB.writePacket(&(pk.i));
+          MidiUSB.writePacket(&(mpk.mpk.pk.i));
       }
       // else ignore that packet....
 
@@ -2204,19 +2192,12 @@ void I2C_ProcessMaster ()
 ///////////////////////////////////////////////////////////////////////////////
 void I2C_ProcessSlave ()
 {
-
 	// Packet from I2C master available ? (nb : already routed)
 	if ( I2C_QPacketsFromMaster.available() ) {
 			midiPacket_t pk;
-
-DEBUG_PRINT("I2C_ProcessSlave () - I2C_QPacketsFromMaster.available() : ",I2C_QPacketsFromMaster.available());
 			// These packets are mandatory local as a result of the routing
-			I2C_QPacketsFromMaster.readBytes((uint8_t *)&pk,sizeof(midiPacket_t));
-
-ShowBufferHexDump(pk.packet,sizeof(midiPacket_t));
-      uint8_t targetPort = (pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX;
-
-			SerialMidi_SendPacket(&pk, targetPort );
+			I2C_QPacketsFromMaster.readBytes(pk.packet,sizeof(midiPacket_t));
+			SerialMidi_SendPacket(&pk, (pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX );
 	}
 
 	// Activate the configuration menu if a terminal is opened in Slave mode

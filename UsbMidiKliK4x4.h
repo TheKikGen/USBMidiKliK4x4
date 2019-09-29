@@ -59,6 +59,16 @@ typedef union  {
     uint8_t  packet[4];
 } midiPacket_t;
 
+// Specific midi packet for master .
+// packed clause is mandatory to reflect the real size!!!
+typedef union {
+  struct {
+        uint8_t dest;
+        midiPacket_t pk;
+  } __packed mpk;
+  uint8_t packet[5];
+} __packed masterMidiPacket_t;
+
 const midiPacket_t NULL_MIDI_PACKET = { .i = 0 };
 
 // Timer for attachCompare1Interrupt
@@ -103,7 +113,7 @@ enum MidiRouteSourceDest {
 // BUS MODE (I2C)
 
 #define B_RING_BUFFER_PACKET_SIZE  16*sizeof(midiPacket_t)
-#define B_RING_BUFFER_MPACKET_SIZE 16* (sizeof(midiPacket_t)+1)
+#define B_RING_BUFFER_MPACKET_SIZE 16*sizeof(masterMidiPacket_t)
 
 // 16 cables/jacks is the maximum value allowed by the midi usb standard
 #define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
