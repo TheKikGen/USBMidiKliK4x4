@@ -46,12 +46,12 @@ typedef struct {
       uint8_t  filterMsk;
       uint16_t cableInTargetsMsk;
       uint16_t jackOutTargetsMsk;
-} midiRoutingRule_t;
+} __packed midiRoutingRule_t;
 
 typedef struct {
       uint8_t  filterMsk;
       uint16_t jackOutTargetsMsk;
-} midiRoutingRuleJack_t;
+} __packed midiRoutingRuleJack_t;
 
 // Use this structure to send and receive packet to/from USB
 typedef union  {

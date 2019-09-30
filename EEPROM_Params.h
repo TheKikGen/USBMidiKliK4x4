@@ -89,8 +89,7 @@ typedef struct {
         uint16_t        vendorID;
         uint16_t        productID;
         uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // defined in usb_midi_devce.h
-} EEPROM_Params_t;
+} __packed EEPROM_Params_t;
 
 
 #endif
-

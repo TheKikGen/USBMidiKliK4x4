@@ -244,7 +244,7 @@ void I2C_SlaveReceiveEvent(int howMany)
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS AN ISR ! - I2C Request From Master event trigger. SLAVE ONLY..
 // ---------------------------------------------------------------------------
-// This handler is trigged immediatly after a RequestFrom  the MASTER
+// This handler is trigged immediatly after a RequestFrom  from the MASTER
 // As the command byte wasn't red in the ReceiveEvent, it is available here.
 // This avoids to manage a global volatile variable to pass the command value.
 //////////////////////////////////////////////////////////////////////////////
@@ -301,7 +301,6 @@ void I2C_BusChecks()
 			 EEPROM_Params.I2C_BusModeState = B_DISABLED; // Overwrite setting
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 //  I2C Bus Start WIRE
 //////////////////////////////////////////////////////////////////////////////
@@ -313,6 +312,7 @@ void I2C_BusStartWire()
 
 			// NO ISR for Master
 			Wire.setClock(B_FREQ) ;
+      Wire.setTimeout(0);
 			Wire.begin();
       delay(500);
 
@@ -320,8 +320,7 @@ void I2C_BusStartWire()
       // 3 rounds to collect all devices.
       for ( uint8_t i=1; i <= 3 ; i ++ )  {
   			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-  					Wire.beginTransmission(d + B_SLAVE_DEVICE_BASE_ADDR);
-  					I2C_DeviceActive[d] = Wire.endTransmission() == 0 ? true : false;
+            I2C_DeviceActive[d] = I2C_isDeviceActive(d + B_SLAVE_DEVICE_BASE_ADDR);
             delay(100);
   			}
         delay(1000);
@@ -329,6 +328,7 @@ void I2C_BusStartWire()
 		}
 		// Slave initialization
 		else 	{
+      Wire.setTimeout(0);
       Wire.begin(EEPROM_Params.I2C_DeviceId);
 	  	Wire.onRequest(I2C_SlaveRequestEvent);
 			Wire.onReceive(I2C_SlaveReceiveEvent);
@@ -345,24 +345,21 @@ void I2C_BusStartWire()
 // SEND an USBMIDIKLIK command on the I2C bus and wait for answer. MASTER ONLY
 // If return is < 0 : error, else return the number of bytes received
 //////////////////////////////////////////////////////////////////////////////
-int16_t I2C_SendCommandToSlave (uint8_t deviceId,BusCommand cmd)
+int16_t I2C_Command(uint8_t deviceId,BusCommand cmd)
 {
-
-  //if (I2C_Command != B_CMD_NONE ) return -1;
-  Wire.beginTransmission (deviceId);
-  Wire.write (cmd);
-  if ( uint8_t error = Wire.endTransmission() != 0 ) {
-				return -1*error;
-	}
-
-	if ( BusCommandRequestSize[cmd] > 0) {
-		return Wire.requestFrom (cmd,  BusCommandRequestSize[cmd]);
-	}
-  Wire.flush();
-
-	return 0;
+    Wire.beginTransmission(deviceId);
+    Wire.write(cmd);
+    uint8_t err = Wire.endTransmission() ;
+    if (err) return -1;
+    uint8_t nb;
+    if (BusCommandRequestSize[cmd]) {
+        nb = Wire.requestFrom(deviceId,BusCommandRequestSize[cmd]);
+        if ( nb != BusCommandRequestSize[cmd] ) return -1 ;
+        if ( BusCommandRequestSize[cmd] == 1) return Wire.read();
+        return nb;
+    }
+    return 0;
 }
-
 ///////////////////////////////////////////////////////////////////////////////
 //  I2C Show active slave device on screen
 //////////////////////////////////////////////////////////////////////////////
@@ -2125,37 +2122,27 @@ void SerialMidi_Process()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// I2C Loop Process for a MASTER
+// I2C Get a master packet from slave
 ///////////////////////////////////////////////////////////////////////////////
-
-int16_t i2c_countPacket(uint8_t deviceId)
+int16_t I2C_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
 {
-    Wire.beginTransmission(deviceId);
-    Wire.write(B_CMD_ISPACKET_AVAIL);
-    uint8_t err = Wire.endTransmission() ;
-    if (err) return err*-1;
-    Wire.requestFrom(deviceId,1) ;
-    return Wire.read();
-}
-
-int16_t i2c_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
-{
-    Wire.beginTransmission(deviceId);
-    Wire.write(B_CMD_GET_PACKET);
-    uint8_t err = Wire.endTransmission() ;
-    if (err) return -1*err;
-    uint8_t nb = Wire.requestFrom(deviceId,sizeof(masterMidiPacket_t)) ;
-    if ( nb ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
-    else return -1;
-
+    uint8_t nb = I2C_Command(deviceId,B_CMD_GET_PACKET);
+    if ( nb > 0 ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
     return (nb) ;
 }
 
-boolean i2c_isActive(uint8_t deviceId) {
+///////////////////////////////////////////////////////////////////////////////
+// I2C check if a device is active on the bus
+//////////////////////////////////////////////////////////////////////////////
+boolean I2C_isDeviceActive(uint8_t deviceId)
+{
     Wire.beginTransmission(deviceId);
     return Wire.endTransmission() == 0;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// I2C Loop Process for a MASTER
+///////////////////////////////////////////////////////////////////////////////
 void I2C_ProcessMaster ()
 {
   masterMidiPacket_t mpk;
@@ -2165,9 +2152,8 @@ void I2C_ProcessMaster ()
 
       if ( ! I2C_DeviceActive[d] ) continue; // not active on the bus
       deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
-      //if ( ! i2c_isActive(deviceId) ) continue;
-      if ( i2c_countPacket(deviceId) <= 0) continue;  // No packets
-      if ( i2c_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing
+      if ( I2C_Command(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
+      if ( I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing
 
       // Process only non empty packets
       if ( mpk.mpk.pk.i == 0 ) continue;
@@ -2265,8 +2251,6 @@ void setup()
 
 		I2C_BusStartWire();		// Start Wire if bus mode enabled. AFTER MIDI !
 
-    // Let time to start to all devices....
-    delay(1000);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
