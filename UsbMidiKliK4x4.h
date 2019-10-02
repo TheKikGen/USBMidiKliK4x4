@@ -112,8 +112,8 @@ enum MidiRouteSourceDest {
 
 // BUS MODE (I2C)
 
-#define B_RING_BUFFER_PACKET_SIZE  16*sizeof(midiPacket_t)
-#define B_RING_BUFFER_MPACKET_SIZE 16*sizeof(masterMidiPacket_t)
+#define B_RING_BUFFER_PACKET_SIZE  8*sizeof(midiPacket_t)
+#define B_RING_BUFFER_MPACKET_SIZE 8*sizeof(masterMidiPacket_t)
 
 // 16 cables/jacks is the maximum value allowed by the midi usb standard
 #define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
@@ -124,29 +124,35 @@ enum MidiRouteSourceDest {
 #define B_DISABLED 0
 #define B_ENABLED 1
 #define B_FREQ 100000
+#define B_SLAVE_REBOOT_TIMEOUT  5000
 
 // Bus commands
 enum BusCommand {
-  B_CMD_NONE,
+  B_CMD_NONE=0,
   B_CMD_ISPACKET_AVAIL,
-  B_CMD_GET_PACKET,
-  B_CMD_RESET_ALL_SLAVE,
-  B_CMD_SYNC_ROUTING,
+  B_CMD_GET_MPACKET,
+  B_CMD_ALL_SLAVE_RESET,
+  B_CMD_ALL_SLAVE_SYNC_ROUTING,
   B_CMD_ENABLE_INTELLITHRU,
   B_CMD_DISABLE_INTELLITHRU,
-  B_CMD_USB_NO_CX
+  B_CMD_USB_NO_CX,
+  B_CMD_IS_SLAVE_READY
 } ;
+
+#define   B_STATE_READY 1
+#define   B_STATE_BUSY  0
 
 // Corresponding "requestFrom" answer bytes size without command
 uint8_t static const BusCommandRequestSize[]= {
   0,                        // B_CMD_NONE
   1,                        // B_CMD_ISPACKET_AVAIL
   sizeof(midiPacket_t),     // B_CMD_GET_PACKET
-  0,                        // B_CMD_RESET_ALL_SLAVE
-  0,                        // B_CMD_SYNC_ROUTING
+  0,                        // B_CMD_ALL_SLAVE_RESET
+  0,                        // B_CMD_ALL_SLAVE_SYNC_ROUTING
   0,                        // B_CMD_ENABLE_INTELLITHRU
   0,                        // B_CMD_DISABLE_INTELLITHRU
   0,                        // B_CMD_USB_NO_CX
+  1,                        // B_CMD_IS_SLAVE_READY
 };
 
 // Macro to compute the max serial port in bus mode or not.

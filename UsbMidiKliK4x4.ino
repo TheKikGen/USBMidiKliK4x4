@@ -95,7 +95,7 @@ PulseOut I2C_LedTimer(0xFF,500);
 
 // USB Midi object & globals
 USBMidi MidiUSB;
-bool					midiUSBCx      = false;
+volatile bool					midiUSBCx      = false;
 bool          midiUSBActive  = false;
 bool 					isSerialBusy   = false ;
 unsigned long midiUSBLastPacketMillis    = 0;
@@ -111,12 +111,14 @@ static  const uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
 static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
-bool intelliThruActive = false;
+volatile bool intelliThruActive = false;
 unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
 
 // Bus Mode globals
 
 boolean I2C_DeviceActive[B_MAX_NB_DEVICE-1]; // Minus the master
+volatile boolean I2C_SlaveReady = false;
+volatile uint8_t I2C_Command = B_CMD_NONE;
 
 // Templated RingBuffers to manage I2C slave reception/transmission outside I2C ISR
 // Volatile by default and RESERVED TO SLAVE
@@ -224,14 +226,38 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveReceiveEvent(int howMany)
 {
-  // Avoid empty transmission when scanning active devices
-  if (!howMany) return;
 
   // Update timer to avoid a permanent flash due to polling
   if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
 
-  // Commands are managed in the requestEvent ISR
-  // We ony store packet here.
+  if (howMany <= 0) return;
+
+  // It's a command ?
+  // Immediate commands are managed here.
+  // Those necessiting a requestFrom in the requestEvent ISR
+  if (howMany == 1) {
+
+    I2C_Command = Wire.read();
+
+    //    Manage immediate commands not followed by a requestFrom
+    switch (I2C_Command) {
+      case B_CMD_USB_NO_CX:
+        midiUSBCx = false;
+        break;
+      case B_CMD_ENABLE_INTELLITHRU:
+        intelliThruActive = true;
+        break;
+      case B_CMD_DISABLE_INTELLITHRU:
+        intelliThruActive = false;
+        break;
+      case B_CMD_ALL_SLAVE_RESET:
+        nvic_sys_reset();
+        break;
+    }
+
+  } else
+
+  // We only store packet here.
 	if (howMany == sizeof(midiPacket_t) ) {
 		midiPacket_t pk;
     // Read the bus and Write a packet in the ring buffer
@@ -250,44 +276,38 @@ void I2C_SlaveReceiveEvent(int howMany)
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveRequestEvent ()
 {
-  // A  command should exist
-  if ( Wire.available() != 1 ) return;
-
   if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
 
-  uint8_t cmd = Wire.read();
 
-  if (cmd == B_CMD_ISPACKET_AVAIL ) {
-    uint8_t nb = I2C_QPacketsToMaster.available() / sizeof(masterMidiPacket_t);
-    Wire.write(nb);
-    return;
-  }
+  switch (I2C_Command) {
 
-  if (cmd == B_CMD_GET_PACKET ) {
-    masterMidiPacket_t mpk;
-    if (I2C_QPacketsToMaster.available()) {
-      I2C_QPacketsToMaster.readBytes(mpk.packet,sizeof(masterMidiPacket_t));
+    case B_CMD_ISPACKET_AVAIL: {
+        I2C_SlaveReady = true;
+        uint8_t nb = I2C_QPacketsToMaster.available() / sizeof(masterMidiPacket_t);
+        Wire.write(nb);
+        break;
     }
-    else memset(mpk.packet,0,sizeof(masterMidiPacket_t));  // a null packet
-    Wire.write(mpk.packet,sizeof(masterMidiPacket_t));
-    return;
+
+    case B_CMD_GET_MPACKET: {
+        masterMidiPacket_t mpk;
+        if (I2C_QPacketsToMaster.available()) {
+          I2C_QPacketsToMaster.readBytes(mpk.packet,sizeof(masterMidiPacket_t));
+        }
+        else memset(mpk.packet,0,sizeof(masterMidiPacket_t));  // a null packet
+        Wire.write(mpk.packet,sizeof(masterMidiPacket_t));
+        break;
+    }
+
+    case B_CMD_ALL_SLAVE_SYNC_ROUTING:
+        break;
+
+    case B_CMD_IS_SLAVE_READY:
+        Wire.write(B_STATE_READY);
+        I2C_SlaveReady = true;
+        break;
   }
 
-  if (cmd == B_CMD_USB_NO_CX ) {
-    midiUSBCx = false;
-    return;
-  }
-
-  if (cmd == B_CMD_ENABLE_INTELLITHRU ) {
-    intelliThruActive = true;
-    return;
-  }
-
-  if (cmd == B_CMD_DISABLE_INTELLITHRU ) {
-    intelliThruActive = false;
-    return;
-  }
-
+  I2C_Command = B_CMD_NONE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -310,50 +330,56 @@ void I2C_BusStartWire()
 
 	if ( EEPROM_Params.I2C_DeviceId == B_MASTERID ) {
 
-			// NO ISR for Master
 			Wire.setClock(B_FREQ) ;
-      Wire.setTimeout(0);
 			Wire.begin();
-      delay(500);
-
   		// Scan BUS for active slave DEVICES. Table used only by the master.
       // 3 rounds to collect all devices.
+      uint8_t ct = 0;
+      for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) I2C_DeviceActive[d] = false;
+
       for ( uint8_t i=1; i <= 3 ; i ++ )  {
   			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-            I2C_DeviceActive[d] = I2C_isDeviceActive(d + B_SLAVE_DEVICE_BASE_ADDR);
-            delay(100);
+          if ( !I2C_DeviceActive[d] && I2C_SendCommand(d + B_SLAVE_DEVICE_BASE_ADDR,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
+            I2C_DeviceActive[d] = true;
+            ct++;
+          }
+          delay(50);
   			}
-        delay(1000);
        }
-		}
+	}
 		// Slave initialization
-		else 	{
-      Wire.setTimeout(0);
+	else 	{
       Wire.begin(EEPROM_Params.I2C_DeviceId);
 	  	Wire.onRequest(I2C_SlaveRequestEvent);
 			Wire.onReceive(I2C_SlaveReceiveEvent);
 
+      I2C_SlaveReady = false;
+      unsigned long I2C_SlaveStartTime = millis();
+
+      // Auto reboot if no master present...
+      while ( !I2C_SlaveReady ) {
+          if ( millis() - I2C_SlaveStartTime > B_SLAVE_REBOOT_TIMEOUT ) nvic_sys_reset();
+      }
+
       Serial.begin(115200);delay(500);
 			ShowMidiKliKHeader();Serial.println();
-			Serial.println("I2C Bus mode started.");
 			Serial.print("Slave ");Serial.print(EEPROM_Params.I2C_DeviceId);
 			Serial.println(" ready and listening.");
-		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // SEND an USBMIDIKLIK command on the I2C bus and wait for answer. MASTER ONLY
 // If return is < 0 : error, else return the number of bytes received
 //////////////////////////////////////////////////////////////////////////////
-int16_t I2C_Command(uint8_t deviceId,BusCommand cmd)
+int16_t I2C_SendCommand(uint8_t deviceId,BusCommand cmd)
 {
     Wire.beginTransmission(deviceId);
     Wire.write(cmd);
-    uint8_t err = Wire.endTransmission() ;
-    if (err) return -1;
-    uint8_t nb;
-    if (BusCommandRequestSize[cmd]) {
-        nb = Wire.requestFrom(deviceId,BusCommandRequestSize[cmd]);
+    if ( Wire.endTransmission() ) return -1;
+
+    if ( BusCommandRequestSize[cmd] > 0) {
+        uint8_t nb = Wire.requestFrom(deviceId,BusCommandRequestSize[cmd]);
         if ( nb != BusCommandRequestSize[cmd] ) return -1 ;
         if ( BusCommandRequestSize[cmd] == 1) return Wire.read();
         return nb;
@@ -371,6 +397,7 @@ void I2C_ShowActiveDevice()
 	for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
 			deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
 			Wire.beginTransmission(deviceId);
+      delay(5);
 			if ( Wire.endTransmission() == 0 ) {
 					Serial.print("Slave device ")	;Serial.print(deviceId);
 					Serial.println(" is active.");
@@ -1134,26 +1161,6 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Show the EEPROM configuration on screen
-//////////////////////////////////////////////////////////////////////////////
-void EEPROM_ShowConfig(void)
-{
-	Serial.println ("EEPROM CONFIG");
-	Serial.println();
-	Serial.print  ("EEPROM.PageBase0 : 0x");
-	Serial.println(EEPROM.PageBase0, HEX);
-	Serial.print  ("EEPROM.PageBase1 : 0x");
-	Serial.println(EEPROM.PageBase1, HEX);
-	Serial.print  ("EEPROM.PageSize  : 0x");
-	Serial.print  (EEPROM.PageSize, HEX);
-	Serial.print  (" (");
-	Serial.print  (EEPROM.PageSize, DEC);
-	Serial.println(")");
-	// Serial.print  ("EEPROM.Pages     : ");
-	// Serial.println(EEPROM.Pages, DEC);
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // Optimized put byte buffer to EEPROM
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_Put(uint8_t* bloc,uint16_t sz)
@@ -1197,27 +1204,6 @@ void EEPROM_Get(uint8_t* bloc,uint16_t sz)
 			pp++;
 	}
 
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Hidden option Z for tests purpose
-//////////////////////////////////////////////////////////////////////////////
-void ShowHiddenMenuZ()
-{
-	EEPROM_Params_t newEEParams;
-	Serial.println("EEPROM TESTS : ");
-	EEPROM_ShowConfig();
-	Serial.println("Dump parameters stored in EEPROM :");
-	EEPROM_Get((uint8_t*) &newEEParams,sizeof(EEPROM_Params_t));
-	Serial.println();
-	ShowBufferHexDump((uint8_t*)&newEEParams,sizeof(EEPROM_Params_t)) ;
-	Serial.println();
-	Serial.println("Force EEPROM update with current parameters memory :");
-	ShowBufferHexDump((uint8_t*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
-	EEPROM_Put((uint8_t*) &EEPROM_Params,sizeof(EEPROM_Params_t));
-	Serial.println("Read EEPROM again :");
-	EEPROM_Get((uint8_t*) &newEEParams,sizeof(EEPROM_Params_t));
-	ShowBufferHexDump((uint8_t*)&newEEParams,sizeof(EEPROM_Params_t)) ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1550,12 +1536,12 @@ static void ShowGlobalSettings()
 	Serial.print("MIDI serial ports   : ");
 	Serial.println(SERIAL_INTERFACE_COUNT);
 
-	Serial.print("VID - PID           : ");
+	Serial.print("USB VID - PID        : ");
 	Serial.print( EEPROM_Params.vendorID,HEX);
 	Serial.print(" - ");
 	Serial.println( EEPROM_Params.productID,HEX);
 
-	Serial.print("Product string      : ");
+	Serial.print("USB Product string   : ");
 	Serial.write(EEPROM_Params.productString, sizeof(EEPROM_Params.productString));
 	Serial.println();
 }
@@ -1781,17 +1767,17 @@ void ShowConfigMenu()
 		if (showMenu) {
   		ShowMidiKliKHeader();
       Serial.println();
-			Serial.println("0.Show global settings        e.Reload settings from EEPROM");
-			Serial.println("1.Show Midi routing           f.Restore all factory settings");
-  		Serial.println("2.USB Vendor ID & Product ID  r.Reset routing to factory default");
-			Serial.println("3.USB product string          s.Save settings");
-  		Serial.println("4.USB Cable OUT routing       x.Exit");
-			Serial.println("5.Midi IN Jack routing");
-			Serial.println("6.IntelliThru routing");
-			Serial.println("7.IntelliThru USB timeout");
-			Serial.println("8.Toggle I2C bus mode");
-			Serial.println("9.Set I2C bus mode device Id");
-			Serial.println("a.Show I2C bus active devices");
+			Serial.println("0.global settings    6.IntelliThru routing");
+			Serial.println("1.Midi routing       7.IntelliThru timeout");
+  		Serial.println("2.USB VID PID        8.Enable bus mode");
+			Serial.println("3.USB Prod.string    9.Set device Id");
+  		Serial.println("4.Cable OUT routing  a.Show active devices");
+			Serial.println("5.Jack IN routing");
+      Serial.println();
+      Serial.println("e.Reload settings    f.Factory settings");
+  		Serial.println("r.Factory routing    s.Save settings");
+  		Serial.println("x.Exit");
+
 		}
     showMenu = true;
 		Serial.println();
@@ -1804,7 +1790,7 @@ void ShowConfigMenu()
 		{
 			// Hidden menu
 			case 'Z':
-				ShowHiddenMenuZ();
+			//	ShowHiddenMenuZ();
 				Serial.println();
 				break;
 
@@ -1860,10 +1846,10 @@ void ShowConfigMenu()
 
 			// USB Timeout <number of 15s periods 1-127>
 			case '7':
-				Serial.println("Enter the nb of 15s periods for USB timeout (001-127 / 000 to exit) :");
+				Serial.println("Nb of 15s periods (001-127 / 000 to exit) :");
 				i = AsknNumber(3);
 				if (i == 0 || i >127 )
-					Serial.println(". No change made. Incorrect value.");
+					Serial.println(". Error. No change made.");
 				else {
 					EEPROM_Params.intelliThruDelayPeriod = i;
 					Serial.print(" <= Delay set to ");Serial.print(i*15);Serial.println("s");
@@ -1872,9 +1858,9 @@ void ShowConfigMenu()
 				showMenu = false;
 				break;
 
-				// Toogle Bus mode
+				// Enable Bus mode
 			 case '8':
-					if ( AskChoice("Activate I2C bus mode","") == 'y' ) {
+					if ( AskChoice("Enable bus mode","") == 'y' ) {
 						EEPROM_Params.I2C_BusModeState = B_ENABLED;
 						Serial.println();
 						Serial.println("Bus mode enabled.");
@@ -1890,7 +1876,7 @@ void ShowConfigMenu()
 
 				// Set device ID.
 			 case '9':
-			 			Serial.print("Enter a device ID ( ");
+			 			Serial.print("Device ID ( ");
 						Serial.print(B_MASTERID < 9 ? "0": "");
 						Serial.print(B_MASTERID);
 						Serial.print(":Master, Slaves ");
@@ -1905,7 +1891,7 @@ void ShowConfigMenu()
 							if ( i != B_MASTERID ) {
 								if ( i > B_SLAVE_DEVICE_LAST_ADDR || i < B_SLAVE_DEVICE_BASE_ADDR ) {
 										Serial.println();
-										Serial.print("Id error. Please try again :");
+										Serial.print("Id error. Try again :");
 								} else break;
 							} else break;
 						}
@@ -1926,10 +1912,10 @@ void ShowConfigMenu()
 
 			// Reload the EEPROM parameters structure
 			case 'e':
-				if ( AskChoice("Reload current settings from EEPROM","") == 'y' ) {
+				if ( AskChoice("Reload previous settings ","") == 'y' ) {
 					EEPROM_ParamsInit();
           Serial.println();
-					Serial.println("Settings reloaded from EEPROM.");
+					Serial.println("Settings reloaded.");
 					Serial.println();
 				}
 				showMenu = false;
@@ -1937,9 +1923,9 @@ void ShowConfigMenu()
 
 			// Restore factory settings
 			case 'f':
-				if ( AskChoice("Restore all factory settings","") == 'y' ) {
+				if ( AskChoice("Restore factory settings","") == 'y' ) {
           Serial.println();
-					if ( AskChoice("Your own settings will be erased. Sure","") == 'y' ) {
+					if ( AskChoice("All settings will be erased. Sure","") == 'y' ) {
 						EEPROM_ParamsInit(true);
             Serial.println();
 						Serial.println("Factory settings restored.");
@@ -1951,7 +1937,7 @@ void ShowConfigMenu()
 
 			// Default midi routing
 			case 'r':
-				if ( AskChoice("Reset all Midi routing to default","") == 'y')
+				if ( AskChoice("Reset Midi routing to default","") == 'y')
 					ResetMidiRoutingRules(ROUTING_RESET_ALL);
 					Serial.println();
 					showMenu = false;
@@ -2126,7 +2112,7 @@ void SerialMidi_Process()
 ///////////////////////////////////////////////////////////////////////////////
 int16_t I2C_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
 {
-    uint8_t nb = I2C_Command(deviceId,B_CMD_GET_PACKET);
+    uint8_t nb = I2C_SendCommand(deviceId,B_CMD_GET_MPACKET);
     if ( nb > 0 ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
     return (nb) ;
 }
@@ -2150,10 +2136,14 @@ void I2C_ProcessMaster ()
 
 	for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
 
-      if ( ! I2C_DeviceActive[d] ) continue; // not active on the bus
       deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
-      if ( I2C_Command(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
-      if ( I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing
+      if ( ! I2C_DeviceActive[d] ) {
+        // Try to reactivat that device eventually (a kind of "hot plug" approach)
+        if ( ! (I2C_DeviceActive[d] = I2C_isDeviceActive(deviceId) ) ) continue;
+      }
+
+      if ( I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
+      if ( I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing got
 
       // Process only non empty packets
       if ( mpk.mpk.pk.i == 0 ) continue;
