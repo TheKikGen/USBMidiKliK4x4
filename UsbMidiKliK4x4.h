@@ -139,6 +139,8 @@ enum BusCommand {
   B_CMD_INTELLITHRU_DISABLED,
   B_CMD_ALL_SLAVE_RESET,
   B_CMD_ALL_SLAVE_SYNC_ROUTING,
+  B_CMD_DEBUG_MODE_ENABLED,
+  B_CMD_DEBUG_MODE_DISABLED,
 } ;
 
 #define   B_STATE_READY 1
@@ -158,6 +160,8 @@ uint8_t static const BusCommandRequestSize[]= {
   0,                         // B_CMD_INTELLITHRU_DISABLED
   0,                         // B_CMD_ALL_SLAVE_RESET
   0,                         // B_CMD_ALL_SLAVE_SYNC_ROUTING,
+  0,                         // B_CMD_DEBUG_MODE_ENABLED
+  0,                         // B_CMD_DEBUG_MODE_DISABLED
 };
 
 // Macro to compute the max serial port in bus mode or not.
@@ -174,18 +178,32 @@ uint8_t static const BusCommandRequestSize[]= {
 #define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
 
 // Macro for debugging purpose when MIDI active
-#define DEBUG_SERIAL Serial1
 
-#define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
-#define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
-#define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
-#define DEBUG_PRINT_HEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),HEX);} else {Serial.print((txt));Serial.print((val),HEX);}
-#define DEBUG_DUMP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
-#define DEBUG_ASSERT(cond,txt,val) if ( (cond) ) { DEBUG_PRINTLN(txt,val) }
+// Comment this to remove all debug instructions from the compilation.
+//#define DEBUG_MODE
 
-#define DEBUG_BEGIN if ( EEPROM_Params.debugMode) {
-#define DEBUG_BEGIN_TIMER if ( EEPROM_Params.debugMode && I2C_DebugTimer.start() ) {
-#define DEBUG_END }
+#define DEBUG_SERIAL Serial3
+#ifdef DEBUG_MODE
+  #define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
+  #define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
+  #define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
+  #define DEBUG_PRINT_HEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),HEX);} else {Serial.print((txt));Serial.print((val),HEX);}
+  #define DEBUG_DUMP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
+  #define DEBUG_ASSERT(cond,txt,val) if ( (cond) ) { DEBUG_PRINTLN(txt,val) }
+  #define DEBUG_BEGIN if ( EEPROM_Params.debugMode) {
+  #define DEBUG_BEGIN_TIMER if ( EEPROM_Params.debugMode && I2C_DebugTimer.start() ) {
+  #define DEBUG_END }
+#else
+  #define DEBUG_PRINT(txt,val)
+  #define DEBUG_PRINTLN(txt,val)
+  #define DEBUG_PRINT_BIN(txt,val)
+  #define DEBUG_PRINT_HEX(txt,val)
+  #define DEBUG_DUMP(buff,sz)
+  #define DEBUG_ASSERT(cond,txt,val)
+  #define DEBUG_BEGIN
+  #define DEBUG_BEGIN_TIMER
+  #define DEBUG_END
+#endif
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX

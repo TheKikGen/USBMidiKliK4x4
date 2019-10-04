@@ -286,8 +286,18 @@ void I2C_SlaveReceiveEvent(int howMany)
       case B_CMD_ALL_SLAVE_RESET:
         nvic_sys_reset();
         break;
-    }
 
+#ifdef DEBUG_MODE
+      case B_CMD_DEBUG_MODE_ENABLED:
+          EEPROM_Params.debugMode = true;
+        break;
+
+      case B_CMD_DEBUG_MODE_DISABLED:
+          EEPROM_Params.debugMode = false;
+          break;
+#endif
+
+    }
   } else
 
   // We only store packet here.
@@ -360,7 +370,8 @@ void I2C_BusStartWire()
 
 
       Wire.setClock(B_FREQ) ;
-  //    Wire.setTimeout(0);
+      // NB : default timemout is 1 sec. Possible to change that with Wire.setTimeout(x);
+      // before the begin.
     	Wire.begin();
 
       delay(1000); // Let time to slaves...
@@ -409,7 +420,8 @@ DEBUG_END
 		// Slave initialization
 	else 	{
 
-    //  Wire.setTimeout(0);
+      // NB : default timemout is 1 sec. Possible to change that with Wire.setTimeout(x);
+      // before the begin.
       Wire.begin(EEPROM_Params.I2C_DeviceId);
 	  	Wire.onRequest(I2C_SlaveRequestEvent);
 			Wire.onReceive(I2C_SlaveReceiveEvent);
@@ -508,7 +520,7 @@ static void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
 // We use the midiXparser 'on the fly' mode, allowing to tag bytes as "captured"
 // when they belong to a midi SYSEX message, without storing them in a buffer.
 ///////////////////////////////////////////////////////////////////////////////
-static void RouteMidiSysEx( uint8_t cable, midiXparser* xpMidi )
+static void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
 {
 
   static midiPacket_t pk[SERIAL_INTERFACE_MAX];
@@ -1863,7 +1875,7 @@ void ShowConfigMenu()
       Serial.println();
       Serial.println("e.Reload settings    f.Factory settings");
   		Serial.println("r.Factory routing    s.Save settings");
-  		Serial.println("z.Debug on Serial 3  x.Exit");
+  		Serial.println("z.Debug on Serial3   x.Exit");
 
 		}
     showMenu = true;
@@ -2040,10 +2052,11 @@ void ShowConfigMenu()
 
         // debug Mode
   			case 'z':
+        #ifdef DEBUG_MODE
         if ( AskChoice("Enable debug mode.","") == 'y' ) {
           EEPROM_Params.debugMode = true;
           Serial.println();
-          Serial.println("Debug mode enabled. Master:Serial1, Slave:UsbSerial. 115200 bauds");
+          Serial.println("Debug mode enabled. M:Serial3, S:UsbSerial. 115200 bauds");
           Serial.println();
         } else {
           EEPROM_Params.debugMode = false;
@@ -2051,6 +2064,10 @@ void ShowConfigMenu()
           Serial.println("Debug mode disabled.");
           Serial.println();
         }
+        #else
+          Serial.println("Not available in that firmware.");
+          Serial.println();
+        #endif
 				showMenu = false;
         break;
 
@@ -2180,7 +2197,7 @@ void SerialMidi_Process()
 					 if ( midiSerial[s].parse( serialHw[s]->read() ) ) {
 								// We manage sysEx "on the fly". Clean end of a sysexe msg ?
 								if ( midiSerial[s].getMidiMsgType() == midiXparser::sysExMsgTypeMsk )
-									RouteMidiSysEx(s, &midiSerial[s]) ;
+									SerialMidi_RouteSysEx(s, &midiSerial[s]) ;
 
 								// Not a sysex. The message is complete.
 								else {
@@ -2191,11 +2208,11 @@ void SerialMidi_Process()
 					 else
 					 // Acknowledge any sysex error
 					 if ( midiSerial[s].isSysExError() )
-						 RouteMidiSysEx(s, &midiSerial[s]) ;
+						 SerialMidi_RouteSysEx(s, &midiSerial[s]) ;
 					 else
 					 // Check if a SYSEX mode active and send bytes on the fly.
 					 if ( midiSerial[s].isSysExMode() && midiSerial[s].isByteCaptured() ) {
-							RouteMidiSysEx(s, &midiSerial[s]) ;
+							SerialMidi_RouteSysEx(s, &midiSerial[s]) ;
 					 }
 				}
 
@@ -2249,6 +2266,11 @@ void I2C_ProcessMaster ()
       if ( I2C_SendCommand(deviceId, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE )) continue;
       if ( I2C_SendCommand(deviceId, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE )) continue;
       if ( I2C_SendCommand(deviceId, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ) continue;
+
+      // Notify slaves of debug mode. The debug mode of the slave is overwriten
+      #ifdef DEBUG_MODE
+      if ( I2C_SendCommand(deviceId, EEPROM_Params.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ) continue;
+      #endif
 
       // Get a slave midi packet eventually
       if ( I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
@@ -2343,6 +2365,10 @@ void setup()
 		// Retrieve EEPROM parameters
     EEPROM_ParamsInit();
 
+    #ifndef DEBUG_MODE
+    EEPROM_Params.debugMode = false;
+    #endif
+
     // Configure the TIMER2
     timer.pause();
     timer.setPeriod(TIMER2_RATE_MICROS); // in microseconds
@@ -2378,12 +2404,14 @@ void setup()
     if ( ! B_IS_SLAVE  ) {
         midiUSBLaunched = true;
         USBMidi_Init();
+        #ifdef DEBUG_MODE
         if (EEPROM_Params.debugMode ) {
             DEBUG_SERIAL.end();
             DEBUG_SERIAL.begin(115200);
             DEBUG_SERIAL.flush();
             delay(500);
         }
+        #endif
   	}
 
 		I2C_BusStartWire();		// Start Wire if bus mode enabled. AFTER MIDI !
