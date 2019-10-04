@@ -93,10 +93,13 @@ PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLI
 // Timer used to signal I2C events every 300 ms
 PulseOut I2C_LedTimer(0xFF,500);
 
+// Timer used to display debug msg and avoid com overflow
+PulseOut I2C_DebugTimer(0xFF,1000);
+
 // USB Midi object & globals
 USBMidi MidiUSB;
 volatile bool					midiUSBCx      = false;
-bool          midiUSBActive  = false;
+volatile bool         midiUSBIdle    = false;
 bool          midiUSBLaunched= false;
 bool 					isSerialBusy   = false ;
 unsigned long midiUSBLastPacketMillis    = 0;
@@ -136,6 +139,7 @@ void Timer2Handler(void)
      // Update LEDS & timer
      flashLEDManager.update(millis());
      I2C_LedTimer.update(millis());
+     I2C_DebugTimer.update(millis());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -197,6 +201,11 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
 	// bus traffic for Nothing
 	if ( EEPROM_Params.I2C_DeviceId == GET_DEVICEID_FROM_SERIALNO(targetPort) ) {
 		SerialMidi_SendPacket(pk, targetPort % SERIAL_INTERFACE_MAX );
+
+DEBUG_BEGIN
+DEBUG_PRINTLN("PK local sent to LOCAL SERIAL","");
+DEBUG_END
+
 		return;
 	}
 
@@ -209,6 +218,10 @@ static void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPo
     mpk.mpk.pk.i = pk->i;// Copy the midi packet and queue it
 
 		I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
+
+DEBUG_BEGIN
+DEBUG_PRINTLN("PK dest SERIAL to master Q.count=",I2C_QPacketsToMaster.available());
+DEBUG_END
 
 		return;
 	}
@@ -235,6 +248,8 @@ void I2C_SlaveReceiveEvent(int howMany)
 
   if (howMany <= 0) return;
 
+  I2C_SlaveReady = true;
+
   // It's a command ?
   // Immediate commands are managed here.
   // Those necessiting a requestFrom in the requestEvent ISR
@@ -244,15 +259,30 @@ void I2C_SlaveReceiveEvent(int howMany)
 
     //    Manage immediate commands not followed by a requestFrom
     switch (I2C_Command) {
-      case B_CMD_USB_NO_CX:
+      case B_CMD_USBCX_UNAVAILABLE:
         midiUSBCx = false;
         break;
-      case B_CMD_ENABLE_INTELLITHRU:
+
+      case B_CMD_USBCX_AVAILABLE:
+        midiUSBCx = true;
+        break;
+
+      case B_CMD_USBCX_SLEEP:
+        midiUSBIdle = true;
+        break;
+
+      case B_CMD_USBCX_AWAKE:
+        midiUSBIdle = false;
+        break;
+
+      case B_CMD_INTELLITHRU_ENABLED:
         intelliThruActive = true;
         break;
-      case B_CMD_DISABLE_INTELLITHRU:
+
+      case B_CMD_INTELLITHRU_DISABLED:
         intelliThruActive = false;
         break;
+
       case B_CMD_ALL_SLAVE_RESET:
         nvic_sys_reset();
         break;
@@ -272,10 +302,6 @@ void I2C_SlaveReceiveEvent(int howMany)
 
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS AN ISR ! - I2C Request From Master event trigger. SLAVE ONLY..
-// ---------------------------------------------------------------------------
-// This handler is trigged immediatly after a RequestFrom  from the MASTER
-// As the command byte wasn't red in the ReceiveEvent, it is available here.
-// This avoids to manage a global volatile variable to pass the command value.
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveRequestEvent ()
 {
@@ -285,7 +311,7 @@ void I2C_SlaveRequestEvent ()
   switch (I2C_Command) {
 
     case B_CMD_ISPACKET_AVAIL: {
-        I2C_SlaveReady = true;
+
         uint8_t nb = I2C_QPacketsToMaster.available() / sizeof(masterMidiPacket_t);
         Wire.write(nb);
         break;
@@ -306,7 +332,6 @@ void I2C_SlaveRequestEvent ()
 
     case B_CMD_IS_SLAVE_READY:
         Wire.write(B_STATE_READY);
-        I2C_SlaveReady = true;
         break;
   }
 
@@ -335,28 +360,56 @@ void I2C_BusStartWire()
 
 
       Wire.setClock(B_FREQ) ;
-      Wire.setTimeout(0);
+  //    Wire.setTimeout(0);
     	Wire.begin();
 
-  		// Scan BUS for active slave DEVICES. Table used only by the master.
-      // 3 rounds to collect all devices.
-      uint8_t ct = 0;
+      delay(1000); // Let time to slaves...
+
+      // Scan BUS for active slave DEVICES. Table used only by the master.
+      // 5 rounds to collect all devices.
+      uint8_t sCount = 0;
       for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) I2C_DeviceActive[d] = false;
+
+      uint8_t deviceId;
 
       for ( uint8_t i=1; i <= 3 ; i ++ )  {
   			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-          if ( !I2C_DeviceActive[d] && I2C_SendCommand(d + B_SLAVE_DEVICE_BASE_ADDR,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
+          deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
+          if ( !I2C_DeviceActive[d] && I2C_SendCommand(deviceId,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
             I2C_DeviceActive[d] = true;
-            ct++;
+            sCount++;
+
+DEBUG_BEGIN
+DEBUG_PRINTLN("Slave Id found :",deviceId);
+DEBUG_END
+
           }
-          delay(50);
+          delay(100);
   			}
        }
+
+DEBUG_BEGIN
+DEBUG_PRINTLN("SLAVES FOUND :",sCount);
+DEBUG_END
+
+       // If no slave found, reboot master in config mode
+       if ( !sCount ) {
+
+DEBUG_BEGIN
+DEBUG_PRINTLN("NO SLAVES FOUND. Reboot in config mode","");
+DEBUG_END
+
+         EEPROM_Params.nextBootMode = bootModeConfigMenu;
+         EEPROM_ParamsSave();
+         nvic_sys_reset();
+       }
+
+
 	}
 		// Slave initialization
 	else 	{
 
-      Wire.setTimeout(0);
+    //  Wire.setTimeout(0);
       Wire.begin(EEPROM_Params.I2C_DeviceId);
 	  	Wire.onRequest(I2C_SlaveRequestEvent);
 			Wire.onReceive(I2C_SlaveReceiveEvent);
@@ -650,10 +703,11 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk)
   // Stop here if IntelliThru active (no USB active but maybe connected)
   // Intellithru is always activated by the master in bus mode.
 
-  if ( intelliThruActive ) ; // return; TODO
+  if ( intelliThruActive ) return;
 
-  // Stop here if no USB connection owned by the master.
-  //if ( EEPROM_Params.I2C_DeviceId == B_MASTERID && (! midiUSBCx) ) return;
+  // Stop here if no USB connection (owned by the master).
+  // If we are a slave, the master should have notified us
+  if ( ! midiUSBCx ) return;
 
 	// Apply cable routing rules from serial or USB
 	// Only if USB connected and thru mode inactive
@@ -666,17 +720,25 @@ static void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk)
 
             // Only the master has USB midi privilege in bus MODE
             // Everybody else if an usb connection is active
-            if (B_IS_MASTER || EEPROM_Params.I2C_BusModeState == B_DISABLED) {
-              if (midiUSBCx) MidiUSB.writePacket(&(pk2.i));
+            if (! B_IS_SLAVE ) {
+                MidiUSB.writePacket(&(pk2.i));
+DEBUG_BEGIN
+DEBUG_PRINTLN("PK to local master USB","");
+DEBUG_END
+
             } else
             // A slave in bus mode ?
             // We need to add a master packet to the Master's queue.
-            if (B_IS_SLAVE ) {
+            {
                 masterMidiPacket_t mpk;
                 mpk.mpk.dest = TO_USB;
+                // Copy the midi packet to the master packet
                 mpk.mpk.pk.i = pk2.i;
-                //mpk.pk.i = pk2.i; // Copy the midi packet to the master packet
+
                 I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
+DEBUG_BEGIN
+DEBUG_PRINTLN("PK dest USB    to master Q.count=",I2C_QPacketsToMaster.available());
+DEBUG_END
             }
 
 	          #ifdef LEDS_MIDI
@@ -929,7 +991,7 @@ static void ProcessSysExInternal()
 
 			// reset globals for a real time update
 			intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
-      // midiUSBActive = true;
+      // midiUSBIdle = false;
       // midiUSBLastPacketMillis = millis()  ;
 
       break;
@@ -1055,7 +1117,7 @@ static void ProcessSysExInternal()
 			EEPROM_ParamsSave();
 
 			// reset globals for a real time update
-			// midiUSBActive = true;
+			// midiUSBIdle = false;
 			// midiUSBLastPacketMillis = millis()  ;
 
 			break;
@@ -1165,7 +1227,7 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz)
 				if (++j > 16 ) { Serial.println(); j=0; }
 				pp++;
 	}
-	Serial.println();
+	//Serial.println();
 }
 
 void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz)
@@ -1179,7 +1241,7 @@ void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz)
 				if (++j > 16 ) { DEBUG_SERIAL.println(); j=0; }
 				pp++;
 	}
-	DEBUG_SERIAL.println();
+	//DEBUG_SERIAL.println();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2053,7 +2115,7 @@ void USBMidi_Init()
 	MidiUSB.begin() ;
 	delay(1000);  // Wait fo USB to initialize
 	digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
-	midiUSBActive = true;
+	midiUSBIdle = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2068,7 +2130,7 @@ void USBMidi_Process()
 		// Do we have a MIDI USB packet available ?
 		if ( MidiUSB.available() ) {
 			midiUSBLastPacketMillis = millis()  ;
-			midiUSBActive = true;
+			midiUSBIdle = false;
 			intelliThruActive = false;
 
 			// Read a Midi USB packet .
@@ -2080,12 +2142,12 @@ void USBMidi_Process()
 					isSerialBusy = false ;
 			}
 		} else
-		if (midiUSBActive && millis() > ( midiUSBLastPacketMillis + intelliThruDelayMillis ) )
-				midiUSBActive = false;
+		if (!midiUSBIdle && millis() > ( midiUSBLastPacketMillis + intelliThruDelayMillis ) )
+				midiUSBIdle = true;
 	}
 	// Are we physically connected to USB
 	else {
-		 midiUSBActive = false;
+		 midiUSBIdle = true;
 	}
 
 	// SET CONNECT LED STATUS. We use gpio instead digitalWrite to be really fast, in that case....
@@ -2095,10 +2157,10 @@ void USBMidi_Process()
 	gpio_write_bit(PIN_MAP[LED_CONNECT].gpio_device,PIN_MAP[LED_CONNECT].gpio_bit, midiUSBCx ? 0 : 1 );
 	#endif
 
-	if ( !midiUSBActive && !intelliThruActive && EEPROM_Params.intelliThruJackInMsk) {
+	if ( midiUSBIdle && !intelliThruActive && EEPROM_Params.intelliThruJackInMsk) {
 			intelliThruActive = true;
 			#ifdef LEDS_MIDI
-			FlashAllLeds(0); // All leds when Midi thru mode active
+			FlashAllLeds(0); // All leds when Midi intellithru mode active
 			#endif
 	}
 
@@ -2151,7 +2213,12 @@ int16_t I2C_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
 {
     uint8_t nb = I2C_SendCommand(deviceId,B_CMD_GET_MPACKET);
     if ( nb > 0 ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
+
+DEBUG_BEGIN
+DEBUG_PRINT("GetPk (","");
 DEBUG_DUMP(mpk->packet,sizeof(masterMidiPacket_t));
+DEBUG_END
+
     return (nb) ;
 }
 
@@ -2174,31 +2241,49 @@ void I2C_ProcessMaster ()
 
 	for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
 
+      if ( ! I2C_DeviceActive[d] )  continue;
       deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
-      if ( ! I2C_DeviceActive[d] )
-      {
-        // Try to reactivate that device eventually (a kind of "hot plug" approach)
-        //if ( ! (I2C_DeviceActive[d] = I2C_isDeviceActive(deviceId) ) )
-        continue;
-      }
 
-      if ( uint err = I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
-      if ( uint err = I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing got
+      // Update USB state
+      // Notify slaves of USB midi state & intellithru mode
+      if ( I2C_SendCommand(deviceId, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE )) continue;
+      if ( I2C_SendCommand(deviceId, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE )) continue;
+      if ( I2C_SendCommand(deviceId, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ) continue;
+
+      // Get a slave midi packet eventually
+      if ( I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
+      if ( I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing got
       if ( mpk.mpk.pk.i == 0 ) continue;  // Process only non empty packets
 
       if ( mpk.mpk.dest == TO_SERIAL ) {
           uint8_t targetPort = mpk.mpk.pk.packet[0] >> 4;
           I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
 
+DEBUG_BEGIN
+DEBUG_PRINTLN(" Sent to BUS serial. target port ",targetPort);
+DEBUG_END
+
          // Send to a cable IN only if USB is available on the master
        } else if ( mpk.mpk.dest == TO_USB )
-        //&& midiUSBCx && midiUSBActive && !intelliThruActive)
+        //&& midiUSBCx && !midiUSBdle && !intelliThruActive)
        {
+
           MidiUSB.writePacket(&(mpk.mpk.pk.i));
+
+DEBUG_BEGIN
+DEBUG_PRINTLN(" Sent to USB","");
+DEBUG_END
+
        }
       // else ignore that packet....
 
 	} // for
+
+DEBUG_BEGIN_TIMER
+DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
+DEBUG_ASSERT(midiUSBIdle,"USB Midi idle","");
+DEBUG_ASSERT(intelliThruActive,"Intellithru active","");
+DEBUG_END
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2211,9 +2296,27 @@ void I2C_ProcessSlave ()
 			midiPacket_t pk;
 			// These packets are mandatory local as a result of the routing
 			I2C_QPacketsFromMaster.readBytes(pk.packet,sizeof(midiPacket_t));
+
+DEBUG_BEGIN
+DEBUG_PRINT("Read Master Q :","");
+DEBUG_DUMP(pk.packet,sizeof(midiPacket_t));
+DEBUG_PRINTLN(". count=",I2C_QPacketsFromMaster.available()/sizeof(midiPacket_t));
+DEBUG_END
+
 			SerialMidi_SendPacket(&pk, (pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX );
+
+DEBUG_BEGIN
+DEBUG_PRINTLN(" Sent to local serial ",(pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX );
+DEBUG_END
+
 	}
 
+
+DEBUG_BEGIN_TIMER
+DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
+DEBUG_ASSERT(midiUSBIdle,"USB Midi idle","");
+DEBUG_ASSERT(intelliThruActive,"Intellithru active","");
+DEBUG_END
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
 	if (Serial) {

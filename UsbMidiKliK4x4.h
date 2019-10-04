@@ -130,12 +130,15 @@ enum BusCommand {
   B_CMD_NONE=0,
   B_CMD_ISPACKET_AVAIL,
   B_CMD_GET_MPACKET,
+  B_CMD_IS_SLAVE_READY,
+  B_CMD_USBCX_AVAILABLE,
+  B_CMD_USBCX_UNAVAILABLE,
+  B_CMD_USBCX_SLEEP,
+  B_CMD_USBCX_AWAKE,
+  B_CMD_INTELLITHRU_ENABLED,
+  B_CMD_INTELLITHRU_DISABLED,
   B_CMD_ALL_SLAVE_RESET,
   B_CMD_ALL_SLAVE_SYNC_ROUTING,
-  B_CMD_ENABLE_INTELLITHRU,
-  B_CMD_DISABLE_INTELLITHRU,
-  B_CMD_USB_NO_CX,
-  B_CMD_IS_SLAVE_READY
 } ;
 
 #define   B_STATE_READY 1
@@ -143,15 +146,18 @@ enum BusCommand {
 
 // Corresponding "requestFrom" answer bytes size without command
 uint8_t static const BusCommandRequestSize[]= {
-  0,                        // B_CMD_NONE
-  1,                        // B_CMD_ISPACKET_AVAIL
-  sizeof(midiPacket_t),     // B_CMD_GET_PACKET
-  0,                        // B_CMD_ALL_SLAVE_RESET
-  0,                        // B_CMD_ALL_SLAVE_SYNC_ROUTING
-  0,                        // B_CMD_ENABLE_INTELLITHRU
-  0,                        // B_CMD_DISABLE_INTELLITHRU
-  0,                        // B_CMD_USB_NO_CX
-  1,                        // B_CMD_IS_SLAVE_READY
+  0,                         // B_CMD_NONE
+  1,                         // B_CMD_ISPACKET_AVAIL
+  sizeof(masterMidiPacket_t),// B_CMD_GET_MPACKET
+  1,                         // B_CMD_IS_SLAVE_READY
+  0,                         // B_CMD_USBCX_AVAILABLE
+  0,                         // B_CMD_USBCX_UNAVAILABLE
+  0,                         // B_CMD_USBCX_SLEEP
+  0,                         // B_CMD_USBCX_AWAKE
+  0,                         // B_CMD_INTELLITHRU_ENABLED
+  0,                         // B_CMD_INTELLITHRU_DISABLED
+  0,                         // B_CMD_ALL_SLAVE_RESET
+  0,                         // B_CMD_ALL_SLAVE_SYNC_ROUTING,
 };
 
 // Macro to compute the max serial port in bus mode or not.
@@ -170,16 +176,16 @@ uint8_t static const BusCommandRequestSize[]= {
 // Macro for debugging purpose when MIDI active
 #define DEBUG_SERIAL Serial1
 
-#define DBG_PR(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
-#define DBG_PRBIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val),BIN);} else {Serial.print((txt));Serial.println((val),BIN);}
-#define DBG_PRHEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val),HEX);} else {Serial.print((txt));Serial.println((val),HEX);}
-#define DBG_DP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
+#define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
+#define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
+#define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
+#define DEBUG_PRINT_HEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),HEX);} else {Serial.print((txt));Serial.print((val),HEX);}
+#define DEBUG_DUMP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
+#define DEBUG_ASSERT(cond,txt,val) if ( (cond) ) { DEBUG_PRINTLN(txt,val) }
 
-#define DEBUG_PRINT(txt,val) if ( EEPROM_Params.debugMode) { DBG_PR(txt,val) }
-#define DEBUG_PRINT_BIN(txt,val) if ( EEPROM_Params.debugMode) { DBG_PRBIN(txt,val) }
-#define DEBUG_PRINT_HEX(txt,val) if ( EEPROM_Params.debugMode) { DBG_PRHEX(txt,val) }
-#define DEBUG_ASSERT(cond,txt,val) if ( EEPROM_Params.debugMode && (cond) ) { DBG_PR(txt,val) }
-#define DEBUG_DUMP(buff,sz) if ( EEPROM_Params.debugMode ) { DBG_DP(buff,sz) }
+#define DEBUG_BEGIN if ( EEPROM_Params.debugMode) {
+#define DEBUG_BEGIN_TIMER if ( EEPROM_Params.debugMode && I2C_DebugTimer.start() ) {
+#define DEBUG_END }
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
