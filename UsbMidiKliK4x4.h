@@ -91,7 +91,6 @@ const midiPacket_t NULL_MIDI_PACKET = { .i = 0 };
   #define FLASH_LED_OUT(thisLed) flashLED_CONNECT->start()
 #endif
 
-
 // MIDI Routing rules
 
 enum MidiRouteSourceDest {
@@ -112,8 +111,8 @@ enum MidiRouteSourceDest {
 
 // BUS MODE (I2C)
 
-#define B_RING_BUFFER_PACKET_SIZE  8*sizeof(midiPacket_t)
-#define B_RING_BUFFER_MPACKET_SIZE 8*sizeof(masterMidiPacket_t)
+#define B_RING_BUFFER_PACKET_SIZE  32*sizeof(midiPacket_t)
+#define B_RING_BUFFER_MPACKET_SIZE 32*sizeof(masterMidiPacket_t)
 
 // 16 cables/jacks is the maximum value allowed by the midi usb standard
 #define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
@@ -168,13 +167,19 @@ uint8_t static const BusCommandRequestSize[]= {
 // Macro to compute a "virtual bus serial port" from a local device and serial port
 #define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
 
-// Macro for debugging purpose
+// Macro for debugging purpose when MIDI active
+#define DEBUG_SERIAL Serial1
 
-#define DEBUG_PRINT(txt,val) Serial.print((txt));Serial.println((val))
-#define DEBUG_PRINT_BIN(txt,val) Serial.print((txt));Serial.println((val),BIN)
-#define DEBUG_PRINT_HEX(txt,val) Serial.print((txt));Serial.println((val),HEX)
+#define DBG_PR(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
+#define DBG_PRBIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val),BIN);} else {Serial.print((txt));Serial.println((val),BIN);}
+#define DBG_PRHEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val),HEX);} else {Serial.print((txt));Serial.println((val),HEX);}
+#define DBG_DP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
 
-
+#define DEBUG_PRINT(txt,val) if ( EEPROM_Params.debugMode) { DBG_PR(txt,val) }
+#define DEBUG_PRINT_BIN(txt,val) if ( EEPROM_Params.debugMode) { DBG_PRBIN(txt,val) }
+#define DEBUG_PRINT_HEX(txt,val) if ( EEPROM_Params.debugMode) { DBG_PRHEX(txt,val) }
+#define DEBUG_ASSERT(cond,txt,val) if ( EEPROM_Params.debugMode && (cond) ) { DBG_PR(txt,val) }
+#define DEBUG_DUMP(buff,sz) if ( EEPROM_Params.debugMode ) { DBG_DP(buff,sz) }
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
