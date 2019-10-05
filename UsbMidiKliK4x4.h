@@ -180,7 +180,7 @@ uint8_t static const BusCommandRequestSize[]= {
 // Macro for debugging purpose when MIDI active
 
 // Comment this to remove all debug instructions from the compilation.
-//#define DEBUG_MODE
+#define DEBUG_MODE
 
 #define DEBUG_SERIAL Serial3
 #ifdef DEBUG_MODE

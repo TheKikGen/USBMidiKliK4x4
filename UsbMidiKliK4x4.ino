@@ -368,34 +368,31 @@ void I2C_BusStartWire()
 
 	if ( EEPROM_Params.I2C_DeviceId == B_MASTERID ) {
 
-
       Wire.setClock(B_FREQ) ;
       // NB : default timemout is 1 sec. Possible to change that with Wire.setTimeout(x);
       // before the begin.
     	Wire.begin();
 
-      delay(1000); // Let time to slaves...
-
       // Scan BUS for active slave DEVICES. Table used only by the master.
       // 5 rounds to collect all devices.
-      uint8_t sCount = 0;
       for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) I2C_DeviceActive[d] = false;
 
       uint8_t deviceId;
+      uint8_t sCount = 0;
 
-      for ( uint8_t i=1; i <= 3 ; i ++ )  {
+      for ( uint8_t i=1; i <= 5 ; i ++ )  {
+        sCount = 0;
   			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
           deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
-          if ( !I2C_DeviceActive[d] && I2C_SendCommand(deviceId,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
+          if ( I2C_SendCommand(deviceId,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
             I2C_DeviceActive[d] = true;
             sCount++;
 
 DEBUG_BEGIN
 DEBUG_PRINTLN("Slave Id found :",deviceId);
 DEBUG_END
-
           }
-          delay(100);
+          delay(5);
   			}
        }
 
@@ -432,6 +429,7 @@ DEBUG_END
 			delay(500);
 
       ShowMidiKliKHeader();Serial.println();
+      Serial.println("Type C to activate config mode on USB serial.");
 			Serial.print("Slave ");Serial.print(EEPROM_Params.I2C_DeviceId);
 			Serial.println(" ready and listening.");
 	}
@@ -2130,9 +2128,7 @@ void USBMidi_Init()
 	usb_midi_set_product_string((char *) &EEPROM_Params.productString);
 
 	MidiUSB.begin() ;
-	delay(1000);  // Wait fo USB to initialize
-	digitalWrite(LED_CONNECT,MidiUSB.isConnected() ?  LOW : HIGH);
-	midiUSBIdle = false;
+  delay(4000); // Usually around 4 secondes to detect USB Midi on the host
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2142,7 +2138,10 @@ void USBMidi_Process()
 {
 	// Try to connect/reconnect USB if we detect a high level on USBDM
 	// This is to manage the case of a powered device without USB active or suspend mode for ex.
-	if ( midiUSBCx = MidiUSB.isConnected() ) {
+	if ( MidiUSB.isConnected() ) {
+
+    if (! midiUSBCx) digitalWrite(LED_CONNECT, LOW);
+    midiUSBCx = true;
 
 		// Do we have a MIDI USB packet available ?
 		if ( MidiUSB.available() ) {
@@ -2164,21 +2163,14 @@ void USBMidi_Process()
 	}
 	// Are we physically connected to USB
 	else {
-		 midiUSBIdle = true;
-	}
-
-	// SET CONNECT LED STATUS. We use gpio instead digitalWrite to be really fast, in that case....
-	// We lost the Arduino compatibility here...
-	// We do that only when dedicated LEDs exist for MIDI (i.e. not the Blue Pill)...
-	#ifdef LEDS_MIDI
-	gpio_write_bit(PIN_MAP[LED_CONNECT].gpio_device,PIN_MAP[LED_CONNECT].gpio_bit, midiUSBCx ? 0 : 1 );
-	#endif
+       if (midiUSBCx) digitalWrite(LED_CONNECT, HIGH);
+       midiUSBCx = false;
+		   midiUSBIdle = true;
+  }
 
 	if ( midiUSBIdle && !intelliThruActive && EEPROM_Params.intelliThruJackInMsk) {
 			intelliThruActive = true;
-			#ifdef LEDS_MIDI
 			FlashAllLeds(0); // All leds when Midi intellithru mode active
-			#endif
 	}
 
 }
@@ -2191,7 +2183,6 @@ void SerialMidi_Process()
 	// LOCAL SERIAL JACK MIDI IN PROCESS
 	for ( uint8_t s = 0; s< SERIAL_INTERFACE_MAX  ; s++ )
 	{
-
 				// Do we have any MIDI msg on Serial 1 to n ?
 				if ( serialHw[s]->available() ) {
 					 if ( midiSerial[s].parse( serialHw[s]->read() ) ) {
@@ -2256,21 +2247,20 @@ void I2C_ProcessMaster ()
   masterMidiPacket_t mpk;
   uint8_t deviceId;
 
-	for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
+  // Broadcast slaves of USB midi state & intellithru mode
+  I2C_SendCommand(0, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE);
+  I2C_SendCommand(0, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE );
+  I2C_SendCommand(0, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ;
+
+  // Notify slaves of debug mode. The debug mode of the slave is overwriten
+  #ifdef DEBUG_MODE
+  I2C_SendCommand(0, EEPROM_Params.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ;
+  #endif
+
+  for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
 
       if ( ! I2C_DeviceActive[d] )  continue;
       deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
-
-      // Update USB state
-      // Notify slaves of USB midi state & intellithru mode
-      if ( I2C_SendCommand(deviceId, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE )) continue;
-      if ( I2C_SendCommand(deviceId, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE )) continue;
-      if ( I2C_SendCommand(deviceId, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ) continue;
-
-      // Notify slaves of debug mode. The debug mode of the slave is overwriten
-      #ifdef DEBUG_MODE
-      if ( I2C_SendCommand(deviceId, EEPROM_Params.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ) continue;
-      #endif
 
       // Get a slave midi packet eventually
       if ( I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
@@ -2341,8 +2331,12 @@ DEBUG_ASSERT(intelliThruActive,"Intellithru active","");
 DEBUG_END
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
-	if (Serial) {
-				//ShowConfigMenu();
+	if (Serial.available()) {
+      if (Serial.read() == 'C') {
+        Wire.flush();
+        Wire.end();
+        ShowConfigMenu();
+      }
 	}
 }
 

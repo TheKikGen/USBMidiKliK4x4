@@ -67,10 +67,10 @@ typedef struct {
         uint8_t         prmVersion;
         uint8_t         TimestampedVersion[14];
         uint8_t         nextBootMode;
-        boolean         debugMode; 
+        boolean         debugMode;
 
 
-        // I2C device when not master
+        // I2C device 
         uint8_t         I2C_DeviceId;
 
         // I2C BUS Mode state
