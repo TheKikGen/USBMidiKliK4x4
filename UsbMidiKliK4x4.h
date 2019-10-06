@@ -42,6 +42,7 @@
 #pragma once
 
 
+// Routing rules structures
 typedef struct {
       uint8_t  filterMsk;
       uint16_t cableInTargetsMsk;
@@ -53,13 +54,13 @@ typedef struct {
       uint16_t jackOutTargetsMsk;
 } __packed midiRoutingRuleJack_t;
 
-// Use this structure to send and receive packet to/from USB
+// Use this structure to send and receive packet to/from USB /serial/BUS
 typedef union  {
     uint32_t i;
     uint8_t  packet[4];
-} midiPacket_t;
+} __packed midiPacket_t;
 
-// Specific midi packet for master .
+// Specific midi packet for master on BUS.
 // packed clause is mandatory to reflect the real size!!!
 typedef union {
   struct {
@@ -68,8 +69,6 @@ typedef union {
   } __packed mpk;
   uint8_t packet[5];
 } __packed masterMidiPacket_t;
-
-const midiPacket_t NULL_MIDI_PACKET = { .i = 0 };
 
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
@@ -111,8 +110,8 @@ enum MidiRouteSourceDest {
 
 // BUS MODE (I2C)
 
-#define B_RING_BUFFER_PACKET_SIZE  32*sizeof(midiPacket_t)
-#define B_RING_BUFFER_MPACKET_SIZE 32*sizeof(masterMidiPacket_t)
+#define B_RING_BUFFER_PACKET_SIZE  16*sizeof(midiPacket_t)
+#define B_RING_BUFFER_MPACKET_SIZE 16*sizeof(masterMidiPacket_t)
 
 // 16 cables/jacks is the maximum value allowed by the midi usb standard
 #define B_MAX_NB_DEVICE 16/SERIAL_INTERFACE_MAX
@@ -123,11 +122,11 @@ enum MidiRouteSourceDest {
 #define B_DISABLED 0
 #define B_ENABLED 1
 #define B_FREQ 100000
-#define B_SLAVE_REBOOT_TIMEOUT  5000
+#define B_MASTER_READY_TIMEOUT 5000
 
 // Bus commands
 enum BusCommand {
-  B_CMD_NONE=0,
+  B_CMD_NONE,
   B_CMD_ISPACKET_AVAIL,
   B_CMD_GET_MPACKET,
   B_CMD_IS_SLAVE_READY,
@@ -137,14 +136,26 @@ enum BusCommand {
   B_CMD_USBCX_AWAKE,
   B_CMD_INTELLITHRU_ENABLED,
   B_CMD_INTELLITHRU_DISABLED,
-  B_CMD_ALL_SLAVE_RESET,
-  B_CMD_ALL_SLAVE_SYNC_ROUTING,
+  B_CMD_HARDWARE_RESET,
+  B_CMD_START_SYNC,
+  B_CMD_END_SYNC,
   B_CMD_DEBUG_MODE_ENABLED,
   B_CMD_DEBUG_MODE_DISABLED,
 } ;
 
+// Bus data types for transfers
+enum BusDataType {
+  B_DTYPE_MIDI_ROUTING_RULES_CABLE,
+  B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
+  B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
+  B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
+  B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
+};
+
 #define   B_STATE_READY 1
 #define   B_STATE_BUSY  0
+#define   B_STATE_KO 1
+#define   B_STATE_OK 0
 
 // Corresponding "requestFrom" answer bytes size without command
 uint8_t static const BusCommandRequestSize[]= {
@@ -158,8 +169,9 @@ uint8_t static const BusCommandRequestSize[]= {
   0,                         // B_CMD_USBCX_AWAKE
   0,                         // B_CMD_INTELLITHRU_ENABLED
   0,                         // B_CMD_INTELLITHRU_DISABLED
-  0,                         // B_CMD_ALL_SLAVE_RESET
-  0,                         // B_CMD_ALL_SLAVE_SYNC_ROUTING,
+  0,                         // B_CMD_B_CMD_HARDWARE_RESET
+  0,                         // B_CMD_START_SYNC,
+  0,                         // B_CMD_END_SYNC,
   0,                         // B_CMD_DEBUG_MODE_ENABLED
   0,                         // B_CMD_DEBUG_MODE_DISABLED
 };
@@ -182,8 +194,8 @@ uint8_t static const BusCommandRequestSize[]= {
 // Comment this to remove all debug instructions from the compilation.
 #define DEBUG_MODE
 
-#define DEBUG_SERIAL Serial3
 #ifdef DEBUG_MODE
+  #define DEBUG_SERIAL Serial3
   #define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
   #define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
   #define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
@@ -212,17 +224,32 @@ uint8_t static const BusCommandRequestSize[]= {
 
 // Functions prototypes
 void Timer2Handler(void);
+void FlashAllLeds(uint8_t);
 static void SerialSendMidiMsg(uint8_t const *, uint8_t);
 static void SerialSendMidiPacket(const midiPacket_t *, uint8_t);
-static void RouteMidiMsg( uint8_t, midiXparser* ) ;
-static void RouteSysExMidiMsg( uint8_t , midiXparser*  ) ;
-static void ParseSysExInternal(const midiPacket_t *) ;
-static void RoutePacketToTarget(uint8_t, const midiPacket_t *) ;
-static void ProcessSysExInternal() ;
-void EEPROM_Check(bool);
+static void I2C_BusSerialSendMidiPacket(const midiPacket_t *, uint8_t );
+int8_t I2C_ParseDataSync(uint8_t ,uint8_t ,uint8_t );
+void I2C_ParseImmediateCmd();
+void I2C_SlaveReceiveEvent(int);
+void I2C_SlaveRequestEvent ();
+void I2C_BusChecks();
+void I2C_BusStartWire();
+int16_t I2C_SendCommand(uint8_t,BusCommand);
+void I2C_ShowActiveDevice();
+static void SerialMidi_RouteMsg( uint8_t, midiXparser*  );
+static void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
+static void ParseSysExInternal(const midiPacket_t *);
+static void RoutePacketToTarget(uint8_t , const midiPacket_t *);
+void ResetMidiRoutingRules(uint8_t);
+static void ProcessSysExInternal();
+void EEPROM_ParamsInit(bool );
+void PrintCleanHEX(uint8_t);
+void ShowBufferHexDump(uint8_t* , uint16_t );
+void ShowBufferHexDumpDebugSerial(uint8_t* , uint16_t );
+void EEPROM_Put(uint8_t* ,uint16_t );
+void EEPROM_Get(uint8_t* ,uint16_t );
 void EEPROM_ParamsLoad();
 void EEPROM_ParamsSave();
-
 static uint8_t GetInt8FromHexChar(char);
 static uint16_t GetInt16FromHex4Char(char *);
 static uint16_t GetInt16FromHex4Bin(char * );
@@ -230,8 +257,26 @@ static uint16_t AsknNumber(uint8_t) ;
 static char AskDigit();
 static char AskChar();
 static uint8_t AsknHexChar(char *, uint8_t ,char,char);
+char AskChoice(const char * , char * );
+void ShowMidiRoutingLine(uint8_t ,uint8_t , void *);
+void ShowMidiRouting(uint8_t);
+static void ShowMidiKliKHeader();
 static void ShowGlobalSettings();
+uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
+void AskMidiRouting(uint8_t);
+uint8_t AskMidiFilter(uint8_t, uint8_t );
+void AskProductString();
+void AskVIDPID();
 void ShowConfigMenu();
-void PrintCleanHEX(uint8_t);
+void CheckBootMode();
+void USBMidi_Init();
+void USBMidi_Process();
+void SerialMidi_Process();
+int16_t I2C_getPacket(uint8_t , masterMidiPacket_t *);
+boolean I2C_isDeviceActive(uint8_t );
+int8_t I2C_SendData(const uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
+void I2C_SlavesRoutingSyncFromMaster();
+void I2C_ProcessMaster ();
+void I2C_ProcessSlave ();
 
 #endif
