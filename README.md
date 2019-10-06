@@ -16,25 +16,40 @@ The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to
 Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
 I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
 
+The current version V2 supports full USB midi unt 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode". 
+
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+
+## USBMidiKliK4x4 features
+
++ 16 MIDI IN / 16 MDI OUT Support 
++ Support 15 JACK IN / 15 JACK OUT in bus mode
++ Configuration with SYSEX and/or and interactive menu from a serial USB terminal
++ Complex routing rules also configurables by sysex or from an interactive user menu
++ Routing rules allowing MIDI MERGE, SPLIT easily on any ports available.
++ Ability to route any USB IN to any USB OUT/ MIDI OUT 
++ Midi messages filtering : channel voice, system common, realtime, sysex
++ Support of very big SYSEX dump files transmission
++ Hardware reset remotely by Sysex 
++ Sysex to switch to configuration menu serial mode instead of MIDI USB
++ USB device ProductStringName, Vendor and Product Ids can be changed easily
++ STANDALONE Mode :  can be used as a standalone MIDI routing box without connecting any host to the USB
++ Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
++ Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
+
+Configuration is stored in EEPROM and persists after power off. 
 
 ## Bluepill and USBMidiKlik 3x3
 
-I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  Contact me for more details.
-
 <img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
 
+I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.
 
-## USBMidiKliK4x4 firmware
+The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android. 
 
-This firmware was entirely written from scratch, without hacking, or reverse-engineering anything from Miditech / Midiplus. 
-The current version supports full USB midi 4xIN , 4XOUT plus routing features, enabling configurables standalone mode, "4 merge" mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103. 
+Contact me for more details.
 
-So I can say my modified Miditech USB interface is now better than the original, and, the most important, stackable with my other one as I changed, obviously,  the Product ID !  I use them almost everyday. 
-
-The code was mainly adapted from my other single USBMidiKlik project, developed on the AVR platform.
-
-# USBMidiKliK4x4 Dual - SYSEX
+# USBMidiKliK4x4 - SYSEX
 
 The system exclusive messages format is the following :
 
