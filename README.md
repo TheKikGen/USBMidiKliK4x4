@@ -25,9 +25,6 @@ I was stucked....That was motivating me enough to write a totally new and better
 
 I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  Contact me for more details.
 
-<img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
-
-
 ## USBMidiKliK4x4 firmware
 
 This firmware was entirely written from scratch, without hacking, or reverse-engineering anything from Miditech / Midiplus. 
