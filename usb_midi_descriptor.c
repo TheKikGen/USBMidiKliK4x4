@@ -1,44 +1,45 @@
 /*
-  USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
-  Based on the MIDITECH / MIDIPLUS 4X4 harware.
-  Copyright (C) 2017/2018 by The KikGen labs.
-
-  DEVICE DESCRIPTOR
-
-  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
-  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
-
-  ------------------------   CAUTION  ----------------------------------
-  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.
-  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT
-  DISASSEMBLING ANY SOFTWARE FROM MIDITECH/MIDIPLUS.
-
-  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI
-  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY.
-
-  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE
-  WITH THE MIDITECH/MIDIPLUS TOOLS AND PROCEDURES. NO ROLLBACK.
-
-  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE.
-  YOU DO IT AT YOUR OWN RISKS.
-  ---------------------------------------------------------------------
+  -----------------------------------------------------------------------------
+  USBMIDIKLIK 4X4 - USB Midi advanced firmware for STM32F1 platform.
+  Copyright (C) 2019 by The KikGen labs.
+  LICENCE CREATIVE COMMONS - Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
 
   This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
-  Copyright (c) 2018 TheKikGen Labs team.
+  Copyright (c) 2019 TheKikGen Labs team.
+  -----------------------------------------------------------------------------
+  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
+  GPL Licence.
+  -----------------------------------------------------------------------------
+  Disclaimer.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, version 3.
+  This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License.
+  To view a copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/
+  or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  NON COMMERCIAL - PERSONAL USE ONLY : You may not use the material for pure
+  commercial closed code solution without the licensor permission.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
+  You are free to copy and redistribute the material in any medium or format,
+  adapt, transform, and build upon the material.
 
+  You must give appropriate credit, a link to the github site
+  https://github.com/TheKikGen/USBMidiKliK4x4 , provide a link to the license,
+  and indicate if changes were made. You may do so in any reasonable manner,
+  but not in any way that suggests the licensor endorses you or your use.
+
+  You may not apply legal terms or technological measures that legally restrict
+  others from doing anything the license permits.
+
+  You do not have to comply with the license for elements of the material
+  in the public domain or where your use is permitted by an applicable exception
+  or limitation.
+
+  No warranties are given. The license may not give you all of the permissions
+  necessary for your intended use.  This program is distributed in the hope that
+  it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
 // ---------------------------------------------------------------
@@ -81,25 +82,25 @@ typedef struct {
     usb_descriptor_interface           MS_Interface;
     MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface;
 
-    // MIDI IN DESCRIPTORS - 16 PAIRS MAX 
-    // 4 PORTS IS THE MINIMUM. 
-    
+    // MIDI IN DESCRIPTORS - 16 PAIRS MAX
+    // 4 PORTS IS THE MINIMUM.
+
     // Embedded
 
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_2;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_3;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_4;
-  
+
    #if USB_MIDI_IO_PORT_NUM >= 8
 
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_5;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_6;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_7;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_8;
-    
+
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_9;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_A;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_B;
@@ -108,7 +109,7 @@ typedef struct {
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_E;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_F;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_10;
-    
+
     #endif
 
   #endif
@@ -125,9 +126,9 @@ typedef struct {
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_16;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_17;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_18;
-    
+
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_19;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1A;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1B;
@@ -136,14 +137,14 @@ typedef struct {
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1E;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1F;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_20;
-    
+
     #endif
 
-  #endif    
+  #endif
 
     // MIDI OUT DESCRIPTORS - 16 PAIRS MAX
     // Embedded
-    
+
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_21;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_22;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_23;
@@ -155,9 +156,9 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_26;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_27;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_28;
-    
+
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_29;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2A;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2B;
@@ -166,10 +167,10 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2E;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2F;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_30;
-    
+
     #endif
 
-  #endif    
+  #endif
 
 
     // External
@@ -179,14 +180,14 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_34;
 
    #if USB_MIDI_IO_PORT_NUM >= 8
-   
+
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_35;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_36;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_37;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_38;
-    
+
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_39;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3A;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3B;
@@ -195,10 +196,10 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3E;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3F;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_40;
-    
+
     #endif
 
-  #endif    
+  #endif
 
 
 
@@ -305,7 +306,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x04,
         .iJack              = 0x05,  // MIDI OUT 1
     },
-   
+
    #if USB_MIDI_IO_PORT_NUM >= 8
 
     .MIDI_IN_JACK_5 = {
@@ -342,7 +343,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     },
 
     #if USB_MIDI_IO_PORT_NUM >= 16
-        
+
     .MIDI_IN_JACK_9 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -411,7 +412,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
    #endif
 
     // MIDI IN JACK - EXTERNAL - 16 Descriptors -----------------------------
-    
+
     .MIDI_IN_JACK_11 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -445,7 +446,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x00,
     },
   #if USB_MIDI_IO_PORT_NUM >= 8
-  
+
     .MIDI_IN_JACK_15 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -480,7 +481,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     },
 
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     .MIDI_IN_JACK_19 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -643,7 +644,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     },
 
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     .MIDI_OUT_JACK_29 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -734,7 +735,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     },
   #endif
     #endif
-    
+
 
     // MIDI OUT JACK - EXTERNAL - 16 Descriptors -----------------------------
 
@@ -782,9 +783,9 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .baSourcePin        = {0x01},
         .iJack              = 0x00,
     },
-    
+
     #if USB_MIDI_IO_PORT_NUM >= 8
-    
+
     .MIDI_OUT_JACK_35 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -831,7 +832,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
     },
 
     #if USB_MIDI_IO_PORT_NUM >= 16
-    
+
     .MIDI_OUT_JACK_39 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -946,14 +947,14 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
       .bNumEmbMIDIJack      = USB_MIDI_IO_PORT_NUM,
       .baAssocJackID        = {
         0x01,0X02,0X03,0X04,
-        
+
         #if USB_MIDI_IO_PORT_NUM >= 8
         0X05,0X06,0X07,0X08,
-        
+
         #if USB_MIDI_IO_PORT_NUM >= 16
         0X09,0X0A,0X0B,0X0C,
         0X0D,0X0E,0X0F,0X10
-        
+
         #endif
         #endif
 
@@ -982,7 +983,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
 
         #if USB_MIDI_IO_PORT_NUM >= 8
         0X25,0X26,0X27,0X28,
-        
+
         #if USB_MIDI_IO_PORT_NUM >= 16
         0X29,0X2A,0X2B,0X2C,
         0X2D,0X2E,0X2F,0X30
@@ -1084,5 +1085,3 @@ static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = 
     {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },
     {(uint8*)&usbMIDIDescriptor_iJackOut1,    USB_DESCRIPTOR_STRING_LEN(10) },
 };
-
-

@@ -1,10 +1,10 @@
 /*!
- *  @file       midi_RingBuffer.h
- *  Project     Arduino MIDI Library
- *  @brief      MIDI Library for Arduino - Ring Buffer
- *  @author     Francois Best
- *  @date       10/10/2016
- *  @license    MIT - Copyright (c) 2016 Francois Best
+ *  RING BUFFER TEMPLATE CLASS.
+ *
+ * Original work from Francois Best for the Arduino MIDI Library
+ * license    MIT - Copyright (c) 2016 Francois Best
+ *
+ * Modified by TheKikGen Labs for the UsbMidiKliK4x4 project.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,8 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ *
  */
 
 #pragma once
@@ -135,5 +137,3 @@ void RingBuffer<DataType, Size>::readBytes(DataType* outData, int inSize) volati
         outData[i] = read();
     }
 }
-
-
