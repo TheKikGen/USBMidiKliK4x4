@@ -1051,7 +1051,7 @@ static void ProcessSysExInternal()
 		//  01 Disable
 		//  02 Set Delay <number of 15s periods 1-127>
 		//  03 Set thu mode jack routing +
-		//          . Midi In Jack = < Midi In Jack # 1-4 = 0-3>
+		//          . Midi In Jack = < Midi In Jack # = 0-F>
 		//          . Midi Msg filter mask
 		//                  zero if you want to inactivate intelliThru for this jack
 		//                  channel Voice = 0001 (1),

@@ -193,7 +193,6 @@ uint8_t static const BusCommandRequestSize[]= {
 
 // Comment this to remove all debug instructions from the compilation.
 //#define DEBUG_MODE
-
 #define DEBUG_SERIAL Serial3
 #ifdef DEBUG_MODE
   #define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
