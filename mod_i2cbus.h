@@ -77,13 +77,12 @@ void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPort)
 	// bus traffic for Nothing
 	if ( EEPROM_Params.I2C_DeviceId == GET_DEVICEID_FROM_SERIALNO(targetPort) ) {
 		SerialMidi_SendPacket(pk, targetPort % SERIAL_INTERFACE_MAX );
-
-DEBUG_BEGIN
-DEBUG_PRINTLN("PK local sent to LOCAL SERIAL","");
-DEBUG_END
-
 		return;
 	}
+
+	// packet copy to change the local target serial of the source
+	midiPacket_t pk2 = { .i = pk->i };
+	pk2.packet[0] = ( (targetPort % SERIAL_INTERFACE_MAX) << 4 ) + (pk2.packet[0] & 0x0F);
 
 	// If we are a slave, we can't talk directly to the bus.
 	// So, store the "to transmit" packet, waiting for a RequestFrom.
@@ -91,14 +90,8 @@ DEBUG_END
   if ( EEPROM_Params.I2C_DeviceId != B_MASTERID ) {
     masterMidiPacket_t mpk;
     mpk.mpk.dest = TO_SERIAL;
-    mpk.mpk.pk.i = pk->i;// Copy the midi packet and queue it
-
+    mpk.mpk.pk.i = pk2.i;// Copy the midi packet &  queue it
 		I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
-
-DEBUG_BEGIN
-DEBUG_PRINTLN("PK dest SERIAL to master Q.count=",I2C_QPacketsToMaster.available());
-DEBUG_END
-
 		return;
 	}
 
@@ -108,9 +101,8 @@ DEBUG_END
 
 	// Send a midi packet to device
 	Wire.beginTransmission(deviceId);
-	Wire.write((uint8_t *)pk,sizeof(midiPacket_t));
+	Wire.write(pk2.packet,sizeof(midiPacket_t));
 	Wire.endTransmission();
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -617,7 +609,7 @@ void I2C_ProcessSlave ()
 			I2C_QPacketsFromMaster.readBytes(pk.packet,sizeof(midiPacket_t));
 
 DEBUG_BEGIN
-DEBUG_PRINT("Read Master Q :","");
+DEBUG_PRINT("Read FMQ :","");
 DEBUG_DUMP(pk.packet,sizeof(midiPacket_t));
 DEBUG_PRINTLN(". count=",I2C_QPacketsFromMaster.available()/sizeof(midiPacket_t));
 DEBUG_END

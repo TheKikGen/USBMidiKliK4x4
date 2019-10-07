@@ -47,6 +47,7 @@
 #include "hardware_config.h"
 
 // Comment this to remove all debug instructions from the compilation.
+
 //#define DEBUG_MODE
 
 // Timer for attachCompare1Interrupt
@@ -254,6 +255,5 @@ void CheckBootMode();
 void USBMidi_Init();
 void USBMidi_Process();
 void SerialMidi_Process();
-
 
 #endif

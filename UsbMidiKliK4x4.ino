@@ -199,12 +199,12 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
   if (serialNo >= SERIAL_INTERFACE_MAX ) return;
 
 	uint8_t msgLen = USBMidi::CINToLenTable[pk->packet[0] & 0x0F] ;
+
  	if ( msgLen > 0 ) {
-		serialHw[serialNo]->write(&(pk->packet[1]),msgLen);
+		serialHw[serialNo]->write(&pk->packet[1],msgLen);
 		FLASH_LED_OUT(serialNo);
 	}
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Prepare a packet and route it to the right USB midi cable
@@ -363,20 +363,20 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 // Route a packet from a midi IN jack / USB OUT to
 // a midi OUT jacks / USB IN  or I2C remote serial midi on another device
 ///////////////////////////////////////////////////////////////////////////////
- void RoutePacketToTarget(uint8_t source, const midiPacket_t *pk)
+ void RoutePacketToTarget(uint8_t source,  const midiPacket_t *pk)
 {
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
-  uint8_t port  = pk->packet[0] >> 4;
+  uint8_t sourcePort  = pk->packet[0] >> 4;
 
 	// Check at the physical level (i.e. not the bus)
-  if ( source == FROM_USB && port >= USBCABLE_INTERFACE_MAX ) return;
+  if ( source == FROM_USB && sourcePort >= USBCABLE_INTERFACE_MAX ) return;
 	if ( source == FROM_SERIAL ) {
-    if ( port >= SERIAL_INTERFACE_MAX ) return;
+    if ( sourcePort >= SERIAL_INTERFACE_MAX ) return;
     // If bus mode active, the local port# must be translated according
 		// to the device Id, before routing
     if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,port);
+			sourcePort = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,sourcePort);
     }
   }
 
@@ -391,43 +391,47 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 	uint8_t  msgType=0;
 
 	if (cin >= 4 && cin <= 7  ) {
-		if (port == 0) ParseSysExInternal(pk);
+		if (sourcePort == 0) ParseSysExInternal(pk);
 		msgType =  midiXparser::sysExMsgTypeMsk;
 	} else {
 			msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 	}
+
 
 	// ROUTING tables
 	uint16_t *cableInTargets ;
 	uint16_t *serialOutTargets ;
 	uint8_t *inFilters ;
 
+  // Save intelliThruActive and USBCx state as it could be changed in an interrupt
+  // (when slave)
+  boolean ithru = intelliThruActive;
+
   if (source == FROM_SERIAL ){
     // IntelliThru active ? If so, take the good routing rules
-    if ( intelliThruActive ) {
+    if ( ithru ) {
 			if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk;
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
+      inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
     }
     else {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesSerial[port].filterMsk;
+      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
+      inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
     }
   }
   else if (source == FROM_USB ) {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesCable[port].filterMsk;
+      cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
+      inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
   }
 
   else return; // Error.
 
-
 	// Apply midi filters
 	if (! (msgType & *inFilters) ) return;
 
-	// ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
+  // ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
 	// A target match ?
   if ( *serialOutTargets) {
 				for (	uint16_t t=0; t<SERIAL_INTERFACE_COUNT ; t++)
@@ -442,9 +446,9 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 	} // serialOutTargets
 
   // Stop here if IntelliThru active (no USB active but maybe connected)
-  // Intellithru is always activated by the master in bus mode.
+  // Intellithru is always activated by the master in bus mode!.
 
-  if ( intelliThruActive ) return;
+  if ( ithru ) return;
 
   // Stop here if no USB connection (owned by the master).
   // If we are a slave, the master should have notified us
@@ -458,15 +462,10 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 			for (uint8_t t=0; t < USBCABLE_INTERFACE_MAX ; t++) {
 	      if ( *cableInTargets & ( 1 << t ) ) {
 	          pk2.packet[0] = ( t << 4 ) + cin;
-
             // Only the master has USB midi privilege in bus MODE
             // Everybody else if an usb connection is active
             if (! B_IS_SLAVE ) {
                 MidiUSB.writePacket(&(pk2.i));
-DEBUG_BEGIN
-DEBUG_PRINTLN("PK to local master USB","");
-DEBUG_END
-
             } else
             // A slave in bus mode ?
             // We need to add a master packet to the Master's queue.
@@ -475,11 +474,7 @@ DEBUG_END
                 mpk.mpk.dest = TO_USB;
                 // Copy the midi packet to the master packet
                 mpk.mpk.pk.i = pk2.i;
-
                 I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
-DEBUG_BEGIN
-DEBUG_PRINTLN("PK dest USB    to master Q.count=",I2C_QPacketsToMaster.available());
-DEBUG_END
             }
 
 	          #ifdef LEDS_MIDI
@@ -1015,9 +1010,8 @@ void setup()
     EEPROM_ParamsInit();
 
     #ifndef DEBUG_MODE
-    EEPROM_Params.debugMode = false;
+        EEPROM_Params.debugMode = false;
     #endif
-
 
     // Configure the TIMER2
     timer.pause();
