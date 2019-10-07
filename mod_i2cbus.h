@@ -378,6 +378,10 @@ void I2C_BusStartWire()
 				else { Wire.end(); delay(10) ; nvic_sys_reset(); }
 			}
 
+			// Reset all slaves if they are now listening
+		  I2C_SendCommand(0,B_CMD_HARDWARE_RESET);
+		  delay(3000);
+
       // Synchronize slaves routing rules
       I2C_SlavesRoutingSyncFromMaster();
 
