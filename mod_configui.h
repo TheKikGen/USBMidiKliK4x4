@@ -370,7 +370,6 @@ void ShowMidiKliKHeader()
 void ShowGlobalSettings()
 {
 	uint8_t i;
-
 	Serial.println("GLOBAL SETTINGS");
 	Serial.println();
 	Serial.print("Firmware version    : ");
@@ -651,16 +650,31 @@ void ShowConfigMenu()
 		if (showMenu) {
   		ShowMidiKliKHeader();
       Serial.println();
-			Serial.println("0.Global settings      6.IntelliThru routing");
-			Serial.println("1.View midi routing    7.IntelliThru timeout");
-  		Serial.println("2.USB VID PID          8.Toggle bus mode");
-			Serial.println("3.USB Prod.string      9.Set device Id");
-  		Serial.println("4.Cable OUT routing    a.Show active devices");
-			Serial.println("5.Jack IN routing");
+			Serial.print("0.Global settings\t");
+      Serial.print("6.IntelliThru routing");
       Serial.println();
-      Serial.println("e.Reload settings      f.Factory settings");
-  		Serial.println("r.Factory routing      s.Save settings");
-  		Serial.println("z.Debug on Serial3     x.Exit");
+			Serial.print("1.View midi routing\t");
+      Serial.print("7.IntelliThru timeout");
+      Serial.println();
+  		Serial.print("2.USB VID PID\t\t");
+      Serial.print("8.Toggle bus mode");
+      Serial.println();
+			Serial.print("3.USB Prod.string\t");
+      Serial.print("9.Set device Id      ");
+      Serial.println();
+  		Serial.print("4.Cable OUT routing\t");
+      Serial.print("a.Show active devices");
+      Serial.println();
+			Serial.print("5.Jack IN routing\t");
+      Serial.println();Serial.println();
+      Serial.print("e.Reload settings\t");
+      Serial.print("f.Factory settings");
+      Serial.println();
+  		Serial.print("r.Factory routing\t");
+      Serial.print("s.Save settings");
+      Serial.println();
+  		Serial.print("z.Debug on Serial3\t");
+      Serial.print("x.Exit");
 
 		}
     showMenu = true;

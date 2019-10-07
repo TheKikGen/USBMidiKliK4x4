@@ -85,9 +85,8 @@ void EEPROM_ParamsInit(bool factorySettings)
 		// New build only. We keep existing settings but reboot in config mode
  		{
 			memcpy( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) );
-			EEPROM_Params.nextBootMode = bootModeMidi;
-			EEPROM_ParamsSave();
-			// Default boot mode when new firmware uploaded (not saved)
+
+			// Default boot mode when new firmware uploaded
 	    EEPROM_Params.nextBootMode = bootModeConfigMenu;
 			return;
 

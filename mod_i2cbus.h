@@ -350,61 +350,36 @@ void I2C_BusStartWire()
 {
 	if ( EEPROM_Params.I2C_BusModeState == B_DISABLED ) return;
 
-  // Attempt to reset the bus
-  Wire.begin(); delay(10);  Wire.end();
-
 	if ( EEPROM_Params.I2C_DeviceId == B_MASTERID ) {
 
-      Wire.setClock(B_FREQ) ;
       // NB : default timemout is 1 sec. Possible to change that with Wire.setTimeout(x);
       // before the begin.
     	Wire.begin();
+      Wire.setClock(B_FREQ) ;
 
-      // Reset all slaves if they are listening
-      I2C_SendCommand(0,B_CMD_HARDWARE_RESET);
-      delay(2000);
-
+			delay(100);
       // Scan BUS for active slave DEVICES. Table used only by the master.
-      // 3 rounds to collect all devices.
-      for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) I2C_DeviceActive[d] = false;
+			for ( uint8_t d=0; d < sizeof(I2C_DeviceIdActive) ; d++) {
+          if ( I2C_isDeviceActive(d + B_SLAVE_DEVICE_BASE_ADDR) )
+							I2C_DeviceIdActive[I2C_DeviceActiveCount++] = d + B_SLAVE_DEVICE_BASE_ADDR;
+  		}
 
-      uint8_t deviceId;
-      uint8_t sCount = 0;
+			// If no slave active, reboot master in config mode
+			if ( ! I2C_DeviceActiveCount ) {
+				 EEPROM_Params.nextBootMode = bootModeConfigMenu;
+				 EEPROM_ParamsSave();
+				 Wire.end(); delay(10) ; nvic_sys_reset();
+			}
 
-      for ( uint8_t i=1; i <= 3 && sCount <= sizeof(I2C_DeviceActive)  ; i ++ )  {
-  			for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
-          deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
-          if ( I2C_SendCommand(deviceId,B_CMD_IS_SLAVE_READY) == B_STATE_READY ) {
-            I2C_DeviceActive[d] = true;
-            sCount++;
+			// Check slaves availibility, and reboot if one not ready
+			uint8_t d=0;
+			while ( d < I2C_DeviceActiveCount ) {
+    		if ( I2C_SendCommand(I2C_DeviceIdActive[d],B_CMD_IS_SLAVE_READY) == B_STATE_READY ) d++;
+				else { Wire.end(); delay(10) ; nvic_sys_reset(); }
+			}
 
-DEBUG_BEGIN
-DEBUG_PRINTLN("Slave Id found :",deviceId);
-DEBUG_END
-          }
-          delay(100);
-  			}
-
-       }
-
-DEBUG_BEGIN
-DEBUG_PRINTLN("SLAVES FOUND :",sCount);
-DEBUG_END
-
-       // If no slave found, reboot master in config mode
-       if ( !sCount ) {
-
-DEBUG_BEGIN
-DEBUG_PRINTLN("NO SLAVES FOUND. Reboot in config mode","");
-DEBUG_END
-
-         EEPROM_Params.nextBootMode = bootModeConfigMenu;
-         EEPROM_ParamsSave();
-         nvic_sys_reset();
-       }
-
-       // Synchronize slaves routing rules
-       I2C_SlavesRoutingSyncFromMaster();
+      // Synchronize slaves routing rules
+      I2C_SlavesRoutingSyncFromMaster();
 
 	}
 		// Slave initialization
@@ -462,7 +437,7 @@ void I2C_ShowActiveDevice()
 	uint8_t deviceId;
 
 	// Scan BUS for active slave DEVICES. Table used only by the master.
-	for ( uint8_t d=0; d < sizeof(I2C_DeviceActive) ; d++) {
+	for ( uint8_t d=0; d < sizeof(I2C_DeviceIdActive) ; d++) {
 			deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
 			Wire.beginTransmission(deviceId);
       delay(5);
@@ -547,7 +522,6 @@ void I2C_SlavesRoutingSyncFromMaster()
 void I2C_ProcessMaster ()
 {
   masterMidiPacket_t mpk;
-  uint8_t deviceId;
 
   // Broadcast slaves of USB midi state & intellithru mode
   I2C_SendCommand(0, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE);
@@ -559,35 +533,21 @@ void I2C_ProcessMaster ()
   I2C_SendCommand(0, EEPROM_Params.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ;
   #endif
 
-  for ( uint8_t d = 0 ; d < sizeof(I2C_DeviceActive) ; d++) {
-
-      if ( ! I2C_DeviceActive[d] )  continue;
-      deviceId = d+B_SLAVE_DEVICE_BASE_ADDR;
+  for ( uint8_t d = 0 ; d < I2C_DeviceActiveCount ; d++) {
 
       // Get a slave midi packet eventually
-      if ( I2C_SendCommand(deviceId,B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
-      if ( I2C_getPacket(deviceId,&mpk) <= 0 ) continue; // Error or nothing got
+      if ( I2C_SendCommand(I2C_DeviceIdActive[d],B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error
+      if ( I2C_getPacket(I2C_DeviceIdActive[d],&mpk) <= 0 ) continue; // Error or nothing got
       if ( mpk.mpk.pk.i == 0 ) continue;  // Process only non empty packets
 
       if ( mpk.mpk.dest == TO_SERIAL ) {
           uint8_t targetPort = mpk.mpk.pk.packet[0] >> 4;
           I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
-
-DEBUG_BEGIN
-DEBUG_PRINTLN(" Sent to BUS serial. target port ",targetPort);
-DEBUG_END
-
          // Send to a cable IN only if USB is available on the master
        } else if ( mpk.mpk.dest == TO_USB )
         //&& midiUSBCx && !midiUSBdle && !intelliThruActive)
        {
-
           MidiUSB.writePacket(&(mpk.mpk.pk.i));
-
-DEBUG_BEGIN
-DEBUG_PRINTLN(" Sent to USB","");
-DEBUG_END
-
        }
       // else ignore that packet....
 
@@ -600,7 +560,11 @@ DEBUG_END
 void I2C_ProcessSlave ()
 {
 
-  I2C_MasterReady = ( millis() < (I2C_MasterReadyTimeoutMillis + B_MASTER_READY_TIMEOUT) );
+	// Reboot if master not ready
+	I2C_MasterReady = ( millis() < (I2C_MasterReadyTimeoutMillis + B_MASTER_READY_TIMEOUT) );
+
+	if ( ! I2C_MasterReady ) { Wire.end(); delay(10) ; nvic_sys_reset(); }
+
 
 	// Packet from I2C master available ? (nb : already routed)
 	if ( I2C_QPacketsFromMaster.available() ) {
@@ -643,8 +607,9 @@ DEBUG_END
       }
 	}
 
+
 DEBUG_BEGIN_TIMER
-DEBUG_ASSERT(!I2C_MasterReady,"Master not ready","");
+DEBUG_ASSERT(I2C_MasterReady,"Master ready","");
 DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
 DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
 DEBUG_ASSERT(midiUSBIdle,"USB Midi idle","");

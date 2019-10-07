@@ -125,6 +125,8 @@ typedef union {
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
 ///////////////////////////////////////////////////////////////////////////////
+#define PIN_SDA PB7
+#define PIN_SCL PB6
 
 #define B_RING_BUFFER_PACKET_SIZE  16*sizeof(midiPacket_t)
 #define B_RING_BUFFER_MPACKET_SIZE 16*sizeof(masterMidiPacket_t)
@@ -138,7 +140,7 @@ typedef union {
 #define B_DISABLED 0
 #define B_ENABLED 1
 #define B_FREQ 400000
-#define B_MASTER_READY_TIMEOUT 5000
+#define B_MASTER_READY_TIMEOUT 10000
 
 // Bus commands
 enum BusCommand {

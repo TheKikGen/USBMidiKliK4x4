@@ -111,7 +111,9 @@ volatile bool intelliThruActive = false;
 unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
 
 // Bus Mode globals
-boolean I2C_DeviceActive[B_MAX_NB_DEVICE-1]; // Minus the master
+uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
+uint8_t I2C_DeviceActiveCount=0;
+
 boolean I2C_MasterReady = false;
 volatile unsigned long I2C_MasterReadyTimeoutMillis = 0;
 volatile uint8_t I2C_Command = B_CMD_NONE;
@@ -866,6 +868,10 @@ void CheckBootMode()
 	// Does the config menu boot mode is active ?
 	// if so, prepare the next boot in MIDI mode and jump to menu
 	if  ( EEPROM_Params.nextBootMode == bootModeConfigMenu ) {
+
+      // Next boot on Midi
+      EEPROM_Params.nextBootMode = bootModeMidi;
+      EEPROM_ParamsSave();
 
 			#ifdef HAS_MIDITECH_HARDWARE
 				// Assert DISC PIN (PA8 usually for Miditech) to enable USB
