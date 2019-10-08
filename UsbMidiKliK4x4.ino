@@ -910,7 +910,7 @@ void USBMidi_Init()
 	usb_midi_set_product_string((char *) &EEPROM_Params.productString);
 
 	MidiUSB.begin() ;
-  delay(4000); // Usually around 4 s to detect USB Midi on the host
+  delay(4000); // Note : Usually around 4 s to fully detect USB Midi on the host
 }
 
 ///////////////////////////////////////////////////////////////////////////////

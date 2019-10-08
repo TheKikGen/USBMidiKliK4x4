@@ -217,11 +217,6 @@ void I2C_ParseImmediateCmd() {
       break;
 
     case B_CMD_END_SYNC:
-      if ( I2C_SlaveSyncDoUpdate ) {
-          // For now, the slave doesn't save master update as it is ALWAYS
-          // synchronized at boot time.
-          I2C_SlaveSyncDoUpdate = false;
-      }
       I2C_SlaveSyncStarted = false;
       break;
 
@@ -566,9 +561,14 @@ void I2C_ProcessSlave ()
 
 	// Reboot if master not ready
 	I2C_MasterReady = ( millis() < (I2C_MasterReadyTimeoutMillis + B_MASTER_READY_TIMEOUT) );
-
 	if ( ! I2C_MasterReady ) { Wire.end(); delay(10) ; nvic_sys_reset(); }
 
+	// Routing midi sync from master
+	if ( I2C_SlaveSyncDoUpdate ) {
+			// For now, the slave doesn't save master update as it is ALWAYS
+			// synchronized at boot time.
+			I2C_SlaveSyncDoUpdate = false;
+	}
 
 	// Packet from I2C master available ? (nb : already routed)
 	if ( I2C_QPacketsFromMaster.available() ) {
