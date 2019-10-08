@@ -384,7 +384,7 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 
   uint8_t cin   = pk->packet[0] & 0x0F ;
 
-	FLASH_LED_IN(thisLed);
+	FLASH_LED_IN(sourcePort);
 
 	// Sysex is a particular case when using packets.
 	// Internal sysex Jack 1/Cable 0 ALWAYS!! are checked whatever filters are
