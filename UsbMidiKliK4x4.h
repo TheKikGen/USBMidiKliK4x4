@@ -54,9 +54,18 @@
 #define TIMER2_RATE_MICROS 1000
 
 // Sysex used to set some parameters of the interface.
-#define SYSEX_INTERNAL_HEADER 0xF0,0x77,0x77,0x78,
+// Be aware that the 0x77 manufacturer id is reserved in the MIDI standard (but not used)
+// The second byte is usually an id number or a func code + the midi channel (forced to 0x77 here)
+// The Third is the product id
+#define SYSEX_MANUFACTURER_ID 0x77
+// UsbMidiKlik multi-port interface STM32F103 family
+#define SYSEX_PRODUCT_FAMILY 0x0,0x01
+#define SYSEX_MODEL_NUMBER 0x00,0x78
+#define SYSEX_INTERNAL_HEADER 0xF0,SYSEX_MANUFACTURER_ID,0x77,0x78,
 #define SYSEX_INTERNAL_ACK 0x7F
-#define SYSEX_INTERNAL_BUFF_SIZE 32
+#define SYSEX_INTERNAL_IDENTITY_RQ_REPLY 0xF0,0x7E,0x7F,0x06,0x02,\
+        SYSEX_MANUFACTURER_ID,SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,VERSION_MAJOR,VERSION_MINOR,0x00,0X00,0xF7
+#define SYSEX_INTERNAL_BUFF_SIZE 48
 
 // LED light duration in milliseconds
 #define LED_PULSE_MILLIS  5
@@ -236,7 +245,7 @@ typedef struct {
 
         uint16_t        vendorID;
         uint16_t        productID;
-        uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // defined in usb_midi_devce.h
+        uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // Unicode string - defined in usb_midi_device.h
 } __packed EEPROM_Params_t;
 
 
@@ -249,10 +258,11 @@ void SerialMidi_SendMsg(uint8_t const *, uint8_t);
 void SerialMidi_SendPacket(const midiPacket_t *, uint8_t );
 void SerialMidi_RouteMsg( uint8_t, midiXparser*  );
 void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
-void ParseSysExInternal(const midiPacket_t *);
+void SysExInternalParse(uint8_t, const midiPacket_t *);
 void RoutePacketToTarget(uint8_t , const midiPacket_t *);
 void ResetMidiRoutingRules(uint8_t);
-void ProcessSysExInternal();
+uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
+void SysExInternalProcess(uint8_t);
 void CheckBootMode();
 void USBMidi_Init();
 void USBMidi_Process();

@@ -642,7 +642,7 @@ void AskVIDPID()
 void ShowConfigMenu()
 {
 	char choice=0;
-	uint8_t i;
+	uint8_t i,j;
   boolean showMenu = true;
 
 	for ( ;; )
@@ -801,6 +801,33 @@ void ShowConfigMenu()
 				Serial.println();
 				showMenu = false;
 				break;
+
+      // Sysex config dump
+  			case 'd':
+
+            i = SysexInternalDumpConf(0x0B000000, 0, sysExInternalBuffer);
+            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+            i = SysexInternalDumpConf(0x0C000000, 0, sysExInternalBuffer);
+            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+            i = SysexInternalDumpConf(0x0E020000, 0, sysExInternalBuffer);
+            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+            for ( j=0; j < 16 ; j++) {
+                  i = SysexInternalDumpConf(0x0E030000, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F020000, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F020100, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F010000, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F010001, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F010100, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+                  i = SysexInternalDumpConf(0x0F010101, j, sysExInternalBuffer);
+                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
+            }
+        break;
 
 			// Reload the EEPROM parameters structure
 			case 'e':

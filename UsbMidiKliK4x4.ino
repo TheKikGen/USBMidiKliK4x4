@@ -93,18 +93,16 @@ PulseOut I2C_LedTimer(0xFF,500);
 USBMidi MidiUSB;
 volatile bool					midiUSBCx      = false;
 volatile bool         midiUSBIdle    = false;
-bool          midiUSBLaunched= false;
-bool 					isSerialBusy   = false ;
-unsigned long midiUSBLastPacketMillis    = 0;
+bool                  midiUSBLaunched= false;
+bool 					        isSerialBusy   = false ;
+unsigned long         midiUSBLastPacketMillis    = 0;
 // MIDI Parsers for serial 1 to n
 midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
-// Sysex used to set some parameters of the interface.
-// Be aware that the 0x77 manufacturer id is reserved in the MIDI standard (but not used)
-// The second byte is usually an id number or a func code + the midi channel (any here)
-// The Third is the product id
 static  const uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
+static  const uint8_t sysExInternalIdentityRqReply[] = {SYSEX_INTERNAL_IDENTITY_RQ_REPLY};
 static  uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
+
 
 // Intelligent midi thru mode
 volatile bool intelliThruActive = false;
@@ -139,7 +137,6 @@ RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 #include "mod_eeprom.h"
 #include "mod_configui.h"
 #include "mod_i2cbus.h"
-
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS
@@ -253,7 +250,6 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
  void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
 {
-
   static midiPacket_t pk[SERIAL_INTERFACE_MAX];
   static uint8_t packetLen[SERIAL_INTERFACE_MAX];
   static bool firstCall = true;
@@ -303,9 +299,8 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 // Internal sysex must be transmitted on the first cable/midi jack (whatever routing).
 // Internal sysex are purely ignored on other cables or jack.
 ///////////////////////////////////////////////////////////////////////////////
- void ParseSysExInternal(const midiPacket_t *pk)
+ void SysExInternalParse(uint8_t source,const midiPacket_t *pk)
 {
-
 		static unsigned sysExInternalMsgIdx = 0;
 		static bool 	sysExInternalHeaderFound = false;
 
@@ -342,7 +337,6 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 					sysExInternalBuffer[0] = 0; // Len of the sysex buffer
 				}
 			}
-
 			else {
 				// No match
 				sysExInternalMsgIdx = 0;
@@ -355,7 +349,7 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 		if (cin != 4  && sysExInternalHeaderFound ) {
 			sysExInternalMsgIdx = 0;
 			sysExInternalHeaderFound = false;
-			ProcessSysExInternal();
+			SysExInternalProcess(source);
 		}
 }
 
@@ -387,18 +381,17 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
 	FLASH_LED_IN(sourcePort);
 
 	// Sysex is a particular case when using packets.
-	// Internal sysex Jack 1/Cable 0 ALWAYS!! are checked whatever filters are
+	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever filters are
 	// This insures that the internal sysex will be always interpreted.
 	// If the MCU is resetted, the msg will not be sent
 	uint8_t  msgType=0;
 
 	if (cin >= 4 && cin <= 7  ) {
-		if (sourcePort == 0) ParseSysExInternal(pk);
+		if (sourcePort == 0) SysExInternalParse(source, pk);
 		msgType =  midiXparser::sysExMsgTypeMsk;
 	} else {
 			msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 	}
-
 
 	// ROUTING tables
 	uint16_t *cableInTargets ;
@@ -467,7 +460,7 @@ void SerialMidi_SendPacket(const midiPacket_t *pk, uint8_t serialNo)
             // Only the master has USB midi privilege in bus MODE
             // Everybody else if an usb connection is active
             if (! B_IS_SLAVE ) {
-                MidiUSB.writePacket(&(pk2.i));
+                MidiUSB.writePacket(&pk2.i);
             } else
             // A slave in bus mode ?
             // We need to add a master packet to the Master's queue.
@@ -536,6 +529,96 @@ void ResetMidiRoutingRules(uint8_t mode)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Return current configuration as a SYSEX buffer
+///////////////////////////////////////////////////////////////////////////////
+uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
+
+  uint8_t src;
+  uint8_t dest ;
+  uint8_t msk ;
+  uint8_t i;
+  uint8_t p;
+  uint8_t *buff2 = buff;
+
+  memcpy(buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+  buff2+=sizeof(sysExInternalHeader);
+  *buff2 = fnId >> 24;
+
+  switch (fnId) {
+
+    // Function 0B - Change USB Product String
+    case 0x0B000000:
+          strcpy((char*)++buff2,(char*)EEPROM_Params.productString);
+          buff2+=strlen((char*)EEPROM_Params.productString)-1;
+          break;
+
+    // Function 0C - Change USB Vendor ID and Product ID
+    case 0x0C000000:
+          *(++buff2) = EEPROM_Params.vendorID >> 12;
+          *(++buff2) = (EEPROM_Params.vendorID & 0x0F00) >> 8;
+          *(++buff2) = (EEPROM_Params.vendorID & 0x00F0) >> 4;
+          *(++buff2) = (EEPROM_Params.vendorID & 0x000F) ;
+          *(++buff2) = EEPROM_Params.productID >> 12;
+          *(++buff2) = (EEPROM_Params.productID & 0x0F00) >> 8;
+          *(++buff2) = (EEPROM_Params.productID & 0x00F0) >> 4;
+          *(++buff2) = (EEPROM_Params.productID & 0x000F) ;
+          break;
+
+    // Function 0E - Intellithru midi routing rules
+    // 02 Timeout
+    case 0x0E020000:
+          *(++buff2) = 0X02;
+          *(++buff2) = EEPROM_Params.intelliThruDelayPeriod;
+          break;
+
+     // Function 0E - Intellithru midi routing rules
+     // 03 Routing rules
+     case 0x0E030000:
+          *(++buff2) = 0X03;
+          *(++buff2) = port;
+          *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk;
+          for ( i=0; i < 16 ; i++) {
+     						if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk & ( 1 << i) )
+                      *(++buff2) = i;
+     		  }
+          break;
+
+     // Function 0F - USB/Serial Midi midi routing rules
+     // 02 Midi filter
+     case 0x0F020000: // Cable
+     case 0x0F020100: // Serial
+         p = (fnId & 0x0000FF00) >> 8;
+         *(++buff2) = 0X02;
+         *(++buff2) = p;
+         if (p) *(++buff2) = EEPROM_Params.midiRoutingRulesSerial[port].filterMsk;
+         else *(++buff2) = EEPROM_Params.midiRoutingRulesCable[port].filterMsk;
+         break;
+
+     // Function 0F - USB/Serial Midi midi routing rules
+     // 03 Routing rules
+     case 0x0F010000: // Cable to Cable
+     case 0x0F010001: // Cable to Serial
+     case 0x0F010100: // Serial to Cable
+     case 0x0F010101: // Serial to Serial
+          src  = (fnId & 0x0000FF00) >> 8;
+          dest = (fnId & 0x000000FF) ;
+          *(++buff2) = 0X01;
+          *(++buff2) = src;
+          *(++buff2) = port;
+          *(++buff2) = dest;
+          msk = 0;
+          if (src && dest) msk = EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk;
+          if (src && !dest) msk = EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk;
+          if (!src && dest) msk = EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
+          if (!src && !dest) msk = EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
+          for ( i = 0 ; i< 16  ; i++) if ( msk & ( 1 << i) ) *(++buff2) = i;
+          break;
+  }
+  *(++buff2) = 0xF7;
+  return buff2-buff+1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Process internal USBMidiKlik SYSEX
 // ----------------------------------------------------------------------------
 // MidiKlik SYSEX are of the following form :
@@ -548,20 +631,22 @@ void ResetMidiRoutingRules(uint8_t mode)
 //
 // SOX, Header and EOX are not stored in sysExInternalBuffer.
 //
-// Cmd Description                           Data
+// Fn   Description                           Data
 //
+// 0x05 Sysex configuration dump
+// 0x06 General Information
 // 0x08 Reboot in config mode
 // 0x0A Hard reset interface
 // 0x0B Change USB Product string
 // 0X0C Change USB VID / PID
 // 0X0E Set Intelligent Midi thru mode
-// 0X0F Change input routing rule
+// 0X0F Change midi routing rule
 // ----------------------------------------------------------------------------
 // sysExInternalBuffer[0] length of the message (func code + data)
 // sysExInternalBuffer[1] function code
 // sysExInternalBuffer[2] data without EOX
 ///////////////////////////////////////////////////////////////////////////////
-void ProcessSysExInternal()
+void SysExInternalProcess(uint8_t source)
 {
 
   uint8_t msgLen = sysExInternalBuffer[0];
@@ -569,8 +654,51 @@ void ProcessSysExInternal()
 
   switch (cmdId) {
 
-    // TEMP REBOOT IN CONFIG MODE
-		// F0 77 77 78 08 F7
+    // ---------------------------------------------------------------------------
+    // Function 05 Sysex configuration dump
+    // Example : F0 77 77 78 05 F7
+    // ---------------------------------------------------------------------------
+    case 0x05:
+
+
+      break;
+
+    // ---------------------------------------------------------------------------
+    // Function 06 subId 0x01 - Identity request.
+    // Example : F0 77 77 78 06 01 F7
+    // ---------------------------------------------------------------------------
+    case 0x06:
+      if ( sysExInternalBuffer[2] == 0x01 && msgLen == 2 ) {
+
+          if (source == FROM_USB && midiUSBCx) {
+            // send to USB , cable 0
+            midiPacket_t pk { .i = 0};
+            uint8_t b=0;
+            // Build sysex packets
+            for ( uint8_t i = 0; i< sizeof(sysExInternalIdentityRqReply) ; i ++ ) {
+              pk.packet[++b] = sysExInternalIdentityRqReply[i];
+              bool endPk = ( i+2 > sizeof(sysExInternalIdentityRqReply) );
+              if (b == 3 ||  endPk ) {
+                  pk.packet[0]  = endPk ?  b + 4 : 4 ;
+                  MidiUSB.writePacket(&pk.i);
+                  FLASH_LED_OUT(0);
+                  b=0; pk.i = 0;
+              }
+            }
+
+          } else
+          if (source == FROM_SERIAL ) {
+            // Send to serial port 0 being the only possible for sysex
+              serialHw[1]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
+          }
+      }
+
+      break;
+
+    // ---------------------------------------------------------------------------
+    // Function 08 - Reboot in serial configuration mode
+    // Example : F0 77 77 78 08 F7
+    // ---------------------------------------------------------------------------
 		case 0x08:
 			// Set serial boot mode & Write the whole param struct
 			EEPROM_Params.nextBootMode = bootModeConfigMenu;
@@ -578,91 +706,81 @@ void ProcessSysExInternal()
       nvic_sys_reset();
 			break;
 
-    // RESET USB MIDI INTERFACE -----------------------------------------------
-    // F0 77 77 78 0A F7
+    // ---------------------------------------------------------------------------
+    // Function 0A - Reboot unit
+    // Example : F0 77 77 78 0A F7
+    // ---------------------------------------------------------------------------
     case 0x0A:
       nvic_sys_reset();
       break;
 
-    // CHANGE MIDI PRODUCT STRING ---------------------------------------------
-    // F0 77 77 78 0B <character array> F7
+    // ---------------------------------------------------------------------------
+    // Function 0B - Change USB Product String
+    // F0 77 77 78 0B <string bytes> F7
+    // ---------------------------------------------------------------------------
+    // Copy the received string to the USB Product String Descriptor
+    // For MIDI protocol compatibility, and avoid a sysex encoding,
+    // accentuated ASCII characters, below 128 are non supported.
+    // Size if defined by USB_MIDI_PRODUCT_STRING_SIZE in UsbMidiKliK4x4.h
+    // ---------------------------------------------------------------------------
     case 0x0B:
-      // Copy the receive message to the Product String Descriptor
-      // For MIDI protocol compatibility, and avoid a sysex encoding,
-      // Accentuated ASCII characters, below 128 non supported.
-
       if (msgLen < 2) break;
+      if ( (msgLen-1) > USB_MIDI_PRODUCT_STRING_SIZE  ) break;
 
-      if ( (msgLen-1) > USB_MIDI_PRODUCT_STRING_SIZE  ) {
-          // Error : Product name too long
-          break;
-      }
-
-      // Store the new sting in EEPROM bloc
+      // Store the new string in EEPROM
       memset(&EEPROM_Params.productString,0, sizeof(EEPROM_Params.productString));
       memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
-
-      // Write the whole param struct
       EEPROM_ParamsSave();
-
       break;
 
-    // VENDOR ID & PRODUCT ID -------------------------------------------------
-    // F0 77 77 78 0C <n1 n2 n3 n4 = Vendor Id nibbles> <n1 n2 n3 n4 = Product Id nibbles> F7
+    // ---------------------------------------------------------------------------
+    // Function 0C - Change USB Vendor ID and Product ID
+    // F0 77 77 78 0C <n1 n2 n3 n4 = VID nibbles> <n1 n2 n3 n4 = PID nibbles> F7
+    // ---------------------------------------------------------------------------
+    // To respect a simple encoding of 7 bits bytes, each hex digit must be
+    // transmitted separately in a serialized way.
+    // The following example will set  VID to 0X8F12 and PID to 0X9067 :
+    // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
+    //                8  F  1  2  9  0  6  7
     case 0x0C:
-      // As MIDI data are 7 bits bytes, we must use a special encoding, to encode 8 bits values,
-      // as light as possible. As we have here only 2 x 16 bits values to handle,
-      // the encoding will consists in sending each nibble (4 bits) serialized in bytes.
-      // For example sending VendorID and ProductID 0X8F12 0X9067 will be encoded as :
-      //   0x08 0XF 0x1 0x2  0X9 0X0 0X6 0X7,  so the complete SYSEX message will be :
-      // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
-
       if ( msgLen != 9 ) break;
       EEPROM_Params.vendorID = (sysExInternalBuffer[2] << 12) + (sysExInternalBuffer[3] << 8) +
                                      (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
       EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
                                      (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
       EEPROM_ParamsSave();
-
       break;
 
-		// Intelligent MIDI THRU. -------------------------------------------------
-		// When USB midi is not active beyond a defined timout, the MIDI THRU mode can be activated.
-		// After that timout, every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4,
-		// accordingly with the midi thru mode serial jack targets mask.
+    // ---------------------------------------------------------------------------
+    // Function 0E - Intellithru midi routing rules
+    // ---------------------------------------------------------------------------
+		// IntelligentThru can be activated when USB is sleeping or unavailable beyond a certain timeout.
+    // F0 77 77 78 0E  < Routing rules command <command args>   >
 		//
-    // Header       = F0 77 77 78
-		// Function     = 0E
-		//
-		// Action       =
-		//  00 Reset to default
-		//  01 Disable
-		//  02 Set Delay <number of 15s periods 1-127>
-		//  03 Set thu mode jack routing +
-		//          . Midi In Jack = < Midi In Jack # = 0-F>
-		//          . Midi Msg filter mask
-		//                  zero if you want to inactivate intelliThru for this jack
-		//                  channel Voice = 0001 (1),
-		//                  system Common = 0010 (2),
-		//                  realTime      = 0100 (4),
+		// Commands are :
+		//  00 Reset Intellithru to default
+		//  01 Disable Intellithru
+		//  02 Set  Intellithru timeout
+    //      arg1 : 0xnn (number of 15s periods 1-127)
+		//  03 Set thru mode jack routing
+    //      arg1 - Midi In Jack = 0xnn (0-F)
+		//      arg2 - Midi filter mask (binary OR)
+    //                => zero if you want to inactivate intelliThru for this jack
+		//                  channel Voice = 0001 (1), (binary OR)
+		//                  system Common = 0010 (2), (binary OR)
+		//                  realTime      = 0100 (4), (binary OR)
 		//                  sysEx         = 1000 (8)
-		//          . Serial midi Jack out targets 1 < Midi Out Jack # 1-n = 0-n>
-		//          . Serial midi Jack out targets 2
-		//          . Serial midi Jack out targets 3
-		//                     ......
-		//          . Serial midi Jack out targets n <= 16
-		//
+		//      arg3 - Serial midi Jack out targets
+    //            <t1> <t2>...<tn>  0-F 16 targets maximum.
 		// EOX = F7
-		//
 		// Examples :
-		// F0 77 77 78 0E 00 F7    <= Reset to default
-		// F0 77 77 78 0E 01 F7    <= Disable
-		// F0 77 77 78 0E 02 02 F7 <= Set delay to 30s
-		// F0 77 77 78 0E 03 01 0F 00 01 02 03 F7<= Set Midi In Jack 2 to Jacks out 1,2,3,4 All msg
-		// F0 77 77 78 0E 03 03 0C 03 04 F7 <= Set Midi In Jack 4 to Jack 3,4, real time only
+		// F0 77 77 78 0E 00 F7                    <= Reset to default
+		// F0 77 77 78 0E 01 F7                    <= Disable
+		// F0 77 77 78 0E 02 02 F7                 <= Set timeout to 30s
+		// F0 77 77 78 0E 03 01 0F 00 01 02 03 F7  <= Route Midi In Jack 2 to Jacks out 1,2,3,4 All msg
+		// F0 77 77 78 0E 03 03 04 03 04 F7        <= Route Midi In Jack 4 to Jacks out 4,5, real time only
 
     case 0x0E:
-
 			if ( msgLen < 2 ) break;
 
 			// reset to default midi thru routing
@@ -673,23 +791,19 @@ void ProcessSysExInternal()
 			// Disable thru mode
 			if (sysExInternalBuffer[2] == 0x01  && msgLen == 3) {
 					ResetMidiRoutingRules(ROUTING_INTELLITHRU_OFF);
-			}
+			}	else
 
-			else
 			// Set Delay
 			// The min delay is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
       if (sysExInternalBuffer[2] == 0x02  && msgLen == 3) {
 				if ( sysExInternalBuffer[3] < 1 || sysExInternalBuffer[3] > 0X7F ) break;
 				EEPROM_Params.intelliThruDelayPeriod = sysExInternalBuffer[3];
-			}
+			}	else
 
-			else
-			// Set routing : Midin 2 mapped to all events. All 4 ports.
+      // Set routing : Midin 2 mapped to all events. All 4 ports.
 			// 0E 03 01 0F 00 01 02 03
 			// 0E 03 01 0F 00
-
 			if (sysExInternalBuffer[2] == 3 ) {
-
 					if (msgLen < 4 ) break;
 					if ( msgLen > SERIAL_INTERFACE_COUNT + 4 ) break;
 
@@ -726,46 +840,43 @@ void ProcessSysExInternal()
 
 			// Write the whole param struct
       EEPROM_ParamsSave();
-
 			// reset globals for a real time update
 			intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
-
-      // Synchronize slaves routing rules
+      // Synchronize slaves routing rules if bus active and master
       if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
 
       break;
 
-    // SET ROUTING TARGETS ----------------------------------------------------
-		// Header       = F0 77 77 78
-		// Function     = 0F
-		// Action       =
-		//  00 Reset to default midi routing
-		//  01 Set routing +
-    //          . source type     = <cable=0X0 | serial=0x1>
-		//          . id              = id for cable or serial 0-F
-		//          . destination type = <cable=0X0 | serial=0x1>
-		//          . routing targets = <cable 0 1 2 n> or <jack 0 1 2 n> - 0-F
-		//  02 Set filter msk :
-    //          . source type     = <cable=0X0 | serial=0x1>
-		//          . id              = id for cable or serial 0-F
-		//          . midi filter mask
-		// EOX = F7
-		//
-		// Midi filter mask is defined as a midiXparser message type mask.
-		// noneMsgTypeMsk          = 0B0000,
-		// channelVoiceMsgTypeMsk  = 0B0001,
-		// systemCommonMsgTypeMsk  = 0B0010,
-		// realTimeMsgTypeMsk      = 0B0100,
-		// sysExMsgTypeMsk         = 0B1000,
-		// allMsgTypeMsk           = 0B1111
-		//
-    // Examples :
-		// F0 77 77 78 0F 00 F7          <= reset to default midi routing
-		// F0 77 77 78 0F 02 00 00 04 F7 <= Set filter to realtime events on cable 0
-    // F0 77 77 78 0F 01 00 00 01 00 01 F7 <= Set Cable 0 to Jack 1,2
-		// F0 77 77 78 0F 01 00 00 00 00 01 F7 <= Set Cable 0 to Cable In 0, In 01
-		// F0 77 77 78 0F 01 00 00 01 00 01 F7 <= & jack 1,2 (2 msg)
-		// F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to 4 serial jack out
+      // ---------------------------------------------------------------------------
+      // Function 0F - USB/Serial Midi midi routing rules
+      // ---------------------------------------------------------------------------
+      // F0 77 77 78 0F  < Routing rules command <command args>   >
+  		//
+  		// Commands are :
+      //  00 Reset to default midi routing
+		  //  01 Set routing +
+      //      arg1 - source type : <0x00 usb cable | 0x01 jack serial>
+		  //      arg2 - port id : id for cable or jack serial (0-F)
+		  //      arg3 - destination = <0x00 usb cable in | 0x01 jack serial out>
+		  //      arg4 - targets : <port 0 1 2...n> 16 max (0-F)
+      //  02  Midi filter
+      //      arg1 - source type : : <0x00 usb cable | 0x01 jack serial>
+		  //      arg2 - port id : id for cable or jack serial (0-F)
+      //      arg3 - midi filter mask (binary OR)
+      //                => zero if you want to inactivate intelliThru for this jack
+  		//                  channel Voice = 0001 (1), (binary OR)
+  		//                  system Common = 0010 (2), (binary OR)
+  		//                  realTime      = 0100 (4), (binary OR)
+  		//                  sysEx         = 1000 (8)
+      // EOX = F7
+ 		  //
+      // Examples :
+		  // F0 77 77 78 0F 00 F7                      <= reset to default midi routing
+		  // F0 77 77 78 0F 02 00 00 04 F7             <= Set filter to realtime events on cable 0
+      // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= Set Cable 0 to Jack 1,2
+		  // F0 77 77 78 0F 01 00 00 00 00 01 F7       <= Set Cable 0 to Cable In 0, In 01
+		  // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= & jack 1,2 (2 msg)
+		  // F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to 4 serial jack out
 
     case 0x0F:
 
