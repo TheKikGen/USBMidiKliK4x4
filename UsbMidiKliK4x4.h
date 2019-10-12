@@ -65,7 +65,7 @@
 #define SYSEX_INTERNAL_ACK 0x7F
 #define SYSEX_INTERNAL_IDENTITY_RQ_REPLY 0xF0,0x7E,0x7F,0x06,0x02,\
         SYSEX_MANUFACTURER_ID,SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,VERSION_MAJOR,VERSION_MINOR,0x00,0X00,0xF7
-#define SYSEX_INTERNAL_BUFF_SIZE 48
+#define SYSEX_INTERNAL_BUFF_SIZE 64
 
 // LED light duration in milliseconds
 #define LED_PULSE_MILLIS  5
@@ -254,14 +254,16 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 void Timer2Handler(void);
 void FlashAllLeds(uint8_t);
-void SerialMidi_SendMsg(uint8_t const *, uint8_t);
-void SerialMidi_SendPacket(const midiPacket_t *, uint8_t );
+void SerialMidi_SendMsg(uint8_t *, uint8_t);
+void SerialMidi_SendPacket(midiPacket_t *, uint8_t );
 void SerialMidi_RouteMsg( uint8_t, midiXparser*  );
 void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
-void SysExInternalParse(uint8_t, const midiPacket_t *);
-void RoutePacketToTarget(uint8_t , const midiPacket_t *);
+void SysExInternalParse(uint8_t, midiPacket_t *);
+void RoutePacketToTarget(uint8_t , midiPacket_t *);
 void ResetMidiRoutingRules(uint8_t);
 uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
+void SysexInternalDumpToStream(uint8_t );
+void SysExSendMsgPacket(uint8_t *,uint16_t );
 void SysExInternalProcess(uint8_t);
 void CheckBootMode();
 void USBMidi_Init();

@@ -50,7 +50,7 @@
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 
-void I2C_BusSerialSendMidiPacket(const midiPacket_t *, uint8_t );
+void I2C_BusSerialSendMidiPacket(midiPacket_t *, uint8_t );
 int8_t I2C_ParseDataSync(uint8_t ,uint8_t ,uint8_t );
 void I2C_ParseImmediateCmd();
 void I2C_SlaveReceiveEvent(int);
@@ -61,7 +61,7 @@ int16_t I2C_SendCommand(uint8_t,BusCommand);
 void I2C_ShowActiveDevice();
 int16_t I2C_getPacket(uint8_t , masterMidiPacket_t *);
 boolean I2C_isDeviceActive(uint8_t );
-int8_t I2C_SendData(const uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
+int8_t I2C_SendData(uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
 void I2C_SlavesRoutingSyncFromMaster();
 void I2C_ProcessMaster ();
 void I2C_ProcessSlave ();
@@ -69,7 +69,7 @@ void I2C_ProcessSlave ();
 ///////////////////////////////////////////////////////////////////////////////
 // Send a midi packet to I2C remote MIDI device on BUS
 ///////////////////////////////////////////////////////////////////////////////
-void I2C_BusSerialSendMidiPacket(const midiPacket_t *pk, uint8_t targetPort)
+void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 {
 	if ( EEPROM_Params.I2C_BusModeState == B_DISABLED) return;
 
@@ -476,7 +476,7 @@ boolean I2C_isDeviceActive(uint8_t deviceId)
 ///////////////////////////////////////////////////////////////////////////////
 // I2C Send bulk data on the bus.
 //////////////////////////////////////////////////////////////////////////////
-int8_t I2C_SendData(const uint8_t dataType, uint8_t arg1, uint8_t arg2, uint8_t * data, uint16_t sz)
+int8_t I2C_SendData(uint8_t dataType, uint8_t arg1, uint8_t arg2, uint8_t * data, uint16_t sz)
 {
 
   if (sz > 29 ) return -1; // Wire buffer is limiter to 32 char. Enough for us.

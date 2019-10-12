@@ -50,8 +50,8 @@
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 void PrintCleanHEX(uint8_t);
-void ShowBufferHexDump(uint8_t* , uint16_t );
-void ShowBufferHexDumpDebugSerial(uint8_t* , uint16_t );
+void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 );
+void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 );
 uint8_t GetInt8FromHexChar(char);
 uint16_t GetInt16FromHex4Char(char *);
 uint16_t GetInt16FromHex4Bin(char * );
@@ -84,20 +84,19 @@ void PrintCleanHEX(uint8_t hexVal)
 ///////////////////////////////////////////////////////////////////////////////
 // DUMP a byte buffer to screen
 //////////////////////////////////////////////////////////////////////////////
-void ShowBufferHexDump(uint8_t* bloc, uint16_t sz)
+void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 {
 	uint8_t j=0;
 	uint8_t * pp = bloc;
 	for (uint16_t i=0; i<sz; i++) {
 				PrintCleanHEX(*pp);
 				Serial.print(" ");
-				if (++j > 16 ) { Serial.println(); j=0; }
+				if (nl && (++j > nl) ) { Serial.println(); j=0; }
 				pp++;
 	}
-	//Serial.println();
 }
 
-void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz)
+void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz,uint8_t nl)
 {
 	uint8_t j=0;
 	uint8_t * pp = bloc;
@@ -105,10 +104,9 @@ void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz)
         if ( *pp < 0x10 ) DEBUG_SERIAL.print("0");
         DEBUG_SERIAL.print(*pp,HEX);
 				DEBUG_SERIAL.print(" ");
-				if (++j > 16 ) { DEBUG_SERIAL.println(); j=0; }
+				if (nl && (++j > nl) ) { DEBUG_SERIAL.println(); j=0; }
 				pp++;
 	}
-	//DEBUG_SERIAL.println();
 }
 
 
@@ -666,6 +664,7 @@ void ShowConfigMenu()
       Serial.print("a.Show active devices");
       Serial.println();
 			Serial.print("5.Jack IN routing\t");
+      Serial.print("d.SYSEX settings dump");
       Serial.println();Serial.println();
       Serial.print("e.Reload settings\t");
       Serial.print("f.Factory settings");
@@ -804,29 +803,8 @@ void ShowConfigMenu()
 
       // Sysex config dump
   			case 'd':
-
-            i = SysexInternalDumpConf(0x0B000000, 0, sysExInternalBuffer);
-            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-            i = SysexInternalDumpConf(0x0C000000, 0, sysExInternalBuffer);
-            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-            i = SysexInternalDumpConf(0x0E020000, 0, sysExInternalBuffer);
-            ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-            for ( j=0; j < 16 ; j++) {
-                  i = SysexInternalDumpConf(0x0E030000, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F020000, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F020100, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F010000, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F010001, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F010100, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-                  i = SysexInternalDumpConf(0x0F010101, j, sysExInternalBuffer);
-                  ShowBufferHexDump(sysExInternalBuffer,i);Serial.println();
-            }
+          SysexInternalDumpToStream(0);
+          Serial.println();
         break;
 
 			// Reload the EEPROM parameters structure
