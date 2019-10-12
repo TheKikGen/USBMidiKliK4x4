@@ -460,7 +460,6 @@ uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t por
 ///////////////////////////////////////////////////////////////////////////////
 void AskMidiRouting(uint8_t ruleType)
 {
-	uint16_t targetsMsk = 0;
 	uint8_t  portMax = (ruleType == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
 	uint8_t  choice;
 
@@ -640,7 +639,7 @@ void AskVIDPID()
 void ShowConfigMenu()
 {
 	char choice=0;
-	uint8_t i,j;
+	uint8_t i;
   boolean showMenu = true;
 
 	for ( ;; )

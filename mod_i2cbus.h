@@ -51,7 +51,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 void I2C_BusSerialSendMidiPacket(midiPacket_t *, uint8_t );
-int8_t I2C_ParseDataSync(uint8_t ,uint8_t ,uint8_t );
+int8_t I2C_ParseDataSync(uint8_t ,uint8_t );
 void I2C_ParseImmediateCmd();
 void I2C_SlaveReceiveEvent(int);
 void I2C_SlaveRequestEvent ();
@@ -108,7 +108,7 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS INSIDE AN ISR ! - PARSE DATA FROM MASTER TO SYNC ROUTING RULES
 //////////////////////////////////////////////////////////////////////////////
-int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
+int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1)
 {
   // midiRoutingRule
   if (dataType == B_DTYPE_MIDI_ROUTING_RULES_CABLE  || dataType == B_DTYPE_MIDI_ROUTING_RULES_SERIAL )
@@ -270,7 +270,7 @@ void I2C_SlaveReceiveEvent(int howMany)
     uint8_t arg1 = Wire.read();
     uint8_t arg2 = Wire.read();
 
-    if  ( I2C_ParseDataSync(dataType,arg1,arg2) != 0) {
+    if  ( I2C_ParseDataSync(dataType,arg1) != 0) {
       I2C_SlaveSyncStarted = false; I2C_SlaveSyncDoUpdate = false; // Abort
       return;
     }

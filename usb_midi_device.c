@@ -187,7 +187,6 @@ void usb_midi_set_product_string(char stringDescriptor[]) {
   // Adjust the length
   usbMIDIDescriptor_iProduct.bLength = i*2+2;
   usbMIDIString_Descriptor[usbMIDIDescriptor_Device.iProduct].Descriptor_Size = i*2+2;
-
 }
 
 // --------------------------------------------------------------------------------------

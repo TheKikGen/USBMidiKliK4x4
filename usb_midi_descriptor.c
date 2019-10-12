@@ -86,33 +86,33 @@ typedef struct {
     // 4 PORTS IS THE MINIMUM.
 
     // Embedded
-
+ 
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_2;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_3;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_4;
 
-   #if USB_MIDI_IO_PORT_NUM >= 8
-
+    #if USB_MIDI_IO_PORT_NUM >= 8
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_5;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_6;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_7;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_8;
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
-
+    #if USB_MIDI_IO_PORT_NUM >= 12
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_9;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_A;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_B;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_C;
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_D;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_E;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_F;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_10;
 
     #endif
-
-  #endif
+    #endif
+    #endif
 
     // External
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_11;
@@ -120,27 +120,27 @@ typedef struct {
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_13;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_14;
 
-   #if USB_MIDI_IO_PORT_NUM >= 8
-
+    #if USB_MIDI_IO_PORT_NUM >= 8
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_15;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_16;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_17;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_18;
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
-
+    #if USB_MIDI_IO_PORT_NUM >= 12
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_19;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1A;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1B;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1C;
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1D;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1E;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1F;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_20;
 
     #endif
-
-  #endif
+    #endif
+    #endif
 
     // MIDI OUT DESCRIPTORS - 16 PAIRS MAX
     // Embedded
@@ -150,27 +150,27 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_23;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_24;
 
-   #if USB_MIDI_IO_PORT_NUM >= 8
-
+    #if USB_MIDI_IO_PORT_NUM >= 8
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_25;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_26;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_27;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_28;
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
-
+    #if USB_MIDI_IO_PORT_NUM >= 12
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_29;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2A;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2B;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2C;
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2D;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2E;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_2F;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_30;
 
     #endif
-
-  #endif
+    #endif
+    #endif
 
 
     // External
@@ -179,27 +179,27 @@ typedef struct {
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_33;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_34;
 
-   #if USB_MIDI_IO_PORT_NUM >= 8
-
+    #if USB_MIDI_IO_PORT_NUM >= 8
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_35;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_36;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_37;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_38;
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
-
+    #if USB_MIDI_IO_PORT_NUM >= 12
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_39;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3A;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3B;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3C;
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3D;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3E;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_3F;
     MIDI_OUT_JACK_DESCRIPTOR(1)        MIDI_OUT_JACK_40;
 
     #endif
-
-  #endif
+    #endif
+    #endif
 
 
 
@@ -342,7 +342,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x05,  // MIDI OUT 1
     },
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
+    #if USB_MIDI_IO_PORT_NUM >= 12
 
     .MIDI_IN_JACK_9 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -376,6 +376,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x0C,
         .iJack              = 0x05,  // MIDI OUT 1
     },
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     .MIDI_IN_JACK_D = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -408,7 +410,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x10,
         .iJack              = 0x05,  // MIDI OUT 1
     },
-     #endif
+   #endif
+   #endif
    #endif
 
     // MIDI IN JACK - EXTERNAL - 16 Descriptors -----------------------------
@@ -480,7 +483,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x00,
     },
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
+    #if USB_MIDI_IO_PORT_NUM >= 12
 
     .MIDI_IN_JACK_19 = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -514,6 +517,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x1C,
         .iJack              = 0x00,
     },
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     .MIDI_IN_JACK_1D = {
         .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -546,7 +551,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .bJackId            = 0x20,
         .iJack              = 0x00,
     },
-  #endif
+    #endif
+    #endif
     #endif
 
     // MIDI OUT JACK - EMBEDDED - 16 Descriptors -----------------------------
@@ -643,7 +649,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x06, // MIDI IN 1
     },
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
+    #if USB_MIDI_IO_PORT_NUM >= 12
 
     .MIDI_OUT_JACK_29 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -689,6 +695,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .baSourcePin        = {0x01},
         .iJack              = 0x06, // MIDI IN 1
     },
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     .MIDI_OUT_JACK_2D = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -733,7 +741,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .baSourcePin        = {0x01},
         .iJack              = 0x06, // MIDI IN 1
     },
-  #endif
+    #endif
+    #endif
     #endif
 
 
@@ -831,7 +840,7 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x00,
     },
 
-    #if USB_MIDI_IO_PORT_NUM >= 16
+    #if USB_MIDI_IO_PORT_NUM >= 12
 
     .MIDI_OUT_JACK_39 = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -877,6 +886,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .baSourcePin        = {0x01},
         .iJack              = 0x00,
     },
+
+    #if USB_MIDI_IO_PORT_NUM >= 16
     .MIDI_OUT_JACK_3D = {
         .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
         .bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE,
@@ -922,7 +933,8 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
         .iJack              = 0x00,
     },
 
-    #endif
+      #endif
+      #endif
       #endif
 
     // End of MIDI JACK Descriptor =======================================
@@ -950,11 +962,12 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
 
         #if USB_MIDI_IO_PORT_NUM >= 8
         0X05,0X06,0X07,0X08,
-
-        #if USB_MIDI_IO_PORT_NUM >= 16
+        #if USB_MIDI_IO_PORT_NUM >= 12
         0X09,0X0A,0X0B,0X0C,
+        #if USB_MIDI_IO_PORT_NUM >= 16
         0X0D,0X0E,0X0F,0X10
 
+        #endif
         #endif
         #endif
 
@@ -983,11 +996,12 @@ static const usb_midi_descriptor_config usbMIDIDescriptor_Config = {
 
         #if USB_MIDI_IO_PORT_NUM >= 8
         0X25,0X26,0X27,0X28,
-
-        #if USB_MIDI_IO_PORT_NUM >= 16
+        #if USB_MIDI_IO_PORT_NUM >= 12
         0X29,0X2A,0X2B,0X2C,
+        #if USB_MIDI_IO_PORT_NUM >= 16
         0X2D,0X2E,0X2F,0X30
 
+        #endif
         #endif
         #endif
 

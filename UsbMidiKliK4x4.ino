@@ -167,7 +167,6 @@ void FlashAllLeds(uint8_t mode)
 					if ( mode == 0 || mode ==2 ) 	flashLED_OUT[i]->start();
 			}
 		#else
-      mode = 0; // Avoid unused prm warning
 			flashLED_CONNECT->start();
 		#endif
 		delay(100);
@@ -533,7 +532,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
 
   uint8_t src;
-  uint8_t dest ;
+  uint8_t dest = 0 ;
   uint8_t msk ;
   uint8_t i;
   uint8_t c;
@@ -990,7 +989,7 @@ void SysExInternalProcess(uint8_t source)
     // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= Set Cable 0 to Jack 1,2
     // F0 77 77 78 0F 01 00 00 00 00 01 F7       <= Set Cable 0 to Cable In 0, In 01
     // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= & jack 1,2 (2 msg)
-    // F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to 4 serial jack out
+    // F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to serial jacks out 1,2,3,4
 
     case 0x0F:
 
