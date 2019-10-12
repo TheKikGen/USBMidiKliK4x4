@@ -88,7 +88,7 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 {
 	uint8_t j=0;
 	uint8_t * pp = bloc;
-	for (uint16_t i=0; i<sz; i++) {
+	for (uint16_t i=0; i != sz; i++) {
 				PrintCleanHEX(*pp);
 				Serial.print(" ");
 				if (nl && (++j > nl) ) { Serial.println(); j=0; }
@@ -100,7 +100,7 @@ void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz,uint8_t nl)
 {
 	uint8_t j=0;
 	uint8_t * pp = bloc;
-	for (uint16_t i=0; i<sz; i++) {
+	for (uint16_t i=0; i != sz; i++) {
         if ( *pp < 0x10 ) DEBUG_SERIAL.print("0");
         DEBUG_SERIAL.print(*pp,HEX);
 				DEBUG_SERIAL.print(" ");
@@ -127,7 +127,7 @@ uint16_t GetInt16FromHex4Char(char * buff)
 {
 	char val[4];
 
-  for ( uint8_t i =0; i < sizeof(val) ; i++ )
+  for ( uint8_t i =0; i != sizeof(val) ; i++ )
     val[i] = GetInt8FromHexChar(buff[i]);
 
 	return GetInt16FromHex4Bin(val);
@@ -255,7 +255,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
 	Serial.print("|  ");
 
 	// Filters
-	for ( uint8_t f=0; f < 4 ; f++) {
+	for ( uint8_t f=0; f != 4 ; f++) {
 		 if ( ( filterMsk & ( 1 << f) )  )
 			 Serial.print("X  ");
 		 else Serial.print(".  ");
@@ -264,7 +264,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
 	// Cable In (but Midi Thru mode)
 	Serial.print("| ");
 	if (ruleType != INTELLITHRU_RULE) {
-		for ( uint8_t cin=0; cin < 16 ; cin++) {
+		for ( uint8_t cin=0; cin != 16 ; cin++) {
 					if (cin >= USBCABLE_INTERFACE_MAX ) {
 						Serial.print(" ");
 					} else {
@@ -277,7 +277,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
 
 	// Jack Out
 	Serial.print(" | ");
-	for ( uint8_t jk=0; jk < 16 ; jk++) {
+	for ( uint8_t jk=0; jk != 16 ; jk++) {
 					if (jk >= SERIAL_INTERFACE_COUNT ) {
 						Serial.print(" ");
 					} else
@@ -326,7 +326,7 @@ void ShowMidiRouting(uint8_t ruleType)
 	Serial.println("| Msg Filter   | Cable IN 1111111 | Jack OUT 1111111 |");
 	Serial.println("|  | Ch Sc Rt Sx  | 1234567890123456 | 1234567890123456 |");
 
-	for (uint8_t p=0; p< maxPorts ; p++) {
+	for (uint8_t p=0; p != maxPorts ; p++) {
 
 		void *anyRule;
 
@@ -381,7 +381,7 @@ void ShowGlobalSettings()
 	Serial.println( (char *)EEPROM_Params.TimestampedVersion);
 
 	Serial.print("Sysex header        : ");
-	for (i=0; i < sizeof(sysExInternalHeader); i++) {
+	for (i=0; i != sizeof(sysExInternalHeader); i++) {
 			Serial.print(sysExInternalHeader[i],HEX);Serial.print(" ");
 	}
 	Serial.println();
@@ -438,7 +438,7 @@ uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t por
 
 	if (ruleType == INTELLITHRU_RULE && ruleTypeOut == USBCABLE_RULE ) return 0;
 
-	for ( uint8_t i=0 ; i< portMax  ; i++ ){
+	for ( uint8_t i=0 ; i != portMax  ; i++ ){
 		Serial.print("Route ");
 		Serial.print(ruleType == USBCABLE_RULE ? "Cable OUT#":"Jack IN#");
 		if (port+1 < 10) Serial.print("0");

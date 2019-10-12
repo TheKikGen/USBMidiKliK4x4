@@ -354,7 +354,7 @@ void I2C_BusStartWire()
 
 			delay(100);
       // Scan BUS for active slave DEVICES. Table used only by the master.
-			for ( uint8_t d=0; d < sizeof(I2C_DeviceIdActive) ; d++) {
+			for ( uint8_t d=0; d != sizeof(I2C_DeviceIdActive) ; d++) {
           if ( I2C_isDeviceActive(d + B_SLAVE_DEVICE_BASE_ADDR) )
 							I2C_DeviceIdActive[I2C_DeviceActiveCount++] = d + B_SLAVE_DEVICE_BASE_ADDR;
   		}
@@ -436,7 +436,7 @@ void I2C_ShowActiveDevice()
 	uint8_t deviceId;
 
 	// Scan BUS for active slave DEVICES. Table used only by the master.
-	for ( uint8_t d=0; d < sizeof(I2C_DeviceIdActive) ; d++) {
+	for ( uint8_t d=0; d != sizeof(I2C_DeviceIdActive) ; d++) {
 			deviceId = d + B_SLAVE_DEVICE_BASE_ADDR;
 			Wire.beginTransmission(deviceId);
       delay(5);
@@ -498,12 +498,12 @@ void I2C_SlavesRoutingSyncFromMaster()
   I2C_SendCommand(0,   B_CMD_START_SYNC);
 
   // Send midiRoutingRulesCable
-  for ( uint8_t i=0 ; i< USBCABLE_INTERFACE_MAX ; i ++ ) {
+  for ( uint8_t i=0 ; i != USBCABLE_INTERFACE_MAX ; i ++ ) {
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_CABLE, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesCable[i], sizeof(midiRoutingRule_t));
   }
 
   // Send midiRoutingRulesSerial -  midiRoutingRulesIntelliThru
-  for ( uint8_t i=0 ; i< B_SERIAL_INTERFACE_MAX ; i ++ ) {
+  for ( uint8_t i=0 ; i != B_SERIAL_INTERFACE_MAX ; i ++ ) {
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_SERIAL, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesSerial[i], sizeof(midiRoutingRule_t));
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesIntelliThru[i], sizeof(midiRoutingRuleJack_t));
   }
@@ -532,7 +532,7 @@ void I2C_ProcessMaster ()
   I2C_SendCommand(0, EEPROM_Params.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ;
   #endif
 
-  for ( uint8_t d = 0 ; d < I2C_DeviceActiveCount ; d++) {
+  for ( uint8_t d = 0 ; d != I2C_DeviceActiveCount ; d++) {
 
       // Get a slave midi packet eventually
       if ( I2C_SendCommand(I2C_DeviceIdActive[d],B_CMD_ISPACKET_AVAIL) <= 0) continue;  // No packets or error

@@ -1049,7 +1049,7 @@ static const usb_descriptor_string usbMIDIDescriptor_iInterface = {
 };
 
 // Midi Out 1-n
-static const usb_descriptor_string usbMIDIDescriptor_iJackOut1 = {
+static const usb_descriptor_string usbMIDIDescriptor_iJackOut = {
     .bLength = USB_DESCRIPTOR_STRING_LEN(8),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'O', 0, 'u', 0, 't', 0},
@@ -1057,7 +1057,7 @@ static const usb_descriptor_string usbMIDIDescriptor_iJackOut1 = {
 
 
 // Midi In 1-n
-static const usb_descriptor_string usbMIDIDescriptor_iJackIn1 = {
+static const usb_descriptor_string usbMIDIDescriptor_iJackIn = {
     .bLength = USB_DESCRIPTOR_STRING_LEN(7),
     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, ' ', 0, 'I', 0, 'n', 0},
@@ -1082,6 +1082,6 @@ static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = 
     {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(18)},
     {(uint8*)&usbMIDIDescriptor_iSerial,      USB_DESCRIPTOR_STRING_LEN(8) },
     {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(4) },
-    {(uint8*)&usbMIDIDescriptor_iJackIn1,     USB_DESCRIPTOR_STRING_LEN(9) },
-    {(uint8*)&usbMIDIDescriptor_iJackOut1,    USB_DESCRIPTOR_STRING_LEN(10) },
+    {(uint8*)&usbMIDIDescriptor_iJackIn,     USB_DESCRIPTOR_STRING_LEN(9) },
+    {(uint8*)&usbMIDIDescriptor_iJackOut,    USB_DESCRIPTOR_STRING_LEN(10) },
 };

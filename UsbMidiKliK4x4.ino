@@ -160,7 +160,7 @@ void Timer2Handler(void)
 ///////////////////////////////////////////////////////////////////////////////
 void FlashAllLeds(uint8_t mode)
 {
-	for ( uint8_t f=0 ; f< 4 ; f++ ) {
+  for ( uint8_t f=0 ; f!= 4 ; f++ ) {
 		#ifdef LEDS_MIDI
 			for ( uint8_t i=0 ; i< SERIAL_INTERFACE_MAX ; i++ ) {
 					if ( mode == 0 || mode ==1 ) flashLED_IN[i]->start();
@@ -170,8 +170,7 @@ void FlashAllLeds(uint8_t mode)
       mode = 0; // Avoid unused prm warning
 			flashLED_CONNECT->start();
 		#endif
-
-			delay(100);
+		delay(100);
 	}
 }
 
@@ -429,7 +428,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
   // ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
 	// A target match ?
   if ( *serialOutTargets) {
-				for (	uint16_t t=0; t<SERIAL_INTERFACE_COUNT ; t++)
+				for (	uint16_t t=0; t != SERIAL_INTERFACE_COUNT ; t++)
 					if ( (*serialOutTargets & ( 1 << t ) ) ) {
 								// Route via the bus
 								if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
@@ -454,7 +453,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 
   if (  *cableInTargets  ) {
     	midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
-			for (uint8_t t=0; t < USBCABLE_INTERFACE_MAX ; t++) {
+			for (uint8_t t=0; t != USBCABLE_INTERFACE_MAX ; t++) {
 	      if ( *cableInTargets & ( 1 << t ) ) {
 	          pk2.packet[0] = ( t << 4 ) + cin;
             // Only the master has USB midi privilege in bus MODE
@@ -492,7 +491,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
-	  for ( uint8_t i = 0 ; i < USBCABLE_INTERFACE_MAX ; i++ ) {
+	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
 
 			// Cables
 	    EEPROM_Params.midiRoutingRulesCable[i].filterMsk = midiXparser::allMsgTypeMsk;
@@ -500,7 +499,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
 		}
 
-		for ( uint8_t i = 0 ; i < B_SERIAL_INTERFACE_MAX ; i++ ) {
+		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 
 			// Jack serial
 	    EEPROM_Params.midiRoutingRulesSerial[i].filterMsk = midiXparser::allMsgTypeMsk;
@@ -511,7 +510,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
-	  for ( uint8_t i = 0 ; i < B_SERIAL_INTERFACE_MAX ; i++ ) {
+	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].filterMsk = midiXparser::allMsgTypeMsk;
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0B1111 ;
 		}
@@ -521,7 +520,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 
 	// Disable "Intelligent thru" serial mode
 	if (mode == ROUTING_INTELLITHRU_OFF ) {
-		for ( uint8_t i = 0 ; i < B_SERIAL_INTERFACE_MAX ; i++ ) {
+		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 			EEPROM_Params.intelliThruJackInMsk = 0;
 		}
 	}
@@ -578,7 +577,7 @@ uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
           *(++buff2) = port;
           *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk;
           c = 0;
-          for ( i=0; i < 16 ; i++) {
+          for ( i=0; i != 16 ; i++) {
      						if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk & ( 1 << i) ) {
                       *(++buff2) = i;
                       c++;
@@ -623,7 +622,7 @@ uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
           else if (!src && !dest) msk = EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
           else return 0;
           c = 0;
-          for ( i = 0 ; i< 16  ; i++) {
+          for ( i = 0 ; i != 16  ; i++) {
               if ( msk & ( 1 << i) ) {
                 *(++buff2) = i;
                 c++;
@@ -665,7 +664,7 @@ void SysexInternalDumpToStream(uint8_t dest) {
   else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
   else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
 
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0E - Intellithru midi routing rules - 03 Routing rules
       l = SysexInternalDumpConf(0x0E030000, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -673,7 +672,7 @@ void SysexInternalDumpToStream(uint8_t dest) {
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
   }
 
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - 02 Midi filter Cable
       l = SysexInternalDumpConf(0x0F020000, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -681,14 +680,14 @@ void SysexInternalDumpToStream(uint8_t dest) {
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
   }
 
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - 02 Midi filter Serial
       l = SysexInternalDumpConf(0x0F020100, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
       else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
   }
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - Cable to Cable
       l = SysexInternalDumpConf(0x0F010000, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -696,7 +695,7 @@ void SysexInternalDumpToStream(uint8_t dest) {
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
   }
 
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - Cable to Serial
       l = SysexInternalDumpConf(0x0F010001, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -704,7 +703,7 @@ void SysexInternalDumpToStream(uint8_t dest) {
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
   }
 
-  for ( uint8_t j=0; j < 16 ; j++) {
+  for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - Serial to Cable
       l = SysexInternalDumpConf(0x0F010100, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -712,7 +711,7 @@ void SysexInternalDumpToStream(uint8_t dest) {
       else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
    }
 
-   for ( uint8_t j=0; j < 16 ; j++) {
+   for ( uint8_t j=0; j != 16 ; j++) {
       // Function 0F - USB/Serial Midi midi routing rules - Serial to Serial
       l = SysexInternalDumpConf(0x0F010101, j, sysExInternalBuffer);
       if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
@@ -729,7 +728,7 @@ void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
   uint8_t b=0;
   bool endPk;
   // Build sysex packets
-  for ( uint16_t i = 0; i< sz ; i ++ ) {
+  for ( uint16_t i = 0; i != sz ; i ++ ) {
     pk.packet[++b] = buff[i];
     endPk = ( i+2 > sz );
     if (b == 3 ||  endPk ) {
@@ -943,7 +942,7 @@ void SysExInternalProcess(uint8_t source)
 							// Set Jacks
 							if ( msgLen > 4)	{
 								uint16_t msk = 0;
-								for ( uint8_t i = 5 ; i< (msgLen+1)  ; i++) {
+								for ( uint8_t i = 5 ; i != (msgLen+1)  ; i++) {
 										if ( sysExInternalBuffer[i] < SERIAL_INTERFACE_COUNT)
 											msk |= 	1 << sysExInternalBuffer[i] ;
 								}
@@ -1045,7 +1044,7 @@ void SysExInternalProcess(uint8_t source)
 
 				// Compute mask from the port list
 				uint16_t msk = 0;
-				for ( uint8_t i = 6 ; i< (msgLen+1)  ; i++) {
+				for ( uint8_t i = 6 ; i != (msgLen+1)  ; i++) {
 					  uint8_t b = sysExInternalBuffer[i];
 						if ( (dstType == 0 && b < USBCABLE_INTERFACE_MAX) ||
 						     (dstType == 1 && b < SERIAL_INTERFACE_COUNT) ) {
@@ -1268,7 +1267,7 @@ void setup()
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
     // + Set parsers filters in the same loop.  All messages including on the fly SYSEX.
 
-    for ( uint8_t s=0; s < SERIAL_INTERFACE_MAX ; s++ ) {
+    for ( uint8_t s=0; s != SERIAL_INTERFACE_MAX ; s++ ) {
       serialHw[s]->begin(31250);
       midiSerial[s].setMidiMsgFilter( midiXparser::allMsgTypeMsk );
     }
