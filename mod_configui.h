@@ -55,6 +55,7 @@ void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 );
 uint8_t GetInt8FromHexChar(char);
 uint16_t GetInt16FromHex4Char(char *);
 uint16_t GetInt16FromHex4Bin(char * );
+uint16_t PowInt(uint8_t ,uint8_t);
 uint16_t AsknNumber(uint8_t) ;
 char AskDigit();
 char AskChar();
@@ -69,6 +70,7 @@ void AskMidiRouting(uint8_t);
 uint8_t AskMidiFilter(uint8_t, uint8_t );
 void AskProductString();
 void AskVIDPID();
+void MenuItems( const char * );
 void ShowConfigMenu();
 void I2C_ShowActiveDevice();
 
@@ -143,6 +145,18 @@ uint16_t GetInt16FromHex4Bin(char * buff)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// A Pow function to not use the fat float math library one
+///////////////////////////////////////////////////////////////////////////////
+uint16_t PowInt(uint8_t p,uint8_t n) {
+
+  if (n == 0) return 1;
+  uint16_t pow = 1;
+  while ( n--) pow = pow * p;
+  return pow;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
 // USB serial get a number of N digit (long)
 ///////////////////////////////////////////////////////////////////////////////
 uint16_t AsknNumber(uint8_t n)
@@ -150,7 +164,7 @@ uint16_t AsknNumber(uint8_t n)
 	uint16_t v=0;
 	uint8_t choice;
 	while (n--) {
-		v += ( (choice = AskDigit() ) - '0' )*pow(10,n);
+		v += ( (choice = AskDigit() ) - '0' )*PowInt(10,n);
 		Serial.print(choice - '0');
 	}
 	return v;
@@ -631,6 +645,42 @@ void AskVIDPID()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Show menu items with columns
+///////////////////////////////////////////////////////////////////////////////
+void MenuItems( const char * menuItems[]) {
+  uint8_t c = 0;
+  uint8_t l = 0;
+  uint8_t nb = 0;
+
+  // 3 columns of 10 items max
+  const char * item[3][10];
+
+  // Fill columns
+  for ( c=0 ; c< 3 ; c++ ) {
+    for ( l=0 ; l < 10 ; l++) {
+      if ( strlen(menuItems[nb]) ) item[c][l] = menuItems[nb++];
+      else {
+        item[c][l] = 0;
+      }
+    }
+  }
+
+  // Print columns
+  for ( l=0 ; l< 10 ; l++ ) {
+    for ( c=0 ; c < 3 ; c++) {
+      if ( *item[c][l] != 0 ) {
+          if ( *item[c][l] != '.') {
+              Serial.print("["); Serial.print(*item[c][l]);Serial.print("] ");
+              Serial.print(item[c][l]+1);
+          } else Serial.print("    ");
+          for (uint8_t j = 0 ; j < 30-strlen(item[c][l]) ; j++) Serial.write(' ');
+      }
+    }
+    Serial.println();
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // INFINITE LOOP - CONFIG ROOT MENU
 //----------------------------------------------------------------------------
 // Allow USBMidLKLIK configuration by using a menu as a user interface
@@ -641,42 +691,38 @@ void ShowConfigMenu()
 	char choice=0;
 	uint8_t i;
   boolean showMenu = true;
-
+  static const char * configMenu[] = {
+  "0View global settings",
+  "1View midi routing",
+  "2Usb VID PID",
+  "3Usb product string",
+  "4Cable OUT routing",
+  "5Jack IN routing",
+  "6IntelliThru routing",
+  "7IntelliThru timeout",
+  "8Toggle bus mode",
+  "9Set device Id",
+  "aShow active devices",
+  "dSYSEX settings dump",
+  ".",
+  ".",
+  "eReload settings",
+  "fFactory settings",
+  "rFactory routing",
+  "sSave settings",
+  "zDebug on Serial3",
+  "xExit",
+  ""
+  };
 	for ( ;; )
 	{
 		if (showMenu) {
+      Serial.println();
   		ShowMidiKliKHeader();
       Serial.println();
-			Serial.print("0.Global settings\t");
-      Serial.print("6.IntelliThru routing");
-      Serial.println();
-			Serial.print("1.View midi routing\t");
-      Serial.print("7.IntelliThru timeout");
-      Serial.println();
-  		Serial.print("2.USB VID PID\t\t");
-      Serial.print("8.Toggle bus mode");
-      Serial.println();
-			Serial.print("3.USB Prod.string\t");
-      Serial.print("9.Set device Id      ");
-      Serial.println();
-  		Serial.print("4.Cable OUT routing\t");
-      Serial.print("a.Show active devices");
-      Serial.println();
-			Serial.print("5.Jack IN routing\t");
-      Serial.print("d.SYSEX settings dump");
-      Serial.println();Serial.println();
-      Serial.print("e.Reload settings\t");
-      Serial.print("f.Factory settings");
-      Serial.println();
-  		Serial.print("r.Factory routing\t");
-      Serial.print("s.Save settings");
-      Serial.println();
-  		Serial.print("z.Debug on Serial3\t");
-      Serial.print("x.Exit");
-
+      MenuItems(configMenu);
 		}
     showMenu = true;
-		Serial.println();
 		Serial.print("=>");
 		choice = AskChar();
 		Serial.println(choice);
@@ -859,7 +905,7 @@ void ShowConfigMenu()
         if ( AskChoice("Enable debug mode.","") == 'y' ) {
           EEPROM_Params.debugMode = true;
           Serial.println();
-          Serial.println("Debug mode enabled. M:Serial3, S:UsbSerial. 115200 bauds");
+          Serial.println("Debug mode enabled. Master:Serial3, Slave:UsbSerial. 115200 bauds.");
           Serial.println();
         } else {
           EEPROM_Params.debugMode = false;
@@ -868,7 +914,7 @@ void ShowConfigMenu()
           Serial.println();
         }
         #else
-          Serial.println("Not available in that firmware.");
+          Serial.println("Not available.");
           Serial.println();
         #endif
 				showMenu = false;
