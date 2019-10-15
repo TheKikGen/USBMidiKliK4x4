@@ -58,13 +58,33 @@ The system exclusive messages format is the following :
 The F0 77 77 78 is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
 IMPORTANT : INTERNAL SYSEX ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1.  
 
-## Hardware reset (function 0x0A)
+
+## Fn 05 - Sysex configuration dump
+    
+    F0 77 77 78 05 F7
+
+This command will dump all the configuration s a sysex form, allowing the user to save it in a file fro backup purpose.
+
+## Fn 06 - Universal Identity request
+
+    F0 77 77 78 06 01 F7
+
+will reply with the universal SYSEX identity answer :
+
+    0xF0,
+    0x7E,0x7F,0x06,0x02, SYSEX_MANUFACTURER_ID, 
+    SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,
+    VERSION_MAJOR,VERSION_MINOR,
+    0x00,0X00,
+    0xF7
+
+## Fn 0A - Hardware reset
 
 To avoid unplugging the USB cable, you cand send this sysex that will do an harware reset programatically.  The full board and USB will be resetted. The sysex message is the following :
 
        F0 77 77 78 0A F7
 
-## Serial Configuration menu Bootmode (function 0x08)
+## Fn 08 - Serial Configuration menu Bootmode
 
 This sysex enables the configuration menu accessible from the USB serial.  Immediatly after sending this sequence, the interface reboots in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK.
 
@@ -126,7 +146,7 @@ The following menu should appear after connecting to the right serial USB port ,
 	  Intelligent Midi Thru USB timeout : 30s                                       
 	-===========================================-  
 
-## Change the device ProductStringName
+## Fn 0B - Change the device ProductStringName
 
 It is posssible to change the USB device ProductStringName with a specific SYSEX (or from the configuration menu). The new name is saved in the flash memory immediatly after receiving the SYSEX, so it persists even after powering off the device.
 The message structure is the following :
@@ -139,7 +159,7 @@ For example : the following SYSEX will change the name of the MIDI interface to 
 
 The product name is limited to 30 characters max, non accentuated (ascii code between 0 and 0x7F).
 
-## Change the USB VendorID and ProductID
+## Fn 0C - Change the USB VendorID and ProductID
 
 In the same way, you can also change the USB Vendor and Product Ids with a SYSEX (or configuration menu). They are also saved in the flash memory and persist after power off. The sysex message structure is the following :
 
@@ -153,7 +173,7 @@ so the complete SYSEX message will be :
 
       F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
 
-## Function 0E - Intellithru midi routing rules
+## Fn 0E - Intellithru midi routing rules
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
 In that mode, the routing rules are changed to the routing rules defined for the thru mode.
@@ -215,48 +235,42 @@ Example of routing :
 
 The sysex message structure is the following :
 
-	Header       = F0 77 77 78	
-	Function     = 0F
-	Action       = <00 Reset to default midi routing>
-		   OR  <01 Set routing +
-		   		. source type     = <cable=0X0 | serial=0x1>
-				. id              = id for cable or serial 0-3
-				. Midi Msg filter mask
-				. routing targets = <cable mask> , <jack serial mask>
-	EOX 	     = F7
+    F0 77 77 78 0F  < Routing rules command <command args>   > F7
+    
+    
+Commands are :
 
-8 targets by input (a cable USB OUT or a jack Serial MIDI IN) are possible :
-. USB cable IN 0 to 3
-. Jack midi OUT to an external gear 1 to 4
+    00 Reset to default midi routing
+    01 Set routing +
+        arg1 - source type : <0x00 usb cable | 0x01 jack serial>
+        arg2 - port id : id for cable or jack serial (0-F)
+        arg3 - destination = <0x00 usb cable in | 0x01 jack serial out>
+        arg4 - targets : <port 0 1 2...n> 16 max (0-F)
+    02  Midi filter
+        arg1 - source type : : <0x00 usb cable | 0x01 jack serial>
+        arg2 - port id : id for cable or jack serial (0-F)
+        arg3 - midi filter mask (binary OR)
+                  => zero if you want to inactivate intelliThru for this jack
+                    channel Voice = 0001 (1), (binary OR)
+                    system Common = 0010 (2), (binary OR)
+                    realTime      = 0100 (4), (binary OR)
+                    sysEx         = 1000 (8)
 
-Routing targets tables are stored in 2 bytes / 8 bits, 1 for each input. Bit 0 is starting at the top right. 
-. Bits 0-3 are corresponding respectively to Serial Midi out Jack targets 1-4
-. Bits 4-7 are corresponding respectively to USB Cables targets IN 0-3.
+In bus mode, up to 16 targets by input (a cable USB OUT or a jack Serial MIDI IN) are possible.
+IN standard mode, you can adress 4 cables and 3 to 4 jacks.
 
-To configure the routing rule for an input, you must set some bits of the target byte to 1. For example,
-the mask 01010001 will activate the cable out 0 and 2, and jack serial 1.
+Examples :
 
-Message filter is defined as the midi thu mode (see above).
-
-Some examples :
-
-	F0 77 77 78 0F 00 F7                <= reset to default midi routing
-	F0 77 77 78 0F 01 00 00 0F 00 03 F7 <= Set Cable 0 to Jack 1,2, all midi msg
-	F0 77 77 78 0F 01 00 00 0F 01 03 F7 <= Set Cable 0 to Cable In 0, Jack 1,2, all midi msg
-	F0 77 77 78 0F 01 01 01 04 00 0F F7 <= Set Serial jack In 2 to all serial jack out, realtime msg only
-	F0 77 77 78 0F 01 01 00 01 03 03 F7 <= Set Serial jack In 1 to 1,2 jack out,cable in 0,1, channel voice msg only
+    F0 77 77 78 0F 00 F7                      <= reset to default midi routing
+    F0 77 77 78 0F 02 00 00 04 F7             <= Set filter to realtime events on cable 0
+    F0 77 77 78 0F 01 00 00 01 00 01 F7       <= Set Cable 0 to Jack 1,2
+    F0 77 77 78 0F 01 00 00 00 00 01 F7       <= Set Cable 0 to Cable In 0, In 01
+    F0 77 77 78 0F 01 00 00 01 00 01 F7       <= & jack 1,2 (2 msg)
+    F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to serial jacks out 1,2,3,4
 
 Default routing is :
 
-       USB Cable OUT (0,3)  o------------->o MIDI OUT JACK (1,4) 
-       USB Jack IN   (1,4)  o------------->o USB Cable IN (0,3)
+       USB Cable OUT (0,F)   o------------->o MIDI OUT JACK (0,15) 
+       USB Jack IN   (1,16)  o------------->o USB Cable IN (0,15)
 
-The new routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
-
-## MPC LIVE midi port C & D enabling
-
-Here is the SYSEX to emulate an Akai internal USB midi interface and get MPC Live port C+D accessible in standalone mode.
-
-	F0 77 77 78 0C 00 09 0E 08 00 00 03 0B F7 F0 77 77 78 0B 4D 50 43 20 4C 69 76 65 20 43 6F 6E 74 72 6F 6C 6C 65 72 F7
-
-The sequence must be sent to board via CABLE 0 OR MIDI IN JACK 1. 
+The routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
