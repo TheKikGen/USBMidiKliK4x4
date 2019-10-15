@@ -49,7 +49,7 @@ The board is USB Powered, so no additional power supply necessary. It works driv
 
 Contact me for more details.
 
-# USBMidiKliK4x4 - SYSEX
+# USBMidiKliK4x4 - SYSEX V2
 
 The system exclusive messages format is the following :
 
