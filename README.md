@@ -16,7 +16,7 @@ The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to
 Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
 I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
 
-The current version V2 supports full USB midi unt 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode". 
+The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode". 
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
@@ -153,41 +153,42 @@ so the complete SYSEX message will be :
 
       F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
 
-## Set the "intelligent MIDI Thru" 
+## Function 0E - Intellithru midi routing rules
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
 In that mode, the routing rules are changed to the routing rules defined for the thru mode.
 If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. 
 
-The sysex message structure is the following :
+    F0 77 77 78 0E  < Routing rules command <command args>   > F7
 
-	Header       = F0 77 77 78
-	Function     = 0E
-	Action       = 00 Reset to default
-		  OR   01 Disable
-		  OR   02 Set Delay <number of 15s periods 1-127>
-		  OR   03 Set thu mode jack routing +
-		  		. Midi In Jack = < Midi In Jack # 1-4 = 0-3>
-				. Midi Msg filter mask (can't be zero) :
-				. Serial midi Jack out targets Mask 4bits 1-F
-		                       Bit0 = Jack1, bit 3 = Jack 4
-	EOX = F7
-	
-Message filter masks (can be combined but can't be zero) are :
+Commands are :
+    
+    00 Reset Intellithru to default
+    01 Disable Intellithru
+    02 Set  Intellithru timeout
+          arg1 : 0xnn (number of 15s periods 1-127)
+    03 Set thru mode jack routing
+          arg1 - Midi In Jack = 0xnn (0-F)
+          arg2 - Midi filter mask (binary OR)
+                  => zero if you want to inactivate intelliThru for this jack
+                     channel Voice = 0001 (1), (binary OR)
+                     system Common = 0010 (2), (binary OR)
+                     realTime      = 0100 (4), (binary OR)
+                      sysEx         = 1000 (8)
+         arg3 - Serial midi Jack out targets
+               <t1> <t2>...<tn>  0-F 16 targets maximum.
 
-	b0 = channel Voice    (0001)
-	b1 = system Common    (0010)
-	b2 = realTime         (0100)
-	b3 = system exlcusive (1000)		
-	
-The delay is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
-After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask.  Examples :
+The timeout is defined by a number of 15 seconds periods. The min/max period number is 1/127 (31 mn).  
+After that delay, Every events from the MIDI INPUT Jack #n will be routed to outputs jacks 1-4, accordingly with the serial targets mask.  
 
-	F0 77 77 78 0E 00 F7    <= Reset to default 
-	F0 77 77 78 0E 01 F7    <= Disable midi thru mode
-	F0 77 77 78 0E 02 02 F7 <= Set delay to 30s (2 periods)
-	F0 77 77 78 0E 03 01 0F 0F F7 <= Set Midi In Jack 2 to Jacks out 1,2,3,4 All msg
-	F0 77 77 78 0E 03 03 04 0C F7 <= Set Midi In Jack 4 to Jack 3,4, real time only
+Examples :
+
+    F0 77 77 78 0E 00 F7                    <= Reset to default
+    F0 77 77 78 0E 01 F7                    <= Disable
+    F0 77 77 78 0E 02 02 F7                 <= Set timeout to 30s
+    F0 77 77 78 0E 03 01 0F 00 01 02 03 F7  <= Route Midi In Jack 2 to Jacks out 1,2,3,4 All msg
+    F0 77 77 78 0E 03 03 04 03 04 F7        <= Route Midi In Jack 4 to Jacks out 4,5, real time only
+
 
 ## Define midi routing rules
 
