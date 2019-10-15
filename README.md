@@ -1,7 +1,7 @@
 ### THE V2 IS AT RC1 STAGE.   
 
 That major release offers the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-board-to-a-15x15-MIDI
+https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
 
 NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
 
