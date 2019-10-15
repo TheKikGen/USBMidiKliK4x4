@@ -63,7 +63,7 @@ IMPORTANT : INTERNAL SYSEX ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1.
     
     F0 77 77 78 05 F7
 
-This command will dump all the configuration s a sysex form, allowing the user to save it in a file fro backup purpose.
+This command will dump all the configuration in a sysex form, allowing the user to save it in a file for backup purpose.
 
 ## Fn 06 - Universal Identity request
 
