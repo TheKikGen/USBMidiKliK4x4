@@ -1,6 +1,6 @@
-### THE V2 IS AT RC1 STAGE.   
+### THE V2 IS MERGED WITH THE MASTER BRACH AS RC3.   
 
-That major release offers the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
+That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
 https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
 
 NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
