@@ -1,44 +1,46 @@
 /*
-  USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
-  Based on the MIDITECH / MIDIPLUS 4X4 harware.
-  Copyright (C) 2017/2018 by The KikGen labs.
-
-  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
-  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
-
-  ------------------------   CAUTION  ----------------------------------
-  THIS NOT A COPY OR A HACK OF ANY EXISTING MIDITECH/MIDIPLUS FIRMWARE.
-  THAT FIRMWARE WAS ENTIRELY CREATED FROM A WHITE PAGE, WITHOUT
-  DISASSEMBLING ANY SOFTWARE FROM MIDITECH/MIDIPLUS.
-
-  UPLOADING THIS FIRMWARE TO YOUR MIDIPLUS/MIDITECH 4X4 USB MIDI
-  INTERFACE  WILL PROBABLY CANCEL YOUR WARRANTY.
-
-  IT WILL NOT BE POSSIBLE ANYMORE TO UPGRADE THE MODIFIED INTERFACE
-  WITH THE MIDITECH/MIDIPLUS TOOLS AND PROCEDURES. NO ROLLBACK.
-
-  THE AUTHOR DISCLAIM ANY DAMAGES RESULTING OF MODIFYING YOUR INTERFACE.
-  YOU DO IT AT YOUR OWN RISKS.
-  ---------------------------------------------------------------------
+  -----------------------------------------------------------------------------
+  USBMIDIKLIK 4X4 - USB Midi advanced firmware for STM32F1 platform.
+  Copyright (C) 2019 by The KikGen labs.
+  LICENCE CREATIVE COMMONS - Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
 
   This file is part of the USBMIDIKLIK-4x4 distribution
   https://github.com/TheKikGen/USBMidiKliK4x4
-  Copyright (c) 2018 TheKikGen Labs team.
+  Copyright (c) 2019 TheKikGen Labs team.
+  -----------------------------------------------------------------------------
+  USB MIDI LIBRARY adapted by TheKikGenLab from USB LeafLabs LLC. USB API :
+  Perry Hung, Magnus Lundin,Donald Delmar Davis, Suspect Devices.
+  GPL Licence.
+  -----------------------------------------------------------------------------
+  Disclaimer.
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, version 3.
+  This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License.
+  To view a copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/
+  or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  NON COMMERCIAL - PERSONAL USE ONLY : You may not use the material for pure
+  commercial closed code solution without the licensor permission.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
+  You are free to copy and redistribute the material in any medium or format,
+  adapt, transform, and build upon the material.
 
+  You must give appropriate credit, a link to the github site
+  https://github.com/TheKikGen/USBMidiKliK4x4 , provide a link to the license,
+  and indicate if changes were made. You may do so in any reasonable manner,
+  but not in any way that suggests the licensor endorses you or your use.
+
+  You may not apply legal terms or technological measures that legally restrict
+  others from doing anything the license permits.
+
+  You do not have to comply with the license for elements of the material
+  in the public domain or where your use is permitted by an applicable exception
+  or limitation.
+
+  No warranties are given. The license may not give you all of the permissions
+  necessary for your intended use.  This program is distributed in the hope that
+  it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
-
 #include "hardware_config.h"
 #include "usb_midi.h"
 #include <string.h>
@@ -56,6 +58,26 @@
 // It can work for any device, but was optimized for the MIDI 4X4 board from Miditech
 // based on a STM32F103RC.
 
+// MIDI USB packet lenght
+const uint8_t USBMidi::CINToLenTable[] =
+{
+  0, // 0X00 Miscellaneous function codes. Reserved for future extensions.
+  0, // 0X01 Cable events.Reserved for future expansion.
+  2, // 0x02 Two-byte System Common messages like  MTC, SongSelect, etc.
+  3, // 0x03 Three-byte System Common messages like SPP, etc.
+  3, // 0x04 SysEx starts or continues
+  1, // 0x05 Single-byte System Common Message or SysEx ends with following single byte.
+  2, // 0x06 SysEx ends with following two bytes.
+  3, // 0x07 SysEx ends withfollowing three bytes.
+  3, // 0x08 Note-off
+  3, // 0x09 Note-on
+  3, // 0x0A Poly-KeyPress
+  3, // 0x0B Control Change
+  2, // 0x0C Program Change
+  2, // 0x0D Channel Pressure
+  3, // 0x0E PitchBend Change
+  1  // 0x0F Single Byte
+};
 // Constructor
 USBMidi::USBMidi(void) {
 
@@ -141,7 +163,7 @@ uint32_t USBMidi::readPackets(const void *buf, uint32_t len) {
 
 /* Blocks forever until 1 byte is received */
 uint32_t USBMidi::peekPacket() {
-      uint32_t p;
+      uint32_t p=0;
       usb_midi_peek(&p,1);
       return p;
 }
@@ -152,7 +174,7 @@ void USBMidi::markPacketRead() {
 
 /* Blocks forever until 1 byte is received */
 uint32_t USBMidi::readPacket() {
-    uint32_t p;
+    uint32_t p=0;
     usb_midi_rx(&p,1);
     return p;
 }

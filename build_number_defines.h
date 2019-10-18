@@ -42,7 +42,8 @@
 #ifndef BUILD_DEFS_H
 #define BUILD_DEFS_H
 
-#define VERSION_MAJOR 1
+#define VERSION_MAJOR 2
+#define VERSION_MINOR 0
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890
@@ -165,3 +166,5 @@ const char TimestampedVersion[] =
 };
 
 #endif // BUILD_DEFS_H
+
+
