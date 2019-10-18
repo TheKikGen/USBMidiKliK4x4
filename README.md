@@ -1,16 +1,17 @@
-NEWS : THE V2 WILL COMME SOON WITH 16 PORTS ROUTING CAPABILITY....
+### THE V2 IS AT RC1 STAGE.   
 
-NEWS : I'm selling my five USB MIDI 3X3 prototype boards on Ebay here : 
-https://www.ebay.fr/itm/303138783911
+That major release offers the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
+https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
 
-PCB ONLY HERE :
-https://www.ebay.fr/itm/303287160112
+NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
 
 
 # USBMidiKliK4x4
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
+
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
 The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
 Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
