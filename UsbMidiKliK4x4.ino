@@ -46,9 +46,9 @@
 #include <Wire_slave.h>
 #include <PulseOutManager.h>
 #include <midiXparser.h>
-#include "UsbMidiKliK4x4.h"
+#include "usbmidiklik4x4.h"
 #include "usb_midi.h"
-#include "RingBuffer.h"
+#include "ringbuffer.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////
