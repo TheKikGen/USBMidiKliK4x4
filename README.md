@@ -3,6 +3,9 @@
 That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with common routing....
 https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
 
+<img  border="0" width=700 src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
+
+
 NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
 
 
