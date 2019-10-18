@@ -405,7 +405,7 @@ void ShowGlobalSettings()
 	Serial.print("Debug Mode          : ");
 	Serial.println(EEPROM_Params.debugMode ? "ENABLED":"DISABLED");
 
-	Serial.print("Harware type        : ");
+	Serial.print("Hardware type       : ");
 	Serial.println(HARDWARE_TYPE);
 
 	Serial.print("EEPROM param. size  : ");
