@@ -1,4 +1,3 @@
-
 # USBMidiKliK4x4
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
