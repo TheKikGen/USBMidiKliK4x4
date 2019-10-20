@@ -172,7 +172,7 @@ Examples :
     F0 77 77 78 0E 03 03 04 03 04 F7        <= Route Midi In Jack 4 to Jacks out 4,5, real time only
 
 
-## Define midi routing rules
+## Fn 0F - JACK/USB Midi routing rules
 
 You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, USB to USB, serial to USB, serial to serial.
 2 routing tables are availables :
