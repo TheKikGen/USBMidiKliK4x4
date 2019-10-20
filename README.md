@@ -1,3 +1,9 @@
+__ __| |           |  /_) |     ___|             |           |
+  |   __ \   _ \  ' /  | |  / |      _ \ __ \   |      _` | __ \   __|
+  |   | | |  __/  . \  |   <  |   |  __/ |   |  |     (   | |   |\__ \
+ _|  _| |_|\___| _|\_\_|_|\_\\____|\___|_|  _| _____|\__,_|_.__/ ____/
+
+
 ### THE V2 IS MERGED WITH THE MASTER BRACH AS RC3.   
 
 That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
@@ -17,28 +23,28 @@ The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to
 Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
 I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
 
-The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode". 
+The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode".
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
 ## USBMidiKliK4x4 features
 
-+ 16 MIDI IN / 16 MDI OUT Support 
++ 16 MIDI IN / 16 MDI OUT Support
 + Support 15 JACK IN / 15 JACK OUT in bus mode
 + Configuration with SYSEX and/or and interactive menu from a serial USB terminal
 + Complex routing rules also configurables by sysex or from an interactive user menu
 + Routing rules allowing MIDI MERGE, SPLIT easily on any ports available.
-+ Ability to route any USB IN to any USB OUT/ MIDI OUT 
++ Ability to route any USB IN to any USB OUT/ MIDI OUT
 + Midi messages filtering : channel voice, system common, realtime, sysex
 + Support of very big SYSEX dump files transmission
-+ Hardware reset remotely by Sysex 
++ Hardware reset remotely by Sysex
 + Sysex to switch to configuration menu serial mode instead of MIDI USB
 + USB device ProductStringName, Vendor and Product Ids can be changed easily
 + STANDALONE Mode :  can be used as a standalone MIDI routing box without connecting any host to the USB
 + Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
 + Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
 
-Configuration is stored in EEPROM and persists after power off. 
+Configuration is stored in EEPROM and persists after power off.
 
 ## Bluepill and USBMidiKlik 3x3
 
@@ -46,7 +52,7 @@ Configuration is stored in EEPROM and persists after power off.
 
 I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.
 
-The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android. 
+The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
 
 Contact me for more details.
 
@@ -61,7 +67,7 @@ IMPORTANT : INTERNAL SYSEX ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1.
 
 
 ## Fn 05 - Sysex configuration dump
-    
+
     F0 77 77 78 05 F7
 
 This command will dump all the configuration in a sysex form, allowing the user to save it in a file for backup purpose.
@@ -73,7 +79,7 @@ This command will dump all the configuration in a sysex form, allowing the user 
 will reply with the universal SYSEX identity answer :
 
     0xF0,
-    0x7E,0x7F,0x06,0x02, SYSEX_MANUFACTURER_ID, 
+    0x7E,0x7F,0x06,0x02, SYSEX_MANUFACTURER_ID,
     SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,
     VERSION_MAJOR,VERSION_MINOR,
     0x00,0X00,
@@ -129,7 +135,7 @@ In the same way, you can also change the USB Vendor and Product Ids with a SYSEX
     F0 77 77 78 <func id = 0x0C> <n1n2n3n4 = Vendor Id nibbles> <n1n2n3n4 = Product Id nibbles> F7
 
 As MIDI data are 7 bits bytes, a special encoding is used to handle VendorId and ProductID beeing 16 bits values.  To stay light, and because the message is very short, 2 x 16 bits values, the encoding will consists in sending each nibble (4 bits) serialized in a bytes train. For example sending VendorID and ProductID 0X8F12 0X9067 will be encoded as :
-			
+
       0x08 0XF 0x1 0x2  0X9 0X0 0X6 0X7
 
 so the complete SYSEX message will be :
@@ -140,12 +146,12 @@ so the complete SYSEX message will be :
 
 When USB midi is not active beyond a defined delay , the "intelligent" MIDI THRU can be activated automatically.
 In that mode, the routing rules are changed to the routing rules defined for the thru mode.
-If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored. 
+If any USB midi event is received, the intelligent thru mode is stopped immediatly, and the standard routing is restored.
 
     F0 77 77 78 0E  < Routing rules command <command args>   > F7
 
 Commands are :
-    
+
     00 Reset Intellithru to default
     01 Disable Intellithru
     02 Set  Intellithru timeout
@@ -178,11 +184,11 @@ Examples :
 You can change the behaviour of the MIDI routing from MIDI USB to MIDI serial, USB to USB, serial to USB, serial to serial.
 2 routing tables are availables :
 
-- USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
-- Serial Jacks MIDI IN to any USB OUT (Host IN) cables and/or MIDI jacks OUT 
+- USB Cables IN (USB MIDI OUT considering the Host point of view) to any USB OUT (Host IN) cables and/or MIDI jacks OUT
+- Serial Jacks MIDI IN to any USB OUT (Host IN) cables and/or MIDI jacks OUT
 
 Example of routing :
-                  
+
       Inputs        Source                                  Routing Targets             Target byte
                                                                                             bits
        USB       Host MIDI OUT 1 o-->(filter)---------+  +----o Host MIDI IN 1 (cbl 0) 4                           
@@ -191,7 +197,7 @@ Example of routing :
                  Host MIDI OUT 4 o-->(filter)-+ |  |  |  |    o Host MIDI IN 4 (cbl 3) 7   IN
                                         +-+---|-|--|--|--+  
                                         | |   | |  |  +-------o MIDI OUT JACK 1        0
-                 MIDI IN Jack 1  o--(f)-+ |   | |  +----------o MIDI OUT JACK 2        1   Serial 
+                 MIDI IN Jack 1  o--(f)-+ |   | |  +----------o MIDI OUT JACK 2        1   Serial
        Serial    MIDI IN Jack 2  o--(f)---+   | +-------------o MIDI OUT JACK 3        2   Jacks
         Jacks    MIDI IN Jack 3  o            +---------------o MIDI OUT JACK 4        3   OUT
        IN        MIDI IN Jack 4  o
@@ -199,8 +205,8 @@ Example of routing :
 The sysex message structure is the following :
 
     F0 77 77 78 0F  < Routing rules command <command args>   > F7
-    
-    
+
+
 Commands are :
 
     00 Reset to default midi routing
@@ -233,7 +239,7 @@ Examples :
 
 Default routing is :
 
-       USB Cable OUT (0,F)   o------------->o MIDI OUT JACK (0,15) 
+       USB Cable OUT (0,F)   o------------->o MIDI OUT JACK (0,15)
        USB Jack IN   (1,16)  o------------->o USB Cable IN (0,15)
 
 The routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.

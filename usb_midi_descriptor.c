@@ -1,4 +1,8 @@
 /*
+__ __| |           |  /_) |     ___|             |           |
+  |   __ \   _ \  ' /  | |  / |      _ \ __ \   |      _` | __ \   __|
+  |   | | |  __/  . \  |   <  |   |  __/ |   |  |     (   | |   |\__ \
+ _|  _| |_|\___| _|\_\_|_|\_\\____|\___|_|  _| _____|\__,_|_.__/ ____/
   -----------------------------------------------------------------------------
   USBMIDIKLIK 4X4 - USB Midi advanced firmware for STM32F1 platform.
   Copyright (C) 2019 by The KikGen labs.
@@ -86,7 +90,7 @@ typedef struct {
     // 4 PORTS IS THE MINIMUM.
 
     // Embedded
- 
+
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_1;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_2;
     MIDI_IN_JACK_DESCRIPTOR            MIDI_IN_JACK_3;

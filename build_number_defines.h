@@ -1,4 +1,9 @@
 /*
+__ __| |           |  /_) |     ___|             |           |
+  |   __ \   _ \  ' /  | |  / |      _ \ __ \   |      _` | __ \   __|
+  |   | | |  __/  . \  |   <  |   |  __/ |   |  |     (   | |   |\__ \
+ _|  _| |_|\___| _|\_\_|_|\_\\____|\___|_|  _| _____|\__,_|_.__/ ____/
+  -----------------------------------------------------------------------------
   USB MidiKliK 4X4 - USB MIDI 4 IN X 4 OUT firmware
   Based on the MIDITECH / MIDIPLUS 4X4 harware.
   Copyright (C) 2017/2018 by The KikGen labs.
@@ -166,5 +171,3 @@ const char TimestampedVersion[] =
 };
 
 #endif // BUILD_DEFS_H
-
-
