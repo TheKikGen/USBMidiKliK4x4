@@ -237,7 +237,7 @@ Default routing is :
 
 The routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
 
-### NEWS
+# NEWS
 
 ## THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
 
