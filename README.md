@@ -237,8 +237,8 @@ Default routing is :
 
 The routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
 
-
-### THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
+### NEWS
+## THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
 
 That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
 https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
