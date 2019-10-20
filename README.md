@@ -3,15 +3,6 @@
 	  |   | | |  __/  . \  |   <  |   |  __/ |   |  |     (   | |   |\__ \
 	 _|  _| |_|\___| _|\_\_|_|\_\\____|\___|_|  _| _____|\__,_|_.__/ ____/
 
-
-### THE V2 IS MERGED WITH THE MASTER BRACH AS RC3.   
-
-That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
-
-NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
-
-
 # USBMidiKliK4x4
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
@@ -243,3 +234,12 @@ Default routing is :
        USB Jack IN   (1,16)  o------------->o USB Cable IN (0,15)
 
 The routing is saved in the flash memory, and is activated  immediatly after the update. So it persists after power off.
+
+
+### THE V2 IS MERGED WITH THE MASTER BRACH AS RC3.   
+
+That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
+https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
+
+NEWS : I'm selling proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
+
