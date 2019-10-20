@@ -33,6 +33,8 @@ The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing 
 + Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
 + Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
 
+<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
+
 Configuration is stored in EEPROM and persists after power off.
 
 ## Bluepill and USBMidiKlik 3x3
