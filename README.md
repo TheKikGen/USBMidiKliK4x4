@@ -17,7 +17,7 @@ The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing 
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?token=PdKvcb8qIp5iXrCirZrtZCZOlMWJfgtkOTJIl9Qc7NGhr6a4AC27w6wYkrGsG5m5Xp9EXW&country.x=US&locale.x=US)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=AV75ET9ARU8BE&source=url)
 
 ## USBMidiKliK4x4 features
 
