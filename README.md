@@ -49,9 +49,11 @@ Configuration is stored in EEPROM and persists after power off.
 
 I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.
 
-I'm selling some proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
+I'm selling some of my last proto PCB on Ebay here https://www.ebay.fr/itm/303287160112
 
 The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
+
+I have also designed a variant version of this PCB without DIN 5 female, to allow a deported DIN 5 rail.
 
 Contact me for more details.
 
