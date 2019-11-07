@@ -57,6 +57,7 @@ __ __| |           |  /_) |     ___|             |           |
   #define HAS_MIDITECH_HARDWARE
 
   #define SERIAL_INTERFACE_MAX  4
+  #define SERIAL_INTERFACE_CONFIG_MAX  4
   #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
   #ifdef HAS_MIDITECH_HARDWARE
      #warning "MIDITECH4X4 STM32F103RC HARDWARE DETECTED"
@@ -73,6 +74,7 @@ __ __| |           |  /_) |     ___|             |           |
     #warning "BLUEPILL HARDWARE DETECTED"
     #define HARDWARE_TYPE "BLUEPILL STMF103C8x"
     #define SERIAL_INTERFACE_MAX  3
+    #define SERIAL_INTERFACE_CONFIG_MAX  15
     #define SERIALS_PLIST &Serial1,&Serial2,&Serial3
     #define LED_CONNECT PC13
   #else

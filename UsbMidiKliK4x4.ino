@@ -1040,16 +1040,16 @@ void SysExInternalProcess(uint8_t source)
 				if (srcType != 0 && srcType != 1 ) break;
 				if (dstType != 0 && dstType != 1 ) break;
 				if (srcType  == 0 && src >= USBCABLE_INTERFACE_MAX ) break;
-				if (srcType  == 1 && src >= SERIAL_INTERFACE_COUNT) break;
+				if (srcType  == 1 && src >= SERIAL_INTERFACE_CONFIG_MAX) break;
 				if (dstType  == 0 &&  msgLen > (USBCABLE_INTERFACE_MAX + 5) )  break;
-				if (dstType  == 1 &&  msgLen > (SERIAL_INTERFACE_COUNT + 5) )  break;
+				if (dstType  == 1 &&  msgLen > (SERIAL_INTERFACE_CONFIG_MAX + 5) )  break;
 
 				// Compute mask from the port list
 				uint16_t msk = 0;
 				for ( uint8_t i = 6 ; i != (msgLen+1)  ; i++) {
 					  uint8_t b = sysExInternalBuffer[i];
 						if ( (dstType == 0 && b < USBCABLE_INTERFACE_MAX) ||
-						     (dstType == 1 && b < SERIAL_INTERFACE_COUNT) ) {
+						     (dstType == 1 && b < SERIAL_INTERFACE_CONFIG_MAX) ) {
 
 									 msk |= 	1 << b ;
 						}
