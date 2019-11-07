@@ -433,7 +433,7 @@ int16_t I2C_SendCommand(uint8_t deviceId,BusCommand cmd)
     return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////
-//  I2C Show active slave device on screen
+//  I2C Show active slave devices on screen
 //////////////////////////////////////////////////////////////////////////////
 void I2C_ShowActiveDevice()
 {
@@ -483,7 +483,7 @@ boolean I2C_isDeviceActive(uint8_t deviceId)
 int8_t I2C_SendData(uint8_t dataType, uint8_t arg1, uint8_t arg2, uint8_t * data, uint16_t sz)
 {
 
-  if (sz > 29 ) return -1; // Wire buffer is limiter to 32 char. Enough for us.
+  if (sz > 29 ) return -1; // Wire buffer is limited to 32 char. Enough for us.
 
   Wire.beginTransmission(0); // Broadcast
   Wire.write(dataType);

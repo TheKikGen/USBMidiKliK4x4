@@ -54,8 +54,8 @@ __ __| |           |  /_) |     ___|             |           |
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 void PrintCleanHEX(uint8_t);
-void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 );
-void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 );
+void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
+void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((optimize("-Os")));
 uint8_t GetInt8FromHexChar(char);
 uint16_t GetInt16FromHex4Char(char *);
 uint16_t GetInt16FromHex4Bin(char * );
@@ -65,8 +65,8 @@ char AskDigit();
 char AskChar();
 uint8_t AsknHexChar(char *, uint8_t ,char,char);
 char AskChoice(const char * , const char * );
-void ShowMidiRoutingLine(uint8_t ,uint8_t , void *);
-void ShowMidiRouting(uint8_t);
+void ShowMidiRoutingLine(uint8_t ,uint8_t , void *) __attribute__((optimize("-Os"))) ;
+void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
 void ShowMidiKliKHeader();
 void ShowGlobalSettings();
 uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
