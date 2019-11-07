@@ -536,7 +536,7 @@ uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
 
   uint8_t src;
   uint8_t dest = 0 ;
-  uint8_t msk ;
+  uint16_t msk ;
   uint8_t i;
   uint8_t c;
   uint8_t *buff2 = buff;
@@ -596,7 +596,7 @@ uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
          *(++buff2) = 0X02;
          *(++buff2) = src;
          *(++buff2) = port;
-         if (dest) {
+         if (src) {
             *(++buff2) = EEPROM_Params.midiRoutingRulesSerial[port].filterMsk;
          }
          else {
@@ -772,7 +772,6 @@ void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
 ///////////////////////////////////////////////////////////////////////////////
 void SysExInternalProcess(uint8_t source)
 {
-
   uint8_t msgLen = sysExInternalBuffer[0];
   uint8_t cmdId  = sysExInternalBuffer[1];
 
