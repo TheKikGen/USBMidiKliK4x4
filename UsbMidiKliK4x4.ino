@@ -639,6 +639,32 @@ uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// Send a single cable SYSEX dump to the appropriate destination stream
+// 0 : Serial USB
+// 1 : Serial port 0
+// 2 : USB Cable 0
+///////////////////////////////////////////////////////////////////////////////
+void SysexInternalDumpOneToStream(uint8_t dest, uint8_t routeOrFilter, uint8_t cableOrSerialSrc, uint8_t port, uint8_t cableOrSerialTgt) {
+
+  uint32_t dumpMask = 0x0F000000 | ( routeOrFilter << 16 ) | ( cableOrSerialSrc << 8 ) | cableOrSerialTgt;
+  uint16_t l = SysexInternalDumpConf(dumpMask, port, sysExInternalBuffer); 
+
+  if (l>0){
+    if (dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
+    else if (dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
+    else if (dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
+  } else {
+    
+    uint8_t nodata[10] = { 0xF0, 0x77, 0x77, 0x78, 0x3, routeOrFilter, cableOrSerialSrc, port, cableOrSerialTgt, 0xF7 };
+
+    if (dest == 0 ) {ShowBufferHexDump(nodata,10,0);Serial.println();}
+    else if (dest == 1 ) serialHw[0]->write(nodata,10);
+    else if (dest == 2 ) SysExSendMsgPacket(nodata,10);
+  }
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Send a SYSEX dump to the appropriate destination stream
 // 0 : Serial USB
 // 1 : Serial port 0
@@ -777,6 +803,29 @@ void SysExInternalProcess(uint8_t source)
   uint8_t cmdId  = sysExInternalBuffer[1];
 
   switch (cmdId) {
+
+    // ---------------------------------------------------------------------------
+    // Function 04 Sysex configuration channel/target dump
+    // Example : Routing, Cable 5, jacks: F0 77 77 78 04 01 00 05 01 F7
+    // Example : Filters, Cable 5       : F0 77 77 78 04 02 00 05 F7
+    // ---------------------------------------------------------------------------
+
+    case 0x04:{
+     
+      uint8_t routeOrFilter = sysExInternalBuffer[2];
+      uint8_t cableOrSerial_Src = sysExInternalBuffer[3];
+      uint8_t port = sysExInternalBuffer[4];
+      uint8_t cableOrSerial_Tgt = sysExInternalBuffer[5] ? sysExInternalBuffer[5] : 0x0;
+
+      if (source == FROM_USB && midiUSBCx) {
+        SysexInternalDumpOneToStream(2, routeOrFilter, cableOrSerial_Src, port, cableOrSerial_Tgt);
+      } else
+      if (source == FROM_SERIAL ) {
+        SysexInternalDumpOneToStream(1, routeOrFilter, cableOrSerial_Src, port, cableOrSerial_Tgt);
+      }
+      break;
+      
+    }
 
     // ---------------------------------------------------------------------------
     // Function 05 Sysex configuration dump
