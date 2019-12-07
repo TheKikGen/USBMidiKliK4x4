@@ -875,8 +875,8 @@ void ShowConfigMenu()
 						EEPROM_ParamsInit(true);
             Serial.println();
 						Serial.println("Factory settings restored.");
-						Serial.println();
 					}
+          Serial.println();
 				}
 				showMenu = false;
 				break;

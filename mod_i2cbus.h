@@ -356,7 +356,7 @@ void I2C_BusStartWire()
     	Wire.begin();
       Wire.setClock(B_FREQ) ;
 
-			delay(100);
+			delay(500);
       // Scan BUS for active slave DEVICES. Table used only by the master.
 			for ( uint8_t d=0; d != sizeof(I2C_DeviceIdActive) ; d++) {
           if ( I2C_isDeviceActive(d + B_SLAVE_DEVICE_BASE_ADDR) )
@@ -377,9 +377,9 @@ void I2C_BusStartWire()
 				else { Wire.end(); delay(10) ; nvic_sys_reset(); }
 			}
 
-			// Reset all slaves if they are now listening
-		  I2C_SendCommand(0,B_CMD_HARDWARE_RESET);
-		  delay(3000);
+//			// Reset all slaves if they are now listening
+//		  I2C_SendCommand(0,B_CMD_HARDWARE_RESET);
+//		  delay(3000);
 
       // Synchronize slaves routing rules
       I2C_SlavesRoutingSyncFromMaster();
@@ -565,7 +565,7 @@ void I2C_ProcessSlave ()
 
 	// Reboot if master not ready
 	I2C_MasterReady = ( millis() < (I2C_MasterReadyTimeoutMillis + B_MASTER_READY_TIMEOUT) );
-	if ( ! I2C_MasterReady ) { Wire.end(); delay(10) ; nvic_sys_reset(); }
+	//if ( ! I2C_MasterReady ) { Wire.end(); delay(10) ; nvic_sys_reset(); }
 
 	// Routing midi sync from master
 	if ( I2C_SlaveSyncDoUpdate ) {
