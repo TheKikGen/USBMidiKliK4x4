@@ -250,6 +250,7 @@ The routing is saved in the flash memory, and is activated  immediatly after the
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
 Update tool is included.  Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).
+The libusb driver is also provided with this package if it is not already installed on your PC.
 https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/bin/Updater_build_2.191207.1818.zip
 
 ## THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
