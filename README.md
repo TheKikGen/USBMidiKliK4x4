@@ -66,7 +66,8 @@ Sysex messages have the following format, and ARE ONLY INTERPRETED ON CABLE 0 OR
 	F0 77 77 78 <sysex function id > <data> F7
 
 The "F0 77 77 78" is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
-You will find the sysexe documentation in the wiki :
+You will find the sysex V2 documentation in the wiki :
+
 https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMidiKliK4x4-V2-SYSEX-documentation
 
 The second way is to activate the configuration menu on the serial port with the following sysex :
