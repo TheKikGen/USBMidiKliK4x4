@@ -54,8 +54,9 @@ I'm selling some of my last proto PCB on Ebay here https://www.ebay.fr/itm/30328
 The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
 
 I have also designed a variant version of this PCB without DIN 5 female, to allow a deported DIN 5 rail.
-
 Contact me for more details.
+
+<img width="500" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 
 # USBMidiKliK4x4 - Configuration
 
