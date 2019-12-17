@@ -54,7 +54,7 @@ The board is USB Powered, so no additional power supply necessary. It works driv
 I have also designed a variant version of this PCB without DIN 5 female, to allow a deported DIN 5 rail.
 Contact me for more details.
 
-<img width="500" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
+<img width="800" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 
 # USBMidiKliK4x4 - Configuration
 
