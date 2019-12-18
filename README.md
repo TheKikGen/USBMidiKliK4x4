@@ -7,6 +7,8 @@
 # USBMidiKliK4x4
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
+Download the last firmware here : https://github.com/TheKikGen/USBMidiKliK4x4/releases
+
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
 The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
