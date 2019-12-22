@@ -102,7 +102,7 @@ The following menu should appear after connecting to the right serial USB port ,
 
 Update tool is included.  Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).
 The libusb driver is also provided with this package if it is not already installed on your PC.
-https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/bin/Updater_build_2.191207.1818.zip
+https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/build_2.191207.1818
 
 ## THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
 
