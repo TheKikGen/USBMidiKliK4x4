@@ -26,7 +26,7 @@ The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing 
 
 ## USBMidiKliK4x4 features
 
-+ 16 MIDI IN / 16 MDI OUT Support
++ 16 MIDI IN / 16 MIDI OUT Support
 + Support 15 JACK IN / 15 JACK OUT in bus mode
 + Configuration with SYSEX and/or and interactive menu from a serial USB terminal
 + Complex routing rules also configurables by sysex or from an interactive user menu
