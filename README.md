@@ -109,5 +109,6 @@ https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/build_2.191207.1818
 That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
 https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
 
-
+## MPC LIVE/X Midi ports hack has been moved to MPC-LiveXplore
+https://github.com/TheKikGen/MPC-LiveXplore/wiki/Add-2-new-midi-ports-C-D---a-quick-guide-with-MIDI-OX
 
