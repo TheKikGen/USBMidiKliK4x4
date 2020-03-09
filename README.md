@@ -75,7 +75,13 @@ The second way is to activate the configuration menu on the serial port with the
 
        F0 77 77 78 08 F7
 
-This sysex enables the serial configuration menu.  Immediatly after sending this sequence with your prefered midi software, the interface will reboot in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK. 
+This sysex enables the serial configuration menu.  To send it, you can use for example, MIDIOX, or the "sendmidi" command line utility by gbevin :
+
+       sendmidi dev "USB MIDIKliK 4x4" syx hex 77 77 78 08
+
+You will find the last binary release of sendmidi here :  https://github.com/gbevin/SendMIDI/releases
+       
+Immediatly after sending this sequence with your prefered midi software, the interface will reboot in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK. 
 You can use any software like TERATERM, on Windows, or "screen" on MacOs.  The bauds rate must be set to 115200.
 
 The following menu should appear after connecting to the right serial USB port , and pressing ENTER :
