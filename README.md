@@ -45,6 +45,10 @@ The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing 
 
 Configuration is stored in EEPROM and persists after power off.
 
+Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
+Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
+
+
 ## Bluepill and USBMidiKlik 3x3
 
 <img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
