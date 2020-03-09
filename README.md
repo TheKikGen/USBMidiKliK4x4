@@ -53,6 +53,9 @@ I have realized a proto board, let's say a Bluepill "MIDI shield", to easily tra
 
 The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
 
+https://www.tindie.com/products/thekikgenlabs/usb-midi-interface-3-io-with-routing-features/
+
+
 I have also designed a variant version of this PCB without DIN 5 female, to allow a deported DIN 5 rail.
 Contact me for more details.
 
