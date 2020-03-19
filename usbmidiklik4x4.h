@@ -81,12 +81,25 @@ enum nextBootMode {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// ROUTING RULES
+// ROUTING RULES & TRANSFORMATION PIPELINES
 ///////////////////////////////////////////////////////////////////////////////
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
 #define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
+
+// Size of a pipeline (number of pipes)
+#define MIDI_TRANS_PIPELINE_SIZE 8
+
+// Number of pipelines slots
+#define MIDI_TRANS_PIPELINE_SLOT_SIZE 8
+
+enum MidiTransPipeFnID {
+  FN_TRANSPIPE_ENDPIPE,
+  FN_TRANSPIPE_TRANSPOSE,
+  FN_TRANSPIPE_CHANNEL_MAP,
+  FN_TRANSPIPE_VECTOR_SIZE,
+} ;
 
 enum MidiRoutingDirection {
   FROM_SERIAL,
@@ -107,7 +120,25 @@ enum MidiRoutingReset {
   ROUTING_INTELLITHRU_OFF
 };
 
-// Routing rules structures
+// Transformation pipe
+typedef struct {
+    uint8_t fnId;
+    uint8_t par1;
+    uint8_t par2;
+    uint8_t par3;
+    uint8_t par4;
+} __packed midiTransPipe_t;
+
+// Transformation pipeline
+typedef struct {
+    midiTransPipe_t pipeline[MIDI_TRANS_PIPELINE_SIZE];
+    uint16_t attachedCablesMsk;
+    uint16_t attachedJacksMsk;
+    uint16_t attachedIthruJacksMsk;
+} __packed midiTransPipeline_t;
+
+
+// Routing & transformation rules structures
 typedef struct {
       uint8_t  filterMsk;
       uint16_t cableInTargetsMsk;
@@ -216,7 +247,7 @@ enum BusDeviceSate {
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 20
+#define EE_PRMVER 21
 
 typedef struct {
         uint8_t         signature[3];
@@ -225,9 +256,9 @@ typedef struct {
         uint8_t         minorVersion;
         uint8_t         prmVersion;
         uint8_t         TimestampedVersion[14];
+
         uint8_t         nextBootMode;
         boolean         debugMode;
-
 
         // I2C device
         uint8_t         I2C_DeviceId;
@@ -242,16 +273,19 @@ typedef struct {
         midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
         midiRoutingRule_t midiRoutingRulesSerial[B_SERIAL_INTERFACE_MAX];
 
-        // IntelliThru
+        // IntelliThru routing rules
         midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];
-        uint16_t          intelliThruJackInMsk;
-        uint8_t           intelliThruDelayPeriod; // 1 to 255 periods of 15s.
+        uint16_t              intelliThruJackInMsk;
+        uint8_t               intelliThruDelayPeriod; // 1 to 255 periods of 15s.
+
+        // Transformation pipelines slots.
+        midiTransPipeline_t midiTransPipelineSlots[MIDI_TRANS_PIPELINE_SLOT_SIZE];
 
         uint16_t        vendorID;
         uint16_t        productID;
         uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // Unicode string - defined in usb_midi_device.h
-} __packed EEPROM_Params_t;
 
+} __packed EEPROM_Params_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
@@ -265,8 +299,8 @@ void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
 void SysExInternalParse(uint8_t, midiPacket_t *);
 void RoutePacketToTarget(uint8_t , midiPacket_t *);
 void ResetMidiRoutingRules(uint8_t);
-uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *) __attribute__((optimize("-Os")));
-void SysexInternalDumpToStream(uint8_t ) __attribute__((optimize("-Os")));
+uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
+void SysexInternalDumpToStream(uint8_t ) ;
 void SysExSendMsgPacket(uint8_t *,uint16_t );
 void SysExInternalProcess(uint8_t);
 void CheckBootMode();

@@ -47,13 +47,35 @@ __ __| |           |  /_) |     ___|             |           |
 #define _HARDWARE_CONFIG_H_
 #pragma once
 
-#ifdef MCU_STM32F103RC
+
+// Low-density devices are STM32F103xx microcontrollers
+// where the Flash memory density ranges between 16 and 32 Kbytes.
+// Medium-density devices are STM32F103xx microcontrollers where the
+// Flash memory density ranges between 32 and 128 Kbytes.
+// High-density devices are STM32F10x and STM32F103xx microcontrollers where the Flash
+// memory density ranges between 256 and 512 Kbytes.
+// Low and medium-density devices use a 1K bytes page size.
+// High-density density use a 2K bytes page size.
+
+// Flash memory base address (cf datasheet page 34)
+#define EE_FLASH_MEMORY_BASE 0x08000000
+
+#ifdef  MCU_STM32F103RC
+
   #warning "MIDITECH OR MCU_STM32F103RC HARDWARE DETECTED"
+
+  // Set EEPROM parameters for the STMF103RC (high density)
+  //
+  #define EE_PAGE_SIZE  0x800
+  #define EE_FLASH_SIZE 256
+  #define EE_NBPAGE 1
+  #define EE_CAPACITY   EE_NBPAGE*EE_PAGE_SIZE
 
   // Comment the line below for a generic STM32F103RC
   // This drives the DISC pin for USB with the Miditech 4x4
   // and the connect LED pin #.
   // Activated by default.
+
   #define HAS_MIDITECH_HARDWARE
 
   #define SERIAL_INTERFACE_MAX  4
@@ -64,23 +86,41 @@ __ __| |           |  /_) |     ___|             |           |
      #define LED_CONNECT PC9
   #else
      #warning "STM32F103RC HARDWARE DETECTED"
-     #define HARDWARE_TYPE "STM32F103RC"
+     #define HARDWARE_TYPE "STM32F103RC 256K FLASH"
      #define LED_CONNECT PC13
   #endif
 
-#else
+ #else
   #if defined(MCU_STM32F103C8) || defined(MCU_STM32F103CB)
+
     #warning "BLUEPILL HARDWARE DETECTED"
-    #define HARDWARE_TYPE "BLUEPILL STMF103C8x"
+
+    // Set EEPROM parameters for the STMF103Cx
+    #define EE_PAGE_SIZE  0x400
+    #define EE_NBPAGE 1
+    #define EE_CAPACITY   EE_NBPAGE*EE_PAGE_SIZE
+
+    #if defined(MCU_STM32F103C8)
+      #define HARDWARE_TYPE "BLUEPILL STMF103C8x 64K FLASH"
+      #define EE_FLASH_SIZE 64
+    #else
+      #define HARDWARE_TYPE "BLUEPILL STMF103CBx 128K FLASH"
+      #define EE_FLASH_SIZE 128
+    #endif
+
     #define SERIAL_INTERFACE_MAX  3
     #define SERIALS_PLIST &Serial1,&Serial2,&Serial3
     #define LED_CONNECT PC13
   #else
-   #error "PLEASE CHOOSE STM32F103RC (4 serial ports) or STM32F103RC (3 serial ports) variants to compile ."
+   #error "PLEASE CHOOSE STM32F103RC (4 serial ports) or STM32F103C8/CB (3 serial ports) variants to compile ."
   #endif
-#endif
+ #endif
 
-  #define USBCABLE_INTERFACE_MAX USB_MIDI_IO_PORT_NUM
+ // Reserve the last pages for the EEPROM emulation
+ #define EE_BASE EE_FLASH_MEMORY_BASE + EE_FLASH_SIZE*1024 - EE_CAPACITY
+ #define EE_PAGE_BASE ( EE_BASE - EE_FLASH_MEMORY_BASE ) / EE_PAGE_SIZE
+
+ #define USBCABLE_INTERFACE_MAX USB_MIDI_IO_PORT_NUM
 
   // USBDM (USB -) PIN
   #define PIN_USBDM PA11

@@ -59,10 +59,10 @@ int8_t I2C_ParseDataSync(uint8_t ,uint8_t );
 void I2C_ParseImmediateCmd();
 void I2C_SlaveReceiveEvent(int);
 void I2C_SlaveRequestEvent ();
-void I2C_BusChecks();
-void I2C_BusStartWire();
+void I2C_BusChecks() __attribute__((optimize("-Os")));
+void I2C_BusStartWire() __attribute__((optimize("-Os")));
 int16_t I2C_SendCommand(uint8_t,BusCommand);
-void I2C_ShowActiveDevice();
+void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 int16_t I2C_getPacket(uint8_t , masterMidiPacket_t *);
 boolean I2C_isDeviceActive(uint8_t );
 int8_t I2C_SendData(uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
@@ -618,7 +618,6 @@ DEBUG_END
 
 DEBUG_BEGIN_TIMER
 DEBUG_ASSERT(I2C_MasterReady,"Master ready","");
-DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
 DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
 DEBUG_ASSERT(midiUSBIdle,"USB Midi idle","");
 DEBUG_ASSERT(intelliThruActive,"Intellithru active","");

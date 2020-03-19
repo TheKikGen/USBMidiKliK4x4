@@ -47,17 +47,223 @@ __ __| |           |  /_) |     ___|             |           |
 //-----------------------------------------------------------------------------
 // Due to the unusual make process of Arduino platform, this file is directly
 // included in the main ino one.
+// EEPROM library is not used anymore due to low frequenry rate of update of
+// setting.  To avoid conflicts with that library, some core ST flash FUNCTIONS
+// are included here directly in the source code.
 ///////////////////////////////////////////////////////////////////////////////
+
 #pragma once
+
+#include "libmaple/util.h"
+#include "libmaple/flash.h"
+
+typedef enum
+	{
+	FLASH_BUSY = 1,
+	FLASH_ERROR_PG,
+	FLASH_ERROR_WRP,
+	FLASH_ERROR_OPT,
+	FLASH_COMPLETE,
+	FLASH_TIMEOUT,
+	FLASH_BAD_ADDRESS
+	} FLASH_Status;
+
+#define IS_FLASH_ADDRESS(ADDRESS) (((ADDRESS) >= 0x08000000) && ((ADDRESS) < 0x0807FFFF))
+
+#define FLASH_KEY1			((uint32)0x45670123)
+#define FLASH_KEY2			((uint32)0xCDEF89AB)
+
+/* Delay definition */
+#define ERASE_TIMEOUT		((uint32)0x00000FFF)
+#define PROGRAM_TIMEOUT	((uint32)0x0000001F)
 
 ///////////////////////////////////////////////////////////////////////////////
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsInit(bool factorySettings=false);
-void EEPROM_Put(uint8_t* ,uint16_t );
-void EEPROM_Get(uint8_t* ,uint16_t );
-void EEPROM_ParamsLoad();
-void EEPROM_ParamsSave();
+FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout) __attribute__((optimize("-Os")));
+FLASH_Status FLASH_ErasePage(uint32 Page_Address) __attribute__((optimize("-Os")));
+FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data) __attribute__((optimize("-Os")));
+
+void FLASH_Unlock(void) __attribute__((optimize("-Os")));
+void FLASH_Lock(void) __attribute__((optimize("-Os")));
+
+void EEPROM_ParamsInit(bool factorySettings=false) __attribute__((optimize("-Os")));
+void EEPROM_Update(uint8_t* ,uint16_t ) __attribute__((optimize("-Os")));
+void EEPROM_Get(uint8_t* ,uint16_t, uint16_t) __attribute__((optimize("-Os")));
+void EEPROM_ParamsLoad() __attribute__((optimize("-Os")));
+void EEPROM_ParamsSave() __attribute__((optimize("-Os")));
+void EEPROM_Format() __attribute__((optimize("-Os")));
+void EEPROM_FlashMemoryDump(uint8_t , uint8_t ) __attribute__((optimize("-Os")));
+boolean EEPROM_DiffPage(uint8_t , uint8_t) __attribute__((optimize("-Os")));
+
+///////////////////////////////////////////////////////////////////////////////
+// Original STM32 core flash FUNCTIONS
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+  * @brief  Inserts a time delay.
+  * @param  None
+  * @retval None
+  */
+static void delay(void)
+{
+	__IO uint32 i = 0;
+	for(i = 0xFF; i != 0; i--) { }
+}
+
+/**
+  * @brief  Returns the FLASH Status.
+  * @param  None
+  * @retval FLASH Status: The returned value can be:
+  *   FLASH_BUSY,
+  *   FLASH_ERROR_PG,
+  *   FLASH_ERROR_WRP
+  *   FLASH_OPT
+  *   FLASH_COMPLETE
+  */
+FLASH_Status FLASH_GetStatus(void)
+{
+	if ((FLASH_BASE->SR & FLASH_SR_BSY) == FLASH_SR_BSY)
+		return FLASH_BUSY;
+
+	if ((FLASH_BASE->SR & FLASH_SR_PGERR) != 0)
+		return FLASH_ERROR_PG;
+
+	if ((FLASH_BASE->SR & FLASH_SR_WRPRTERR) != 0 )
+		return FLASH_ERROR_WRP;
+
+	if ((FLASH_BASE->SR & FLASH_OBR_OPTERR) != 0 )
+		return FLASH_ERROR_OPT;
+
+	return FLASH_COMPLETE;
+}
+
+/**
+  * @brief  Waits for a Flash operation to complete or a TIMEOUT to occur.
+  * @param  Timeout: FLASH progamming Timeout
+  * @retval FLASH Status: The returned value can be :
+  *   any from FLASH_GetStatus(),
+  *   or FLASH_TIMEOUT.
+  */
+FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout)
+{
+	FLASH_Status status;
+
+	/* Check for the Flash Status */
+	status = FLASH_GetStatus();
+	/* Wait for a Flash operation to complete or a TIMEOUT to occur */
+	while ((status == FLASH_BUSY) && (Timeout != 0x00))
+	{
+		delay();
+		status = FLASH_GetStatus();
+		Timeout--;
+	}
+	if (Timeout == 0)
+		status = FLASH_TIMEOUT;
+	/* Return the operation status */
+	return status;
+}
+
+/**
+  * @brief  Erases a specified FLASH page.
+  * @param  Page_Address: The page address to be erased.
+  * @retval FLASH Status: The returned value can be: FLASH_BUSY, FLASH_ERROR_PG,
+  *   FLASH_ERROR_WRP, FLASH_COMPLETE or FLASH_TIMEOUT.
+  */
+FLASH_Status FLASH_ErasePage(uint32 Page_Address)
+{
+	FLASH_Status status = FLASH_COMPLETE;
+	/* Check the parameters */
+	ASSERT(IS_FLASH_ADDRESS(Page_Address));
+	/* Wait for last operation to be completed */
+	status = FLASH_WaitForLastOperation(ERASE_TIMEOUT);
+
+	if(status == FLASH_COMPLETE)
+	{
+		/* if the previous operation is completed, proceed to erase the page */
+		FLASH_BASE->CR |= FLASH_CR_PER;
+		FLASH_BASE->AR = Page_Address;
+		FLASH_BASE->CR |= FLASH_CR_STRT;
+
+		/* Wait for last operation to be completed */
+		status = FLASH_WaitForLastOperation(ERASE_TIMEOUT);
+		if(status != FLASH_TIMEOUT)
+		{
+			/* if the erase operation is completed, disable the PER Bit */
+			FLASH_BASE->CR &= ~FLASH_CR_PER;
+		}
+		FLASH_BASE->SR = (FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPRTERR);
+	}
+	/* Return the Erase Status */
+	return status;
+}
+
+/**
+  * @brief  Programs a half word at a specified address.
+  * @param  Address: specifies the address to be programmed.
+  * @param  Data: specifies the data to be programmed.
+  * @retval FLASH Status: The returned value can be: FLASH_ERROR_PG,
+  *   FLASH_ERROR_WRP, FLASH_COMPLETE or FLASH_TIMEOUT.
+  */
+FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data)
+{
+	FLASH_Status status = FLASH_BAD_ADDRESS;
+
+	if (IS_FLASH_ADDRESS(Address))
+	{
+		/* Wait for last operation to be completed */
+		status = FLASH_WaitForLastOperation(PROGRAM_TIMEOUT);
+		if(status == FLASH_COMPLETE)
+		{
+			/* if the previous operation is completed, proceed to program the new data */
+			FLASH_BASE->CR |= FLASH_CR_PG;
+			*(__IO uint16*)Address = Data;
+			/* Wait for last operation to be completed */
+			status = FLASH_WaitForLastOperation(PROGRAM_TIMEOUT);
+			if(status != FLASH_TIMEOUT)
+			{
+				/* if the program operation is completed, disable the PG Bit */
+				FLASH_BASE->CR &= ~FLASH_CR_PG;
+			}
+			FLASH_BASE->SR = (FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPRTERR);
+		}
+	}
+	return status;
+}
+
+/**
+  * @brief  Unlocks the FLASH Program Erase Controller.
+  * @param  None
+  * @retval None
+  */
+void FLASH_Unlock(void)
+{
+
+	FLASH_BASE->KEYR = FLASH_KEY1;
+	FLASH_BASE->KEYR = FLASH_KEY2;
+  FLASH_WaitForLastOperation(ERASE_TIMEOUT);
+}
+
+/**
+  * @brief  Locks the FLASH Program Erase Controller.
+  * @param  None
+  * @retval None
+  */
+void FLASH_Lock(void)
+{
+	/* Set the Lock Bit to lock the FPEC and the FCR */
+	FLASH_BASE->CR |= FLASH_CR_LOCK;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -97,7 +303,6 @@ void EEPROM_ParamsInit(bool factorySettings)
 		}
 
 	}
-
 
 	// Force factory setting
   if (  factorySettings )
@@ -139,48 +344,87 @@ void EEPROM_ParamsInit(bool factorySettings)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Optimized put byte buffer to EEPROM
+// Check if differences exist between an EEPROM page and a buffer
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_Put(uint8_t* bloc,uint16_t sz)
-{
-	uint16_t addressWrite = 0x10;
-	uint8_t * pp = bloc;
-	uint16_t value = 0;
-
-	// Write 2 uint8_t in an uint16t
-	for (uint16_t i=1; i<=sz; i++) {
-			if ( i % 2 ) {
-				value = *pp;
-				value = value << 8;
-			} else {
-				value |= *pp;
-				EEPROM.write(addressWrite++, value);
-			}
-			pp++;
-	}
-	// Proceed the last write eventually
-	if (sz % 2 ) EEPROM.write(addressWrite, value);
+boolean EEPROM_DiffPage(uint8_t page, uint8_t *bloc,uint16_t sz) {
+  uint32_t addressRead = EE_FLASH_MEMORY_BASE + page * EE_PAGE_SIZE ;
+  for (uint16_t n = 0 ; n < sz && n < EE_PAGE_SIZE ; n ++ ) {
+      if ( (*(__IO uint8*)addressRead++) != *bloc++ ) return true;
+  }
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Optimized get byte buffer to EEPROM
+// Update a bytes buffer to FLASH EMULATED EEPROM avoiding writes if possible.
+// Use it with significant size buffer and low frequency updates rate.
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_Get(uint8_t* bloc,uint16_t sz)
+void EEPROM_Update(uint8_t* bloc,uint16_t sz)
 {
-	uint16_t addressRead = 0x10;
-	uint8_t * pp = bloc;
-	uint16_t value = 0;
+  // Nothing to do if size above Capacity
+  if ( sz > EE_CAPACITY )  return;
 
-	// Read 2 uint8_t in an uint16t
-	for (uint16_t i=1; i<=sz; i++) {
-			if ( i % 2 ) {
-				EEPROM.read(addressRead++, &value);
-				*pp = value >> 8;
-			} else {
-				*pp = value & 0x00FF;
-			}
-			pp++;
-	}
+  uint32_t addressWrite = EE_BASE;
+
+  union  {
+      uint16_t u16;
+      uint8_t  u8[2];
+  } val ;
+
+  uint8_t* pp = bloc;
+  uint8_t page = 0;
+
+  // Unlock the flash controller
+  FLASH_Unlock();
+
+  val.u16 = 0;
+
+  // Write 2 uint8_t in an uint16t
+  for (uint16_t offset = 0; offset < sz; offset+=2) {
+
+    // Check if that page needs to be updated
+    if ( offset % EE_PAGE_SIZE == 0 ) {
+        // Compare current buffer with page EEPROM content
+        if ( EEPROM_DiffPage(EE_PAGE_BASE + page, pp, sz-offset ) ) {
+          page++;
+          FLASH_ErasePage(addressWrite);
+        } else {
+          // Skip that page
+          page++;
+          addressWrite += EE_PAGE_SIZE;
+          offset += EE_PAGE_SIZE;
+          pp += EE_PAGE_SIZE;
+          continue;
+        }
+    }
+
+    val.u16 = 0;
+    val.u8[0] = *pp++;
+
+    // last byte, odd size?
+    if ( offset+1 < sz ) val.u8[1] = *pp++;
+
+    // Write the 16 bits value in the page
+    if ( (*(__IO uint8*)addressWrite) != val.u16 )
+        FLASH_ProgramHalfWord(addressWrite, val.u16);
+
+    addressWrite += 2;
+  }
+  FLASH_Lock();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Get byte buffer from EEPROM
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_Get(uint8_t* bloc,uint16_t sz, uint16_t offset)
+{
+  // Nothing to do if size above Capacity
+  if ( sz > EE_CAPACITY )  return;
+
+  uint32_t addressRead = EE_BASE + offset;
+
+	for (uint16_t idx = 0 ; idx < sz; idx++) {
+      *bloc++ = (*(__IO uint8*)addressRead++);
+  }
 
 }
 
@@ -191,9 +435,7 @@ void EEPROM_Get(uint8_t* bloc,uint16_t sz)
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_ParamsLoad()
 {
-
-	EEPROM_Get((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t));
-
+	EEPROM_Get((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t),0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,7 +445,61 @@ void EEPROM_ParamsLoad()
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_ParamsSave()
 {
+	EEPROM_Update((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
+}
 
-	EEPROM_Put((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
+///////////////////////////////////////////////////////////////////////////////
+// Format EEPROM
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_Format() {
 
+  uint32_t addressWrite = EE_BASE;
+
+  // Unlock the flash controller
+  FLASH_Unlock();
+
+	for (uint16_t idx = 0; idx < EE_CAPACITY; idx +=2 ) {
+
+    // Erase the page if we reach a page size or base
+    if ( idx % EE_PAGE_SIZE == 0 ) FLASH_ErasePage(addressWrite);
+
+    // Write the 16 bits value in the page
+    FLASH_ProgramHalfWord(addressWrite, (uint16_t) 0xFFFF);
+    addressWrite += 2;
+	}
+
+  FLASH_Lock();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// DUMP FLASH MEMORY BY PAGE (First page is 0)
+// To DUMP EEPROM, use EE_PAGE_BASE,EE_NBPAGE.  16 pages max at a time..
+//////////////////////////////////////////////////////////////////////////////
+void EEPROM_FlashMemoryDump(uint8_t startPage, uint8_t nbPage) {
+
+  if (nbPage > 16 ) return;
+
+  uint32_t addressRead = EE_FLASH_MEMORY_BASE + startPage * EE_PAGE_SIZE ;
+  uint8_t b;
+  char asciiBuff[17];
+  uint8_t c=0;
+
+  for (uint16_t idx = 0 ; idx < (EE_PAGE_SIZE * nbPage); idx++) {
+      if ( idx % EE_PAGE_SIZE == 0 ) {
+          Serial.print("Page ");Serial.print(startPage++);
+          Serial.print(" - EE_PAGE_SIZE = 0x");Serial.println(EE_PAGE_SIZE,HEX);
+      }
+      if (c == 0 ) {
+          Serial.print(addressRead,HEX);Serial.print(" : ");
+      }
+      b = (*(__IO uint8*)addressRead++);
+      if (b <= 0x0F ) Serial.print("0");
+      Serial.print(b,HEX);Serial.print(" ");
+      asciiBuff[c++] = ( b >= 0x20 && b< 127? b : '.' ) ;
+      if ( c == 16 ) {
+        asciiBuff[c] = 0;
+        c = 0;
+        Serial.print(" | ");Serial.println(&asciiBuff[0]);
+      }
+  }
 }

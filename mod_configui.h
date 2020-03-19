@@ -53,30 +53,30 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-void PrintCleanHEX(uint8_t);
+void PrintCleanHEX(uint8_t) __attribute__((optimize("-Os")));
 void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
 void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((optimize("-Os")));
-uint8_t GetInt8FromHexChar(char);
-uint16_t GetInt16FromHex4Char(char *);
-uint16_t GetInt16FromHex4Bin(char * );
-uint16_t PowInt(uint8_t ,uint8_t);
-uint16_t AsknNumber(uint8_t) ;
-char AskDigit();
-char AskChar();
-uint8_t AsknHexChar(char *, uint8_t ,char,char);
-char AskChoice(const char * , const char * );
+uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
+uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
+uint16_t GetInt16FromHex4Bin(char * ) __attribute__((optimize("-Os")));
+uint16_t PowInt(uint8_t ,uint8_t)  __attribute__((optimize("-Os")));
+uint16_t AsknNumber(uint8_t) __attribute__((optimize("-Os")));
+char AskDigit() __attribute__((optimize("-Os")));
+char AskChar()  __attribute__((optimize("-Os")));
+uint8_t AsknHexChar(char *, uint8_t ,char,char) __attribute__((optimize("-Os")));
+char AskChoice(const char * , const char * ) __attribute__((optimize("-Os")));
 void ShowMidiRoutingLine(uint8_t ,uint8_t , void *) __attribute__((optimize("-Os"))) ;
 void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
-void ShowMidiKliKHeader();
-void ShowGlobalSettings();
-uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
-void AskMidiRouting(uint8_t);
-uint8_t AskMidiFilter(uint8_t, uint8_t );
-void AskProductString();
-void AskVIDPID();
-void MenuItems( const char * );
-void ShowConfigMenu();
-void I2C_ShowActiveDevice();
+void ShowMidiKliKHeader() __attribute__((optimize("-Os")));
+void ShowGlobalSettings() __attribute__((optimize("-Os")));
+uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t ) __attribute__((optimize("-Os")));
+void AskMidiRouting(uint8_t) __attribute__((optimize("-Os")));
+uint8_t AskMidiFilter(uint8_t, uint8_t ) __attribute__((optimize("-Os")));
+void AskProductString() __attribute__((optimize("-Os")));
+void AskVIDPID() __attribute__((optimize("-Os")));
+void MenuItems( const char * ) __attribute__((optimize("-Os")));
+void ShowConfigMenu() __attribute__((optimize("-Os")));
+void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 
 ///////////////////////////////////////////////////////////////////////////////
 // Serial print a formated hex value
@@ -316,7 +316,7 @@ void ShowMidiRouting(uint8_t ruleType)
 
  	// Cable
 	if (ruleType == USBCABLE_RULE) {
-			Serial.print("USB MIDI CABLE OUT ROUTING");
+			Serial.print("CABLE OUT ROUTING");
 			maxPorts = USBCABLE_INTERFACE_MAX;
 	}
 
@@ -330,7 +330,7 @@ void ShowMidiRouting(uint8_t ruleType)
   else
 	// IntelliThru
 	if (ruleType == INTELLITHRU_RULE) {
-			Serial.print("MIDI IN JACK INTELLITHRU ROUTING ");
+			Serial.print("MIDI IN JACK ITHRU ROUTING ");
 			maxPorts = SERIAL_INTERFACE_COUNT;
 	}
 	else return;
@@ -359,9 +359,9 @@ void ShowMidiRouting(uint8_t ruleType)
 
 	Serial.println();
 	if (ruleType == INTELLITHRU_RULE) {
-		Serial.print("IntelliThru mode is ");
+		Serial.print("IThru mode is ");
 		Serial.println(EEPROM_Params.intelliThruJackInMsk ? "active." : "inactive.");
-		Serial.print("USB sleeping detection time :");
+		Serial.print("USB idle detection time :");
     Serial.print(EEPROM_Params.intelliThruDelayPeriod*15);Serial.println("s");
 	}
 
@@ -377,7 +377,6 @@ void ShowMidiKliKHeader()
 	Serial.print(" - V");
 	Serial.print(VERSION_MAJOR);Serial.print(".");Serial.println(VERSION_MINOR);
 	Serial.println("(c) TheKikGen Labs");
-	Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -413,7 +412,9 @@ void ShowGlobalSettings()
 	Serial.println(HARDWARE_TYPE);
 
 	Serial.print("EEPROM param. size  : ");
-	Serial.println(sizeof(EEPROM_Params_t));
+	Serial.print(sizeof(EEPROM_Params_t));
+  Serial.print(" / ");
+  Serial.println(EE_CAPACITY);
 
 	Serial.print("I2C Bus mode        : ");
 	if ( EEPROM_Params.I2C_BusModeState == B_DISABLED )
@@ -577,7 +578,7 @@ uint8_t AskMidiFilter(uint8_t ruleType, uint8_t port)
 {
 	uint8_t flt = 0;
 
-	Serial.print("Set filter Midi messages for ");
+	Serial.print("Set midi filter for ");
 
 	 if (ruleType == USBCABLE_RULE ) {
 			 Serial.print("cable out #");
@@ -696,14 +697,14 @@ void ShowConfigMenu()
 	uint8_t i;
   boolean showMenu = true;
   static const char * configMenu[] = {
-  "0View global settings",
-  "1View midi routing",
+  "0Show global settings",
+  "1Show midi routing",
   "2Usb VID PID",
   "3Usb product string",
   "4Cable OUT routing",
   "5Jack IN routing",
-  "6IntelliThru routing",
-  "7IntelliThru timeout",
+  "6IThru routing",
+  "7IThru timeout",
   "8Toggle bus mode",
   "9Set device Id",
   "aShow active devices",
@@ -714,8 +715,11 @@ void ShowConfigMenu()
   "fFactory settings",
   "rFactory routing",
   "sSave settings",
-  "zDebug on Serial3",
+  "zDebug mode",
   "xExit",
+  "!Dump EEPROM",
+  ":Dump Flash memory",
+  "/Format EEPROM",
   ""
   };
 	for ( ;; )
@@ -786,7 +790,7 @@ void ShowConfigMenu()
 
 			// USB Timeout <number of 15s periods 1-127>
 			case '7':
-				Serial.println("Nb of 15s periods (001-127 / 000 to exit) :");
+				Serial.println("15s periods nb (001-127 / 000 to exit) :");
 				i = AsknNumber(3);
 				if (i == 0 || i >127 )
 					Serial.println(". Error. No change made.");
@@ -858,7 +862,7 @@ void ShowConfigMenu()
 
 			// Reload the EEPROM parameters structure
 			case 'e':
-				if ( AskChoice("Reload previous settings ","") == 'y' ) {
+				if ( AskChoice("Reload settings ","") == 'y' ) {
 					EEPROM_ParamsInit();
           Serial.println();
 					Serial.println("Settings reloaded.");
@@ -871,7 +875,7 @@ void ShowConfigMenu()
 			case 'f':
 				if ( AskChoice("Restore factory settings","") == 'y' ) {
           Serial.println();
-					if ( AskChoice("All settings will be erased. Sure","") == 'y' ) {
+					if ( AskChoice("Sure","") == 'y' ) {
 						EEPROM_ParamsInit(true);
             Serial.println();
 						Serial.println("Factory settings restored.");
@@ -883,7 +887,7 @@ void ShowConfigMenu()
 
 			// Default midi routing
 			case 'r':
-				if ( AskChoice("Reset Midi routing to default","") == 'y')
+				if ( AskChoice("Reload default midi routing","") == 'y')
 					ResetMidiRoutingRules(ROUTING_RESET_ALL);
 					Serial.println();
 					showMenu = false;
@@ -903,13 +907,13 @@ void ShowConfigMenu()
 				}
 				break;
 
-        // debug Mode
-  			case 'z':
+      // debug Mode
+      case 'z':
         #ifdef DEBUG_MODE
         if ( AskChoice("Enable debug mode.","") == 'y' ) {
           EEPROM_Params.debugMode = true;
           Serial.println();
-          Serial.println("Debug mode enabled. Master:Serial3, Slave:UsbSerial. 115200 bauds.");
+          Serial.println("Debug mode : M:Serial3, S:UsbSerial. 115200 bds.");
           Serial.println();
         } else {
           EEPROM_Params.debugMode = false;
@@ -922,6 +926,33 @@ void ShowConfigMenu()
           Serial.println();
         #endif
 				showMenu = false;
+        break;
+
+      // Dump EEPROM
+      case '!':
+        EEPROM_FlashMemoryDump(EE_PAGE_BASE,EE_NBPAGE);
+        break;
+
+      // Navigate EEPROM
+      case ':':
+        {
+            char c;
+            uint16_t p=0;
+            do {
+              EEPROM_FlashMemoryDump(p,1);
+              c = AskChoice("q/s to navigate or e(x)it","qsx");
+              Serial.println();
+              if (c == 'q' && p > 0) p--;
+              else if ( c == 's' && p < (EE_FLASH_SIZE*1024 / EE_PAGE_SIZE -1 ) ) p++;
+            }  while ( c != 'x');
+
+            break;
+        }
+
+      // Format EEPROM
+      case '/':
+        if ( AskChoice("Format EEPROM, Sure","") == 'y' )
+          EEPROM_Format();
         break;
 
 			// Abort

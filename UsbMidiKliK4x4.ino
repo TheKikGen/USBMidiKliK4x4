@@ -46,7 +46,6 @@ __ __| |           |  /_) |     ___|             |           |
 #include "build_number_defines.h"
 #include <string.h>
 #include <libmaple/nvic.h>
-#include <EEPROM.h>
 #include <Wire_slave.h>
 #include <PulseOutManager.h>
 #include <midiXparser.h>
@@ -89,7 +88,7 @@ PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLI
   };
 #endif
 
-// Timer used to signal I2C events every 300 ms
+// Timer used to signal I2C events every 500 ms
 PulseOut I2C_LedTimer(0xFF,500);
 
 // USB Midi object & globals
@@ -140,6 +139,7 @@ RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 #include "mod_eeprom.h"
 #include "mod_configui.h"
 #include "mod_i2cbus.h"
+#include "mod_miditransfn.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS
@@ -360,11 +360,12 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 // Route a packet from a midi IN jack / USB OUT to
 // a midi OUT jacks / USB IN  or I2C remote serial midi on another device
 ///////////////////////////////////////////////////////////////////////////////
- void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
+void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 {
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
   uint8_t sourcePort  = pk->packet[0] >> 4;
+  uint8_t cin         = pk->packet[0] & 0x0F ;
 
 	// Check at the physical level (i.e. not the bus)
   if ( source == FROM_USB && sourcePort >= USBCABLE_INTERFACE_MAX ) return;
@@ -374,10 +375,10 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 		// to the device Id, before routing
     if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
 			sourcePort = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,sourcePort);
+      // Rebuild packet header with source port translated
+      pk->packet[0] = cin + ( sourcePort << 4) ;
     }
   }
-
-  uint8_t cin   = pk->packet[0] & 0x0F ;
 
 	FLASH_LED_IN(sourcePort);
 
@@ -394,38 +395,25 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 			msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 	}
 
-	// ROUTING tables
+	// ROUTING rules pointers
 	uint16_t *cableInTargets ;
 	uint16_t *serialOutTargets ;
-	uint8_t *inFilters ;
+	uint8_t  *inFilters ;
+  uint8_t   pipelineSlot;
 
-  // Save intelliThruActive and USBCx state as it could be changed in an interrupt
-  // (when slave)
+  // Save intelliThruActive state as it could be changed in an interrupt
   boolean ithru = intelliThruActive;
 
-  if (source == FROM_SERIAL ){
-    // IntelliThru active ? If so, take the good routing rules
-    if ( ithru ) {
-			if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
-    }
-    else {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
-    }
-  }
-  else if (source == FROM_USB ) {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
-  }
+  // Retrieve routing rules and tranformation slot for the current port.
+  if ( ! RetrievePortRoutingRules(source,ithru,sourcePort,cableInTargets,serialOutTargets,inFilters,&pipelineSlot) ) return;
 
-  else return; // Error.
-
-	// Apply midi filters
+	// Apply midi high level filters
 	if (! (msgType & *inFilters) ) return;
+
+  // Apply transformation pipeline if any.
+  if ( pipelineSlot ) {
+    if ( ! TransPacketPipeline(source, pipelineSlot, pk) ) return ;
+  }
 
   // ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
 	// A target match ?
@@ -454,7 +442,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 	// Only if USB connected and thru mode inactive
 
   if (  *cableInTargets  ) {
-    	midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
+      midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
 			for (uint8_t t=0; t != USBCABLE_INTERFACE_MAX ; t++) {
 	      if ( *cableInTargets & ( 1 << t ) ) {
 	          pk2.packet[0] = ( t << 4 ) + cin;
@@ -508,7 +496,13 @@ void ResetMidiRoutingRules(uint8_t mode)
 	    EEPROM_Params.midiRoutingRulesSerial[i].cableInTargetsMsk = 1 << i ;
 	    EEPROM_Params.midiRoutingRulesSerial[i].jackOutTargetsMsk = 0  ;
 	  }
-	}
+
+    // Reset pipeline Slots
+    for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
+      EEPROM_Params.midiTransPipelineSlots[s].attachedJacksMsk = 0 ;
+      EEPROM_Params.midiTransPipelineSlots[s].attachedCablesMsk = 0;
+  	}
+  }
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
@@ -518,6 +512,10 @@ void ResetMidiRoutingRules(uint8_t mode)
 		}
 		EEPROM_Params.intelliThruJackInMsk = 0;
 	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
+
+    // Reset pipeline Slots
+    for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ )
+      EEPROM_Params.midiTransPipelineSlots[s].attachedIthruJacksMsk = 0;
 	}
 
 	// Disable "Intelligent thru" serial mode
@@ -1112,9 +1110,9 @@ void CheckBootMode()
 			Serial.begin(115200);
 			delay(500);
 
-			// Start Wire as a master for config & tests purpose in the menu
-			Wire.begin();
-			Wire.setClock(B_FREQ) ;
+      // Start Wire as a master for config & tests purpose in the menu
+      Wire.begin();
+      Wire.setClock(B_FREQ) ;
 
 			// wait for a serial monitor to be connected.
 			// 3 short flash
@@ -1125,6 +1123,7 @@ void CheckBootMode()
 					flashLED_CONNECT->start();delay(300);
 				}
 			digitalWrite(LED_CONNECT, LOW);
+
 			ShowConfigMenu(); // INFINITE LOOP
 	}
 }
@@ -1232,14 +1231,11 @@ void setup()
 {
 
 		// EEPROM initialization
-		// Set EEPROM parameters for the STMF103RC
-	  EEPROM.PageBase0 = 0x801F000;
-	  EEPROM.PageBase1 = 0x801F800;
-	  EEPROM.PageSize  = 0x800;
-		//EEPROM.Pages     = 1;
+	  // EEPROM.PageBase0 = EE_PAGE_BASE0;
+	  // EEPROM.PageBase1 = EE_PAGE_BASE1;
+	  // EEPROM.PageSize  = EE_PAGE_SIZE;
 
-
-		EEPROM.init();
+		//EEPROM.init();
 
 		// Retrieve EEPROM parameters
     EEPROM_ParamsInit();
