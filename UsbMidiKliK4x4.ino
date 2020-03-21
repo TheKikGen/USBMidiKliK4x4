@@ -362,15 +362,33 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 {
+  static boolean pipeLineActive = false;
+
+  if ( source != FROM_USB && source != FROM_SERIAL ) return;
+
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
   uint8_t sourcePort  = pk->packet[0] >> 4;
   uint8_t cin         = pk->packet[0] & 0x0F ;
 
-	// Check at the physical level (i.e. not the bus)
-  if ( source == FROM_USB && sourcePort >= USBCABLE_INTERFACE_MAX ) return;
-	if ( source == FROM_SERIAL ) {
+  // ROUTING rules pointers
+	uint16_t *cableInTargets ;
+	uint16_t *serialOutTargets ;
+	uint8_t  *inFilters ;
+
+  // Pipeline slot
+  uint8_t   attachedPipelineSlot = 0;
+
+  // Save intelliThruActive state as it could be changed in an interrupt
+  boolean ithru = intelliThruActive;
+
+  FLASH_LED_IN(sourcePort);
+
+  // A midi packet from serial jack ?
+  if ( source == FROM_SERIAL ) {
+    // Check at the physical level (i.e. not the bus)
     if ( sourcePort >= SERIAL_INTERFACE_MAX ) return;
+
     // If bus mode active, the local port# must be translated according
 		// to the device Id, before routing
     if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
@@ -378,9 +396,36 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
       // Rebuild packet header with source port translated
       pk->packet[0] = cin + ( sourcePort << 4) ;
     }
-  }
 
-	FLASH_LED_IN(sourcePort);
+    // IntelliThru active ? If so, take the good routing rules
+    if ( ithru ) {
+      if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
+      inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
+      for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
+        if ( EEPROM_Params.midiTransPipelineSlots[i].attachedIthruJacksMsk & (1 << sourcePort ) ) {
+            attachedPipelineSlot = i+1; break ; }
+    }
+    // else Standard jack rules
+    else {
+      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
+      inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
+      for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
+        if ( EEPROM_Params.midiTransPipelineSlots[i].attachedJacksMsk & (1 << sourcePort )  ) {
+            attachedPipelineSlot = i+1; break ; }
+    }
+  }
+  // A midi packet from USB cable out ?
+  else {
+    if ( sourcePort >= USBCABLE_INTERFACE_MAX ) return;
+    cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
+    serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
+    inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
+    for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
+      if ( EEPROM_Params.midiTransPipelineSlots[i].attachedCablesMsk & (1 << sourcePort )  ) {
+            attachedPipelineSlot = i+1; break ; }
+  }
 
 	// Sysex is a particular case when using packets.
 	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever filters are
@@ -395,28 +440,21 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 			msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 	}
 
-	// ROUTING rules pointers
-	uint16_t *cableInTargets ;
-	uint16_t *serialOutTargets ;
-	uint8_t  *inFilters ;
-  uint8_t   pipelineSlot;
-
-  // Save intelliThruActive state as it could be changed in an interrupt
-  boolean ithru = intelliThruActive;
-
-  // Retrieve routing rules and tranformation slot for the current port.
-  if ( ! RetrievePortRoutingRules(source,ithru,sourcePort,cableInTargets,serialOutTargets,inFilters,&pipelineSlot) ) return;
-
-	// Apply midi high level filters
+	// 1/ Apply high level midi filters before pipeline
 	if (! (msgType & *inFilters) ) return;
 
-  // Apply transformation pipeline if any.
-  if ( pipelineSlot ) {
-    if ( ! TransPacketPipeline(source, pipelineSlot, pk) ) return ;
+// TEST purpose TODO REMOVE
+attachedPipelineSlot=1;
+
+  // 2/ Apply pipeline if any
+  if ( !pipeLineActive && attachedPipelineSlot ) {
+    pipeLineActive = true; // Avoid infinite loop
+    boolean r = TransPacketPipeline(source, attachedPipelineSlot, pk) ;
+    pipeLineActive = false;
+    if (!r) return; // Drop packet
   }
 
-  // ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
-	// A target match ?
+  // 3/ Apply serial jack routing if a target match
   if ( *serialOutTargets) {
 				for (	uint16_t t=0; t != SERIAL_INTERFACE_COUNT ; t++)
 					if ( (*serialOutTargets & ( 1 << t ) ) ) {
@@ -427,20 +465,17 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 								// Route to local serial if bus mode disabled
 								else SerialMidi_SendPacket(pk,t);
 					}
-	} // serialOutTargets
+	}
 
   // Stop here if IntelliThru active (no USB active but maybe connected)
+  // or no USB connection (owned by the master).
+  // If we are a slave, the master should have notified us
   // Intellithru is always activated by the master in bus mode!.
 
-  if ( ithru ) return;
+  if ( ithru || !midiUSBCx ) return;
 
-  // Stop here if no USB connection (owned by the master).
-  // If we are a slave, the master should have notified us
-  if ( ! midiUSBCx ) return;
-
-	// Apply cable routing rules from serial or USB
+	// 4/ Apply cable routing rules from serial or USB
 	// Only if USB connected and thru mode inactive
-
   if (  *cableInTargets  ) {
       midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
 			for (uint8_t t=0; t != USBCABLE_INTERFACE_MAX ; t++) {
@@ -467,6 +502,8 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 	    	}
 			}
 	}
+  // Routing Done !
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////

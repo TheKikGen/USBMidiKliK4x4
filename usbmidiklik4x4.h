@@ -94,13 +94,6 @@ enum nextBootMode {
 // Number of pipelines slots
 #define MIDI_TRANS_PIPELINE_SLOT_SIZE 8
 
-enum MidiTransPipeFnID {
-  FN_TRANSPIPE_ENDPIPE,
-  FN_TRANSPIPE_TRANSPOSE,
-  FN_TRANSPIPE_CHANNEL_MAP,
-  FN_TRANSPIPE_VECTOR_SIZE,
-} ;
-
 enum MidiRoutingDirection {
   FROM_SERIAL,
   FROM_USB,
@@ -110,7 +103,8 @@ enum MidiRoutingDirection {
 
 enum MidiRoutingRuleType {
   SERIAL_RULE,
-  USBCABLE_RULE,INTELLITHRU_RULE
+  USBCABLE_RULE,
+  INTELLITHRU_RULE
 };
 
 enum MidiRoutingReset {
@@ -122,7 +116,8 @@ enum MidiRoutingReset {
 
 // Transformation pipe
 typedef struct {
-    uint8_t fnId;
+    int8_t fnId;    // -1 means no pipe
+    uint8_t byPass; // 1 = byPass. 0 = execute
     uint8_t par1;
     uint8_t par2;
     uint8_t par3;
