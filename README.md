@@ -118,6 +118,8 @@ The following menu should appear after connecting to the right serial USB port ,
 I'm currently working on a powerfull new feature allowing to modify an incoming midi message via a "pipeline". A pipeline can be seen as a chain of transformation functions, e.g.,  transpose notes, split, map channel to another, map CC to another, etc....  
 The RC1 will be delivered around end of March.  Have a look at the MIDITRANS branch.
 
+<img width="450" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
+
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
 Update tool is included.  Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).
