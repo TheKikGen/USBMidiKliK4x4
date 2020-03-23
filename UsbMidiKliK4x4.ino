@@ -1121,6 +1121,41 @@ void SysExInternalProcess(uint8_t source)
 
 			break;
 
+
+      // ---------------------------------------------------------------------------
+      // Function 10 - Bus mode management
+      // ---------------------------------------------------------------------------
+      // F0 77 77 78 10  < command <command args>  >
+      //
+      // Commands are :
+      //  00 Toggle bus mode <00 = off | 01 = ON>
+      //  01 Set device id <deviceid 04-08>
+
+      // Enable Bus mode
+      case 0x10:
+
+      // Toogle Bus mod
+      if (sysExInternalBuffer[2] == 0x00 && msgLen == 2 )  {
+
+          if ( sysExInternalBuffer[2] == 1  )  EEPROM_Params.I2C_BusModeState = B_ENABLED;
+          else if ( sysExInternalBuffer[2] == 0  ) EEPROM_Params.I2C_BusModeState = B_DISABLED;
+          else break;
+
+          EEPROM_ParamsSave();
+
+      }
+      else
+      
+      if (sysExInternalBuffer[2] == 0x01 && msgLen == 2 )  {
+          if ( sysExInternalBuffer[3] > B_SLAVE_DEVICE_LAST_ADDR || sysExInternalBuffer[3] < B_SLAVE_DEVICE_BASE_ADDR )
+              break;
+
+          EEPROM_Params.I2C_DeviceId = sysExInternalBuffer[3];
+          EEPROM_ParamsSave();
+      }
+
+      break;
+
       // ---------------------------------------------------------------------------
       // Function 11 - Midi transformation pipelines
       // ---------------------------------------------------------------------------
@@ -1170,15 +1205,15 @@ void SysExInternalProcess(uint8_t source)
 
       // PIPE OPERATIONS
       if (sysExInternalBuffer[2] == 0x01 ) {
-        // Add pipe
+        // Add pipe  F0 77 77 78 11 01 00   00  00  0C 00 00 00 F7
         if (sysExInternalBuffer[3] == 0x00  && msgLen == 8) {
             midiTransPipe_t p;
-            p.fnId = sysExInternalBuffer[5];
+            p.fnId = sysExInternalBuffer[4];
             p.byPass = 0;
-            p.par1 = sysExInternalBuffer[6];
-            p.par2 = sysExInternalBuffer[7];
-            p.par3 = sysExInternalBuffer[8];
-            p.par4 = sysExInternalBuffer[9];
+            p.par1 = sysExInternalBuffer[5];
+            p.par2 = sysExInternalBuffer[6];
+            p.par3 = sysExInternalBuffer[7];
+            p.par4 = sysExInternalBuffer[8];
             if ( ! TransPacketPipe_AddToSlot(sysExInternalBuffer[4],&p) ) break ;
             EEPROM_ParamsSave();
         } else
@@ -1186,12 +1221,12 @@ void SysExInternalProcess(uint8_t source)
         // Insert pipe
         if (sysExInternalBuffer[3] == 0x01  && msgLen == 9) {
           midiTransPipe_t p;
-          p.fnId = sysExInternalBuffer[6];
+          p.fnId = sysExInternalBuffer[4];
           p.byPass = 0;
-          p.par1 = sysExInternalBuffer[7];
-          p.par2 = sysExInternalBuffer[8];
-          p.par3 = sysExInternalBuffer[9];
-          p.par4 = sysExInternalBuffer[10];
+          p.par1 = sysExInternalBuffer[5];
+          p.par2 = sysExInternalBuffer[6];
+          p.par3 = sysExInternalBuffer[7];
+          p.par4 = sysExInternalBuffer[8];
           if ( ! TransPacketPipe_InsertToSlot(sysExInternalBuffer[4],sysExInternalBuffer[5],&p) ) break ;
         } else
         // Clear pipe by index
