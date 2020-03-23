@@ -449,7 +449,7 @@ attachedPipelineSlot=1;
   // 2/ Apply pipeline if any
   if ( !pipeLineActive && attachedPipelineSlot ) {
     pipeLineActive = true; // Avoid infinite loop
-    boolean r = TransPacketPipeline(source, attachedPipelineSlot, pk) ;
+    boolean r = TransPacketPipelineExec(source, attachedPipelineSlot, pk) ;
     pipeLineActive = false;
     if (!r) return; // Drop packet
   }
@@ -524,6 +524,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 	    EEPROM_Params.midiRoutingRulesCable[i].filterMsk = midiXparser::allMsgTypeMsk;
 	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
 	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
+
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
@@ -803,6 +804,7 @@ void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
 // 0X0C Change USB VID / PID
 // 0X0E Set Intelligent Midi thru mode
 // 0X0F Change midi routing rule
+// 0x10 Midi transformation pipelines
 // ----------------------------------------------------------------------------
 // sysExInternalBuffer[0] length of the message (func code + data)
 // sysExInternalBuffer[1] function code
@@ -1119,8 +1121,101 @@ void SysExInternalProcess(uint8_t source)
 
 			break;
 
-  }
+      // ---------------------------------------------------------------------------
+      // Function 11 - Midi transformation pipelines
+      // ---------------------------------------------------------------------------
+      // F0 77 77 78 11  < command <command args>  >
+      //
+      // Commands are :
+      //  00 slot operation  <00 = Copy>   <source slot number 1-8> <dest slot number 1-8>
+      //                     <01 = Clear>  <Slot number 1-8  0x7F = ALL SLOTS>
+      //                     <02 = Attach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
+      //                     <03 = Detach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
+      //
+      //  01 pipe operations <00 = Add pipe>            <slot number> <FN id> <par1> <par2> <par3> <par4>
+      //                     <01 = Insert before>       <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
+      //                     <02 = Clear Pipe by Index> <slot number> <pipe index 0-n>
+      //                     <03 = Clear pipe by fnId>  <slot number> <fn Id>
+      //                     <04 = ByPass pipe by index>  <slot number> <pipe index 0-n> <byPass:0=no. 1=yes>
 
+      case 0x11:
+
+      // SLOTS OPERATIONS
+      if (sysExInternalBuffer[2] == 0x00 ) {
+
+        // Copy slot
+        if (sysExInternalBuffer[3] == 0x00  && msgLen == 4) {
+          if ( ! TransPacketPipeline_CopySlot(sysExInternalBuffer[4],sysExInternalBuffer[5]) )  break;
+        } else
+
+        // Clear slot <Slot number 1-8> <0x7F = ALL SLOTS>
+        if (sysExInternalBuffer[3] == 0x01  && msgLen == 3) {
+            if ( ! TransPacketPipeline_ClearSlot(sysExInternalBuffer[4]) )  break;
+        } else
+
+        // Attach port to slot
+        if (sysExInternalBuffer[3] == 0x02  && msgLen == 5) {
+            if ( ! TransPacketPipeline_AttachPort(true,sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) )  break;
+        } else
+
+        // Detach port from slot
+        if (sysExInternalBuffer[3] == 0x03  && msgLen == 5) {
+            if ( ! TransPacketPipeline_AttachPort(false,sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) )  break;
+        }
+        else break;
+
+        EEPROM_ParamsSave();
+      }
+      else
+
+      // PIPE OPERATIONS
+      if (sysExInternalBuffer[2] == 0x01 ) {
+        // Add pipe
+        if (sysExInternalBuffer[3] == 0x00  && msgLen == 8) {
+            midiTransPipe_t p;
+            p.fnId = sysExInternalBuffer[5];
+            p.byPass = 0;
+            p.par1 = sysExInternalBuffer[6];
+            p.par2 = sysExInternalBuffer[7];
+            p.par3 = sysExInternalBuffer[8];
+            p.par4 = sysExInternalBuffer[9];
+            if ( ! TransPacketPipe_AddToSlot(sysExInternalBuffer[4],&p) ) break ;
+            EEPROM_ParamsSave();
+        } else
+
+        // Insert pipe
+        if (sysExInternalBuffer[3] == 0x01  && msgLen == 9) {
+          midiTransPipe_t p;
+          p.fnId = sysExInternalBuffer[6];
+          p.byPass = 0;
+          p.par1 = sysExInternalBuffer[7];
+          p.par2 = sysExInternalBuffer[8];
+          p.par3 = sysExInternalBuffer[9];
+          p.par4 = sysExInternalBuffer[10];
+          if ( ! TransPacketPipe_InsertToSlot(sysExInternalBuffer[4],sysExInternalBuffer[5],&p) ) break ;
+        } else
+        // Clear pipe by index
+        if (sysExInternalBuffer[3] == 0x02  && msgLen == 4 ) {
+          if ( ! TransPacketPipe_ClearSlotIndex(sysExInternalBuffer[4],sysExInternalBuffer[5]) ) break ;
+        } else
+
+        // Clear all pipe by fnId
+        if (sysExInternalBuffer[3] == 0x03  && msgLen == 4 ) {
+          if ( ! TransPacketPipe_ClearSlotFnId(sysExInternalBuffer[4],sysExInternalBuffer[5]) ) break ;
+        } else
+
+        // ByPass pipe by index
+        if (sysExInternalBuffer[3] == 0x04  && msgLen == 5 ) {
+          if ( ! TransPacketPipe_ByPass(sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) ) break ;
+        }
+        else break;
+
+        EEPROM_ParamsSave();
+
+      }
+
+      break;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
