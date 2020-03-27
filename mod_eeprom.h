@@ -96,6 +96,9 @@ void EEPROM_Format() __attribute__((optimize("-Os")));
 void EEPROM_FlashMemoryDump(uint8_t , uint8_t ) __attribute__((optimize("-Os")));
 boolean EEPROM_DiffPage(uint8_t , uint8_t) __attribute__((optimize("-Os")));
 
+// External
+boolean TransPacketPipeline_ClearSlot(uint8_t pipelineSlot);
+
 ///////////////////////////////////////////////////////////////////////////////
 // Original STM32 core flash FUNCTIONS
 ///////////////////////////////////////////////////////////////////////////////
@@ -314,6 +317,8 @@ void EEPROM_ParamsInit(bool factorySettings)
 		EEPROM_Params.I2C_BusModeState = B_DISABLED;
 
 		ResetMidiRoutingRules(ROUTING_RESET_ALL);
+
+		TransPacketPipeline_ClearSlot(0x7F); // Clear all pipelines slots
 
     EEPROM_Params.vendorID  = USB_MIDI_VENDORID;
     EEPROM_Params.productID = USB_MIDI_PRODUCTID;

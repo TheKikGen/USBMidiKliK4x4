@@ -56,7 +56,7 @@ __ __| |           |  /_) |     ___|             |           |
 // For each pipe  :
 //   . A MidiTransFn_(pipe name)_CheckParms function to validate input prms
 //   . A MidiTransFn_(pipe name) function being the transformation pipe itself
-//   . Declaration of an fnId in the MidiTransPipeFnID enum before FN_TRANSPIPE_VECTOR_SIZE
+//   . Declaration of an pId in the MidiTransPipepId enum before FN_TRANSPIPE_VECTOR_SIZE
 //   . An entry in the MidiTransFnVector functio pointer array with the pipe fn address
 //   . An entry in the MidiTransFnVector_CheckParms array with the check parms fn address
 
@@ -87,9 +87,22 @@ boolean MidiTransFn_ClockDivider(uint8_t, midiPacket_t *, midiTransPipe_t *);
 //  Midi transformation functions vector
 ///////////////////////////////////////////////////////////////////////////////
 
-#define FN_TRANSPIPE_NOPIPE -1
+typedef boolean (*MidiTransFnP_t) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
+typedef boolean (*MidiTransFn_CheckParmsP_t) (midiTransPipe_t *pipe) ;
 
-enum MidiTransPipeFnID {
+// Transformation pipe function vector
+typedef struct {
+    char *                    shortName;
+    MidiTransFnP_t            pipeFn;
+    MidiTransFn_CheckParmsP_t checkFn;
+} __packed MidiTransFnVector_t;
+
+// Empty pipe
+#define FN_TRANSPIPE_NOPIPE 0xFF
+
+// 1 Id by pipe. FN_TRANSPIPE_VECTOR_SIZE must the last one
+// PID is the array index in the vector fn table, so the order must be strictly the same.
+enum MidiTransPipeId {
   FN_TRANSPIPE_NOTE_CHANGER,
   FN_TRANSPIPE_CHANNEL_MAPPER,
   FN_TRANSPIPE_VELO_CHANGER,
@@ -98,23 +111,12 @@ enum MidiTransPipeFnID {
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
-typedef boolean (*MidiTransFnPt) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
-typedef boolean (*MidiTransFnPt_CheckParms) (midiTransPipe_t *pipe) ;
-
-MidiTransFnPt MidiTransFnVector[] = {
-  &MidiTransFn_NoteChanger,
-  &MidiTransFn_ChannelMapper,
-  &MidiTransFn_VeloChanger,
-  &MidiTransFn_CCChanger,
-  &MidiTransFn_ClockDivider,
-};
-
-MidiTransFnPt_CheckParms MidiTransFnVector_CheckParms[] = {
-  &MidiTransFn_NoteChanger_CheckParms,
-  &MidiTransFn_ChannelMapper_CheckParms,
-  &MidiTransFn_VeloChanger_CheckParms,
-  &MidiTransFn_CCChanger_CheckParms,
-  &MidiTransFn_ClockDivider_CheckParms,
+const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
+  {"NOTECHG", &MidiTransFn_NoteChanger,   &MidiTransFn_NoteChanger_CheckParms},
+  {"CHANMAP", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+  {"VELOCHG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+  {"CCCHANG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+  {"CLKDIVD", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////

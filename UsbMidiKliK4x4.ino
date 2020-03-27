@@ -350,7 +350,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 		if (cin != 4  && sysExInternalHeaderFound ) {
 			sysExInternalMsgIdx = 0;
 			sysExInternalHeaderFound = false;
-			SysExInternalProcess(source);
+			SysExInternalProcess(source,sysExInternalBuffer);
 		}
 }
 
@@ -402,18 +402,14 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
       if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
       serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
       inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
-      for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
-        if ( EEPROM_Params.midiTransPipelineSlots[i].attachedIthruJacksMsk & (1 << sourcePort ) ) {
-            attachedPipelineSlot = i+1; break ; }
+      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( INTELLITHRU_RULE, sourcePort );
     }
     // else Standard jack rules
     else {
       cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
       serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
       inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
-      for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
-        if ( EEPROM_Params.midiTransPipelineSlots[i].attachedJacksMsk & (1 << sourcePort )  ) {
-            attachedPipelineSlot = i+1; break ; }
+      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( SERIAL_RULE, sourcePort );
     }
   }
   // A midi packet from USB cable out ?
@@ -422,9 +418,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
     cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
     serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
     inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
-    for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ )
-      if ( EEPROM_Params.midiTransPipelineSlots[i].attachedCablesMsk & (1 << sourcePort )  ) {
-            attachedPipelineSlot = i+1; break ; }
+    attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( USBCABLE_RULE, sourcePort );
   }
 
 	// Sysex is a particular case when using packets.
@@ -442,9 +436,6 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 
 	// 1/ Apply high level midi filters before pipeline
 	if (! (msgType & *inFilters) ) return;
-
-// TEST purpose TODO REMOVE
-attachedPipelineSlot=1;
 
   // 2/ Apply pipeline if any
   if ( !pipeLineActive && attachedPipelineSlot ) {
@@ -540,6 +531,7 @@ void ResetMidiRoutingRules(uint8_t mode)
       EEPROM_Params.midiTransPipelineSlots[s].attachedJacksMsk = 0 ;
       EEPROM_Params.midiTransPipelineSlots[s].attachedCablesMsk = 0;
   	}
+
   }
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
@@ -792,7 +784,7 @@ void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
 // <dddddd...dd> data
 // F7            EOX End of SYSEX
 //
-// SOX, Header and EOX are not stored in sysExInternalBuffer.
+// SOX, Header and EOX are not stored in sxBuff.
 //
 // Fn   Description                           Data
 //
@@ -804,16 +796,17 @@ void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
 // 0X0C Change USB VID / PID
 // 0X0E Set Intelligent Midi thru mode
 // 0X0F Change midi routing rule
-// 0x10 Midi transformation pipelines
+// 0x10 Bus mode management
+// 0x11 Midi transformation pipelines
 // ----------------------------------------------------------------------------
-// sysExInternalBuffer[0] length of the message (func code + data)
-// sysExInternalBuffer[1] function code
-// sysExInternalBuffer[2] data without EOX
+// sxBuff[0] length of the message (func code + data)
+// sxBuff[1] function code
+// sxBuff[2] data without EOX
 ///////////////////////////////////////////////////////////////////////////////
-void SysExInternalProcess(uint8_t source)
+void SysExInternalProcess(uint8_t source, uint8_t sxBuff[])
 {
-  uint8_t msgLen = sysExInternalBuffer[0];
-  uint8_t cmdId  = sysExInternalBuffer[1];
+  uint8_t msgLen = sxBuff[0];
+  uint8_t cmdId  = sxBuff[1];
 
   switch (cmdId) {
 
@@ -837,7 +830,7 @@ void SysExInternalProcess(uint8_t source)
     // Example : F0 77 77 78 06 01 F7
     // ---------------------------------------------------------------------------
     case 0x06:
-      if ( sysExInternalBuffer[2] == 0x01 && msgLen == 2 ) {
+      if ( sxBuff[2] == 0x01 && msgLen == 2 ) {
 
           if (source == FROM_USB && midiUSBCx) {
             // send to USB , cable 0
@@ -884,7 +877,7 @@ void SysExInternalProcess(uint8_t source)
 
       // Store the new string in EEPROM
       memset(&EEPROM_Params.productString,0, sizeof(EEPROM_Params.productString));
-      memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
+      memcpy(&EEPROM_Params.productString,&sxBuff[2],msgLen-1);
       EEPROM_ParamsSave();
       break;
 
@@ -899,10 +892,10 @@ void SysExInternalProcess(uint8_t source)
     //                8  F  1  2  9  0  6  7
     case 0x0C:
       if ( msgLen != 9 ) break;
-      EEPROM_Params.vendorID = (sysExInternalBuffer[2] << 12) + (sysExInternalBuffer[3] << 8) +
-                                     (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
-      EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
-                                     (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
+      EEPROM_Params.vendorID = (sxBuff[2] << 12) + (sxBuff[3] << 8) +
+                                     (sxBuff[4] << 4) + sxBuff[5] ;
+      EEPROM_Params.productID= (sxBuff[6] << 12) + (sxBuff[7] << 8) +
+                                     (sxBuff[8] << 4) + sxBuff[9] ;
       EEPROM_ParamsSave();
       break;
 
@@ -939,31 +932,31 @@ void SysExInternalProcess(uint8_t source)
 			if ( msgLen < 2 ) break;
 
 			// reset to default midi thru routing
-      if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
+      if (sxBuff[2] == 0x00  && msgLen == 2) {
 				 ResetMidiRoutingRules(ROUTING_RESET_INTELLITHRU);
 			} else
 
 			// Disable thru mode
-			if (sysExInternalBuffer[2] == 0x01  && msgLen == 3) {
+			if (sxBuff[2] == 0x01  && msgLen == 3) {
 					ResetMidiRoutingRules(ROUTING_INTELLITHRU_OFF);
 			}	else
 
 			// Set Delay
 			// The min delay is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
-      if (sysExInternalBuffer[2] == 0x02  && msgLen == 3) {
-				if ( sysExInternalBuffer[3] < 1 || sysExInternalBuffer[3] > 0X7F ) break;
-				EEPROM_Params.intelliThruDelayPeriod = sysExInternalBuffer[3];
+      if (sxBuff[2] == 0x02  && msgLen == 3) {
+				if ( sxBuff[3] < 1 || sxBuff[3] > 0X7F ) break;
+				EEPROM_Params.intelliThruDelayPeriod = sxBuff[3];
 			}	else
 
       // Set routing : Midin 2 mapped to all events. All 4 ports.
 			// 0E 03 01 0F 00 01 02 03
 			// 0E 03 01 0F 00
-			if (sysExInternalBuffer[2] == 3 ) {
+			if (sxBuff[2] == 3 ) {
 					if (msgLen < 4 ) break;
 					if ( msgLen > SERIAL_INTERFACE_COUNT + 4 ) break;
 
-					uint8_t src = sysExInternalBuffer[3];
-					uint8_t filterMsk = sysExInternalBuffer[4];
+					uint8_t src = sxBuff[3];
+					uint8_t filterMsk = sxBuff[4];
 
 					if ( src >= SERIAL_INTERFACE_COUNT) break;
 
@@ -984,8 +977,8 @@ void SysExInternalProcess(uint8_t source)
 							if ( msgLen > 4)	{
 								uint16_t msk = 0;
 								for ( uint8_t i = 5 ; i != (msgLen+1)  ; i++) {
-										if ( sysExInternalBuffer[i] < SERIAL_INTERFACE_COUNT)
-											msk |= 	1 << sysExInternalBuffer[i] ;
+										if ( sxBuff[i] < SERIAL_INTERFACE_COUNT)
+											msk |= 	1 << sxBuff[i] ;
 								}
 								EEPROM_Params.midiRoutingRulesIntelliThru[src].jackOutTargetsMsk = msk;
 							}
@@ -1037,17 +1030,17 @@ void SysExInternalProcess(uint8_t source)
 
       // reset to default routing
 
-      if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
+      if (sxBuff[2] == 0x00  && msgLen == 2) {
 					ResetMidiRoutingRules(ROUTING_RESET_MIDIUSB);
       } else
 
 			// Set filter
 
-			if (sysExInternalBuffer[2] == 0x02  && msgLen == 5) {
+			if (sxBuff[2] == 0x02  && msgLen == 5) {
 
-					uint8_t srcType = sysExInternalBuffer[3];
-					uint8_t src = sysExInternalBuffer[4];
-					uint8_t filterMsk = sysExInternalBuffer[5];
+					uint8_t srcType = sxBuff[3];
+					uint8_t src = sxBuff[4];
+					uint8_t filterMsk = sxBuff[5];
 
 					// Filter is 4 bits
 				  if ( filterMsk > 0x0F  ) break;
@@ -1067,14 +1060,14 @@ void SysExInternalProcess(uint8_t source)
 
 			// Set Routing targets
 
-			if (sysExInternalBuffer[2] == 0x01  )
+			if (sxBuff[2] == 0x01  )
       {
 
 				if (msgLen < 6) break;
 
-				uint8_t srcType = sysExInternalBuffer[3];
-				uint8_t dstType = sysExInternalBuffer[5];
-				uint8_t src = sysExInternalBuffer[4];
+				uint8_t srcType = sxBuff[3];
+				uint8_t dstType = sxBuff[5];
+				uint8_t src = sxBuff[4];
 
 				if (srcType != 0 && srcType != 1 ) break;
 				if (dstType != 0 && dstType != 1 ) break;
@@ -1086,7 +1079,7 @@ void SysExInternalProcess(uint8_t source)
 				// Compute mask from the port list
 				uint16_t msk = 0;
 				for ( uint8_t i = 6 ; i != (msgLen+1)  ; i++) {
-					  uint8_t b = sysExInternalBuffer[i];
+					  uint8_t b = sxBuff[i];
 						if ( (dstType == 0 && b < USBCABLE_INTERFACE_MAX) ||
 						     (dstType == 1 && b < SERIAL_INTERFACE_COUNT) ) {
 
@@ -1134,24 +1127,31 @@ void SysExInternalProcess(uint8_t source)
       // Enable Bus mode
       case 0x10:
 
-      // Toogle Bus mod
-      if (sysExInternalBuffer[2] == 0x00 && msgLen == 2 )  {
+      // Toogle Bus mode
+      if (sxBuff[2] == 0x00 && msgLen == 3 )  {
 
-          if ( sysExInternalBuffer[2] == 1  )  EEPROM_Params.I2C_BusModeState = B_ENABLED;
-          else if ( sysExInternalBuffer[2] == 0  ) EEPROM_Params.I2C_BusModeState = B_DISABLED;
+          if ( sxBuff[3] == 1  && EEPROM_Params.I2C_BusModeState == B_DISABLED)
+                  EEPROM_Params.I2C_BusModeState = B_ENABLED;
+          else if ( sxBuff[3] == 0 && EEPROM_Params.I2C_BusModeState == B_ENABLED )
+                  EEPROM_Params.I2C_BusModeState = B_DISABLED;
           else break;
 
           EEPROM_ParamsSave();
+          nvic_sys_reset();
 
       }
       else
-      
-      if (sysExInternalBuffer[2] == 0x01 && msgLen == 2 )  {
-          if ( sysExInternalBuffer[3] > B_SLAVE_DEVICE_LAST_ADDR || sysExInternalBuffer[3] < B_SLAVE_DEVICE_BASE_ADDR )
+
+      if (sxBuff[2] == 0x01 && msgLen == 3 )  {
+          if ( sxBuff[3] > B_SLAVE_DEVICE_LAST_ADDR || sxBuff[3] < B_SLAVE_DEVICE_BASE_ADDR )
               break;
 
-          EEPROM_Params.I2C_DeviceId = sysExInternalBuffer[3];
-          EEPROM_ParamsSave();
+          if ( sxBuff[3] != EEPROM_Params.I2C_DeviceId ) {
+            EEPROM_Params.I2C_DeviceId = sxBuff[3];
+            EEPROM_ParamsSave();
+            if ( EEPROM_Params.I2C_BusModeState == B_ENABLED )
+                nvic_sys_reset();
+          }
       }
 
       break;
@@ -1167,85 +1167,90 @@ void SysExInternalProcess(uint8_t source)
       //                     <02 = Attach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
       //                     <03 = Detach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
       //
-      //  01 pipe operations <00 = Add pipe>            <slot number> <FN id> <par1> <par2> <par3> <par4>
-      //                     <01 = Insert before>       <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
-      //                     <02 = Clear Pipe by Index> <slot number> <pipe index 0-n>
-      //                     <03 = Clear pipe by fnId>  <slot number> <fn Id>
+      //  01 pipe operations <00 = Add pipe>            <slot number 1-8> <FN id> <par1> <par2> <par3> <par4>
+      //                     <01 = Insert before>       <slot number 1-8> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
+      //                     <02 = Clear Pipe by Index> <slot number 1-8> <pipe index 0-n>
+      //                     <03 = Clear pipe by pipe Id>  <slot number 1-8> <pipe Id>
       //                     <04 = ByPass pipe by index>  <slot number> <pipe index 0-n> <byPass:0=no. 1=yes>
 
       case 0x11:
 
       // SLOTS OPERATIONS
-      if (sysExInternalBuffer[2] == 0x00 ) {
+      if (sxBuff[2] == 0x00 ) {
 
         // Copy slot
-        if (sysExInternalBuffer[3] == 0x00  && msgLen == 4) {
-          if ( ! TransPacketPipeline_CopySlot(sysExInternalBuffer[4],sysExInternalBuffer[5]) )  break;
+        if (sxBuff[3] == 0x00  && msgLen == 5) {
+          if ( ! TransPacketPipeline_CopySlot(sxBuff[4],sxBuff[5]) )  break;
         } else
 
         // Clear slot <Slot number 1-8> <0x7F = ALL SLOTS>
-        if (sysExInternalBuffer[3] == 0x01  && msgLen == 3) {
-            if ( ! TransPacketPipeline_ClearSlot(sysExInternalBuffer[4]) )  break;
+        if (sxBuff[3] == 0x01  && msgLen == 4) {
+            if ( ! TransPacketPipeline_ClearSlot(sxBuff[4]) )  break;
         } else
 
         // Attach port to slot
-        if (sysExInternalBuffer[3] == 0x02  && msgLen == 5) {
-            if ( ! TransPacketPipeline_AttachPort(true,sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) )  break;
+        if (sxBuff[3] == 0x02  && msgLen == 6) {
+            if ( ! TransPacketPipeline_AttachPort(true,sxBuff[4],sxBuff[5],sxBuff[6]) )  break;
         } else
 
         // Detach port from slot
-        if (sysExInternalBuffer[3] == 0x03  && msgLen == 5) {
-            if ( ! TransPacketPipeline_AttachPort(false,sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) )  break;
+        if (sxBuff[3] == 0x03  && msgLen == 6) {
+            if ( ! TransPacketPipeline_AttachPort(false,sxBuff[4],sxBuff[5],sxBuff[6]) )  break;
         }
         else break;
 
         EEPROM_ParamsSave();
+
+        // Synchronize slaves
+        if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
       }
       else
 
       // PIPE OPERATIONS
-      if (sysExInternalBuffer[2] == 0x01 ) {
-        // Add pipe  F0 77 77 78 11 01 00   00  00  0C 00 00 00 F7
-        if (sysExInternalBuffer[3] == 0x00  && msgLen == 8) {
+      if (sxBuff[2] == 0x01 ) {
+        //  11 01  <00 = Add pipe>  <slot number 01-08> <FN id> <par1> <par2> <par3> <par4>
+        if (sxBuff[3] == 0x00  && msgLen == 9) {
             midiTransPipe_t p;
-            p.fnId = sysExInternalBuffer[4];
+            p.pId = sxBuff[5];
             p.byPass = 0;
-            p.par1 = sysExInternalBuffer[5];
-            p.par2 = sysExInternalBuffer[6];
-            p.par3 = sysExInternalBuffer[7];
-            p.par4 = sysExInternalBuffer[8];
-            if ( ! TransPacketPipe_AddToSlot(sysExInternalBuffer[4],&p) ) break ;
+            p.par1 = sxBuff[6]; p.par2 = sxBuff[7];
+            p.par3 = sxBuff[8]; p.par4 = sxBuff[9];
+            if ( ! TransPacketPipe_AddToSlot(sxBuff[4],&p) ) break ;
             EEPROM_ParamsSave();
-        } else
+            // Synchronize slaves
+            if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
 
-        // Insert pipe
-        if (sysExInternalBuffer[3] == 0x01  && msgLen == 9) {
+        }
+        else
+        // 11 01 <01 = Insert before>  <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
+        if (sxBuff[3] == 0x01  && msgLen == 10) {
           midiTransPipe_t p;
-          p.fnId = sysExInternalBuffer[4];
+          p.pId = sxBuff[6];
           p.byPass = 0;
-          p.par1 = sysExInternalBuffer[5];
-          p.par2 = sysExInternalBuffer[6];
-          p.par3 = sysExInternalBuffer[7];
-          p.par4 = sysExInternalBuffer[8];
-          if ( ! TransPacketPipe_InsertToSlot(sysExInternalBuffer[4],sysExInternalBuffer[5],&p) ) break ;
-        } else
+          p.par1 = sxBuff[7]; p.par2 = sxBuff[8];
+          p.par3 = sxBuff[9]; p.par4 = sxBuff[10];
+          if ( ! TransPacketPipe_InsertToSlot(sxBuff[4],sxBuff[5],&p) ) break ;
+        }
+        else
         // Clear pipe by index
-        if (sysExInternalBuffer[3] == 0x02  && msgLen == 4 ) {
-          if ( ! TransPacketPipe_ClearSlotIndex(sysExInternalBuffer[4],sysExInternalBuffer[5]) ) break ;
-        } else
-
-        // Clear all pipe by fnId
-        if (sysExInternalBuffer[3] == 0x03  && msgLen == 4 ) {
-          if ( ! TransPacketPipe_ClearSlotFnId(sysExInternalBuffer[4],sysExInternalBuffer[5]) ) break ;
-        } else
-
+        if (sxBuff[3] == 0x02  && msgLen == 5 ) {
+          if ( ! TransPacketPipe_ClearSlotIndexPid(sxBuff[4],true,sxBuff[5]) ) break ;
+        }
+        else
+        // Clear pipe first pId
+        if (sxBuff[3] == 0x03  && msgLen == 5 ) {
+          if ( ! TransPacketPipe_ClearSlotIndexPid(sxBuff[4],false,sxBuff[5]) ) break ;
+        }
+        else
         // ByPass pipe by index
-        if (sysExInternalBuffer[3] == 0x04  && msgLen == 5 ) {
-          if ( ! TransPacketPipe_ByPass(sysExInternalBuffer[4],sysExInternalBuffer[5],sysExInternalBuffer[6]) ) break ;
+        if (sxBuff[3] == 0x04  && msgLen == 6 ) {
+          if ( ! TransPacketPipe_ByPass(sxBuff[4],sxBuff[5],sxBuff[6]) ) break ;
         }
         else break;
 
         EEPROM_ParamsSave();
+        // Synchronize slaves
+        if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
 
       }
 

@@ -65,7 +65,7 @@ char AskDigit() __attribute__((optimize("-Os")));
 char AskChar()  __attribute__((optimize("-Os")));
 uint8_t AsknHexChar(char *, uint8_t ,char,char) __attribute__((optimize("-Os")));
 char AskChoice(const char * , const char * ) __attribute__((optimize("-Os")));
-void ShowMidiRoutingLine(uint8_t ,uint8_t , void *) __attribute__((optimize("-Os"))) ;
+void ShowMidiRoutingLine(uint8_t ,uint8_t , void *,uint8_t) __attribute__((optimize("-Os"))) ;
 void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
 void ShowMidiKliKHeader() __attribute__((optimize("-Os")));
 void ShowGlobalSettings() __attribute__((optimize("-Os")));
@@ -77,6 +77,8 @@ void AskVIDPID() __attribute__((optimize("-Os")));
 void MenuItems( const char * ) __attribute__((optimize("-Os")));
 void ShowConfigMenu() __attribute__((optimize("-Os")));
 void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
+void ShowPipelineSlot(uint8_t s) ;
+uint8_t TransPacketPipeline_FindAttachedSlot(uint8_t , uint8_t );
 
 ///////////////////////////////////////////////////////////////////////////////
 // Serial print a formated hex value
@@ -241,7 +243,7 @@ char AskChoice(const char * qLabel, const char * choices)
 ///////////////////////////////////////////////////////////////////////////////
 // Show a routing table line
 ///////////////////////////////////////////////////////////////////////////////
-void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
+void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule, uint8_t pipelineSlot)
 {
 
 	uint8_t  maxPorts = 0;
@@ -303,7 +305,12 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
 									Serial.print("X");
 				  else Serial.print(".");
 	}
-	Serial.println(" |");
+	Serial.print(" |    ");
+  if ( pipelineSlot)
+    Serial.print(pipelineSlot);
+  else
+    Serial.print(".");
+  Serial.println("     |");
 
 }
 
@@ -337,23 +344,34 @@ void ShowMidiRouting(uint8_t ruleType)
 
 	Serial.print(" (");Serial.print(maxPorts);
 	Serial.println(" port(s) found)");
-
+// |Cb| Msg Filter   | Cable IN 1111111 | Jack OUT 1111111 |   Slot   |
+//                                                         |    1     |
 	Serial.println();
 	Serial.print("|");
 	Serial.print(ruleType == USBCABLE_RULE ? "Cb":"Jk");
-	Serial.println("| Msg Filter   | Cable IN 1111111 | Jack OUT 1111111 |");
-	Serial.println("|  | Ch Sc Rt Sx  | 1234567890123456 | 1234567890123456 |");
+	   Serial.println("| Msg Filter   | Cable IN 1111111 | Jack OUT 1111111 | Pipeline |");
+	Serial.println("|  | Ch Sc Rt Sx  | 1234567890123456 | 1234567890123456 |   Slot   |");
 
 	for (uint8_t p=0; p != maxPorts ; p++) {
 
 		void *anyRule;
+    uint8_t attachedPipelineSlot;
 
-		if (ruleType == USBCABLE_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesCable[p];
-		else if (ruleType == SERIAL_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesSerial[p];
-		else if (ruleType == INTELLITHRU_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesIntelliThru[p];
+		if (ruleType == USBCABLE_RULE) {
+        anyRule = (void *)&EEPROM_Params.midiRoutingRulesCable[p];
+        attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( USBCABLE_RULE, p );
+    }
+		else if (ruleType == SERIAL_RULE) {
+        anyRule = (void *)&EEPROM_Params.midiRoutingRulesSerial[p];
+        attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( SERIAL_RULE, p );
+    }
+		else if (ruleType == INTELLITHRU_RULE) {
+        anyRule = (void *)&EEPROM_Params.midiRoutingRulesIntelliThru[p];
+        attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( INTELLITHRU_RULE, p );
+    }
 		else return;
 
-		ShowMidiRoutingLine(p,ruleType, anyRule);
+		ShowMidiRoutingLine(p,ruleType, anyRule, attachedPipelineSlot);
 
 	} // for p
 
@@ -713,6 +731,7 @@ void ShowConfigMenu()
   ".",
   "eReload settings",
   "fFactory settings",
+  "pShow pipeline",
   "rFactory routing",
   "sSave settings",
   "zDebug mode",
@@ -882,6 +901,24 @@ void ShowConfigMenu()
 					}
           Serial.println();
 				}
+				showMenu = false;
+				break;
+
+      // Show pipeline
+			case 'p':
+      	while (1) {
+          Serial.print("Enter pipeline slot 1-8, or 0 to exit :");
+      		uint8_t choice = AsknNumber(1);
+      		Serial.println();
+          if ( choice == 0 ) break;
+      		if ( choice < 1 || choice > MIDI_TRANS_PIPELINE_SLOT_SIZE ) {
+      			Serial.println("# error. Please try again :");
+      		} else {
+            ShowPipelineSlot(choice);
+            Serial.println();
+          }
+      	}
+
 				showMenu = false;
 				break;
 

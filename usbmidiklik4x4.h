@@ -102,9 +102,9 @@ enum MidiRoutingDirection {
 } ;
 
 enum MidiRoutingRuleType {
-  SERIAL_RULE,
-  USBCABLE_RULE,
-  INTELLITHRU_RULE
+  USBCABLE_RULE=0,
+  SERIAL_RULE=1,
+  INTELLITHRU_RULE=2
 };
 
 enum MidiRoutingReset {
@@ -116,7 +116,7 @@ enum MidiRoutingReset {
 
 // Transformation pipe
 typedef struct {
-    int8_t fnId;    // -1 means no pipe
+    uint8_t pId;    // FN_TRANSPIPE_NOPIPE means no pipe
     uint8_t byPass; // 1 = byPass. 0 = execute
     uint8_t par1;
     uint8_t par2;
@@ -223,6 +223,10 @@ enum BusDataType {
   B_DTYPE_MIDI_ROUTING_RULES_CABLE,
   B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
   B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
+  B_DTYPE_MIDI_TRANSPIPE_SLOT_CABLES_MSK,
+  B_DTYPE_MIDI_TRANSPIPE_SLOT_JACKS_MSK,
+  B_DTYPE_MIDI_TRANSPIPE_SLOT_ITHRU_MSK,
+  B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
 };
@@ -297,7 +301,7 @@ void ResetMidiRoutingRules(uint8_t);
 uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
 void SysexInternalDumpToStream(uint8_t ) ;
 void SysExSendMsgPacket(uint8_t *,uint16_t );
-void SysExInternalProcess(uint8_t);
+void SysExInternalProcess(uint8_t, uint8_t *);
 void CheckBootMode();
 void USBMidi_Init();
 void USBMidi_Process();
