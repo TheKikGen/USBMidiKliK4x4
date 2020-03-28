@@ -102,9 +102,9 @@ void TransPacketPipeline_Clear(midiTransPipeline_t *pl) {
   for (uint8_t p=0 ; p != MIDI_TRANS_PIPELINE_SIZE ; p++ )
       TransPacketPipe_Clear( pipe++ );
 
-  pl->attachedCablesMsk = 0;
-  pl->attachedJacksMsk = 0 ;
-  pl->attachedIthruJacksMsk = 0 ;
+  pl->attachedPortsMsk[PORT_TYPE_CABLE] = 0;
+  pl->attachedPortsMsk[PORT_TYPE_JACK] = 0 ;
+  pl->attachedPortsMsk[PORT_TYPE_ITHRU] = 0 ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -153,51 +153,40 @@ boolean TransPacketPipeline_CopySlot(uint8_t sourceSlot,uint8_t destSlot) {
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t TransPacketPipeline_FindAttachedSlot(uint8_t portType, uint8_t port) {
 
-  uint16_t attachedMsk;
-  port = (1 << port ); // Make port a bit mask
+  uint16_t portMsk = (1L << port ); // Make port a bit mask
 
-  for (uint8_t i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i++ ) {
-
-    if ( portType == USBCABLE_RULE) attachedMsk = EEPROM_Params.midiTransPipelineSlots[i].attachedCablesMsk;
-    else if ( portType == SERIAL_RULE) attachedMsk = EEPROM_Params.midiTransPipelineSlots[i].attachedJacksMsk;
-    else if ( portType == INTELLITHRU_RULE) attachedMsk = EEPROM_Params.midiTransPipelineSlots[i].attachedIthruJacksMsk;
-    else return 0;
-
-    if ( attachedMsk & port ) return i+1;
+  for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
+    if ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] & portMsk )
+      return s+1;
   }
   return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Detach/Attach a port from/to a pipeline slot
-// Only one slot attached to a given port
-// SourcetYpe = 0 : USB / 1: JACK / 2 : ITHRU
+// Only one slot attached to a given port !
+// Detach is (attach==false). Slot is not required when detach.
+// If portType = 0x7F and detach, ALL ports are detached.
 ///////////////////////////////////////////////////////////////////////////////
-boolean TransPacketPipeline_AttachPort(boolean attach,uint8_t pipelineSlot,uint8_t portType,uint8_t port ) {
+boolean TransPacketPipeline_AttachPort(boolean attach,uint8_t portType,uint8_t port,uint8_t pipelineSlot ) {
 
-  if ( pipelineSlot < 1 || pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE )
-      return false;
+  if ( attach && (pipelineSlot < 1 || pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE)  )  return false;
 
   if ( port > 0x0F ) return false;
 
-  pipelineSlot--;
-
-  uint16_t *attachedMsk;
-  port = (1 << port ); // Make port a bit mask
+  uint16_t portMsk = (1L << port ); // Make port a bit mask
 
   for (uint8_t s = 0 ; s < MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
 
-    if ( portType == USBCABLE_RULE ) attachedMsk = &EEPROM_Params.midiTransPipelineSlots[s].attachedCablesMsk;
-    else if ( portType ==  SERIAL_RULE) attachedMsk = &EEPROM_Params.midiTransPipelineSlots[s].attachedJacksMsk;
-    else if ( portType == INTELLITHRU_RULE ) attachedMsk = &EEPROM_Params.midiTransPipelineSlots[s].attachedIthruJacksMsk;
-    else return false;
-
-    *(attachedMsk) &= ~port; // Clear bit
-
-    if ( s == pipelineSlot ) *(attachedMsk) |= port; // Set bit
-
+    // Detach ALL
+    if (!attach && portType == 0x7F)
+          for (uint8_t p=0; p != PORT_TYPE_SIZE ; p++) EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[p] = 0;
+    else {
+      // Detach port from previous slot before attaching to a new one
+      EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] &= (~portMsk); // Clear bit
+      if ( attach && (s == pipelineSlot-1) ) EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] |= portMsk; // Set bit
+    }
   }
-
   return true;
 }
 
@@ -208,7 +197,6 @@ void TransPacketPipe_Clear(midiTransPipe_t *p) {
 
   p->pId   = FN_TRANSPIPE_NOPIPE;
   p->byPass = p->par1 = p->par2 = p->par3 = p->par4 = 0;
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -413,50 +401,48 @@ void ShowPipelineSlot(uint8_t s) {
 
   if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) {
       Serial.println(" EMPTY");
-      Serial.println();
-      return;
-  }
+  } else {
+    Serial.println();Serial.println();
+    Serial.println("|Idx| Pipe id    ( p1, p2, p3, p4 ) |Bypass|");
 
-  Serial.println();Serial.println();
-  Serial.println("|Idx| Pipe id    ( p1, p2, p3, p4 ) |Bypass|");
-
-  for (uint8_t i=0; i != MIDI_TRANS_PIPELINE_SIZE ; i++) {
-      Serial.print("| ");Serial.print(i);
-      Serial.print(" | ");
-      if ( pipeLine->pId <= 0x0F ) Serial.print( "0");
-      Serial.print(pipeLine->pId,HEX);
-      Serial.print(" ");
-      Serial.print(MidiTransFnVector[i].shortName);
-      Serial.print(" ( ");
-      if ( pipeLine->par1 <= 0x0F ) Serial.print( "0");
-      Serial.print(pipeLine->par1,HEX);Serial.print(", ");
-      if ( pipeLine->par2 <= 0x0F ) Serial.print( "0");
-      Serial.print(pipeLine->par2,HEX);Serial.print(", ");
-      if ( pipeLine->par3 <= 0x0F ) Serial.print( "0");
-      Serial.print(pipeLine->par3,HEX);Serial.print(", ");
-      if ( pipeLine->par4 <= 0x0F ) Serial.print( "0");
-      Serial.print(pipeLine->par4,HEX);Serial.print(" ) |   ");
-      Serial.print( pipeLine->byPass ? "X":" ");
-      Serial.println("  |");
-      pipeLine++;
-      if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) break;
+    for (uint8_t i=0; i != MIDI_TRANS_PIPELINE_SIZE ; i++) {
+        Serial.print("| ");Serial.print(i);
+        Serial.print(" | ");
+        if ( pipeLine->pId <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeLine->pId,HEX);
+        Serial.print(" ");
+        Serial.print(MidiTransFnVector[i].shortName);
+        Serial.print(" ( ");
+        if ( pipeLine->par1 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeLine->par1,HEX);Serial.print(", ");
+        if ( pipeLine->par2 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeLine->par2,HEX);Serial.print(", ");
+        if ( pipeLine->par3 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeLine->par3,HEX);Serial.print(", ");
+        if ( pipeLine->par4 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeLine->par4,HEX);Serial.print(" ) |   ");
+        Serial.print( pipeLine->byPass ? "X":" ");
+        Serial.println("  |");
+        pipeLine++;
+        if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) break;
+    }
   }
   Serial.println();
   Serial.println("| Attached ports        |          1111111 |");
   Serial.println("|                       | 1234567890123456 |");
     Serial.print("| Cables                | ");
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedCablesMsk & (1<<j) ?"X":".");
+    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_CABLE] & (1L<<j) ?"X":".");
   }
   Serial.println(" |");
   Serial.print("| Jacks                 | ");
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedJacksMsk & (1<<j) ?"X":".");
+    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_JACK] & (1L<<j) ?"X":".");
   }
   Serial.println(" |");
   Serial.print("| Jacks Ithru           | ");
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedIthruJacksMsk & (1<<j) ?"X":".");
+    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_ITHRU] & (1L<<j) ?"X":".");
   }
   Serial.println(" |");
 

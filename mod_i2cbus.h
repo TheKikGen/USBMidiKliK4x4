@@ -132,11 +132,7 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
     }
     midiRoutingRule_t r;
     Wire.readBytes((uint8_t *)&r,sizeof(midiRoutingRule_t));
-    if (memcmp((void*)mr,(void*)&r,sizeof(midiRoutingRule_t)))
-    {
-      memcpy((void*)mr,(void*)&r,sizeof(midiRoutingRule_t));
-      I2C_SlaveSyncDoUpdate = true;
-    }
+    if (memcmpcpy((void*)mr,(void*)&r,sizeof(midiRoutingRule_t))) I2C_SlaveSyncDoUpdate = true;
   }
   else
   // midiRoutingRulesIntelliThru
@@ -148,18 +144,14 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
       midiRoutingRuleJack_t r;
       Wire.readBytes((uint8_t *)&r,sizeof(midiRoutingRuleJack_t));
       mr = &EEPROM_Params.midiRoutingRulesIntelliThru[arg1];
-      if (memcmp((void*)mr,(void*)&r,sizeof(midiRoutingRuleJack_t)))
-      {
-        memcpy((void*)mr,(void*)&r,sizeof(midiRoutingRuleJack_t));
-        I2C_SlaveSyncDoUpdate = true;
-      }
+      if (memcmpcpy((void*)mr,(void*)&r,sizeof(midiRoutingRuleJack_t))) I2C_SlaveSyncDoUpdate = true;
   }
   else
   // intelliThruJackInMsk
   if (dataType == B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK) {
     if (Wire.available() != sizeof(uint16_t)) return -1;
     uint16_t jmsk;
-    Wire.readBytes((uint8*)&jmsk,sizeof(uint16_t));
+    Wire.readBytes((uint8_t *)&jmsk,sizeof(uint16_t));
     if ( EEPROM_Params.intelliThruJackInMsk != jmsk) {
         EEPROM_Params.intelliThruJackInMsk = jmsk;
         I2C_SlaveSyncDoUpdate = true;
@@ -184,44 +176,16 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
 		midiTransPipe_t pSrc;
 		midiTransPipe_t *pDest = &EEPROM_Params.midiTransPipelineSlots[arg1].pipeline[arg2];
 		Wire.readBytes((uint8_t *)&pSrc, sizeof(midiTransPipe_t));
-		if (memcmp((void*)pDest,(void*)&pSrc,sizeof(midiTransPipe_t)))
-		{
-			memcpy((void*)pDest,(void*)&pSrc,sizeof(midiTransPipe_t));
-			I2C_SlaveSyncDoUpdate = true;
-		}
+		if (memcmpcpy((void*)pDest,(void*)&pSrc,sizeof(midiTransPipe_t))) I2C_SlaveSyncDoUpdate = true;
 	}
 	else
-	if (dataType == B_DTYPE_MIDI_TRANSPIPE_SLOT_CABLES_MSK) {
-		if (Wire.available() != sizeof(uint16_t)) return -1;
+	// Slots attached ports
+	if (dataType == B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK) {
 		if (arg1 >= MIDI_TRANS_PIPELINE_SLOT_SIZE)  return -1;
-    uint16_t msk;
-    Wire.readBytes((uint8*)&msk,sizeof(uint16_t));
-		if ( msk != EEPROM_Params.midiTransPipelineSlots[arg1].attachedCablesMsk) {
-			EEPROM_Params.midiTransPipelineSlots[arg1].attachedCablesMsk = msk;
-			I2C_SlaveSyncDoUpdate = true;
-		}
-	}
-	else
-	if (dataType == B_DTYPE_MIDI_TRANSPIPE_SLOT_JACKS_MSK) {
-		if (Wire.available() != sizeof(uint16_t)) return -1;
-		if (arg1 >= MIDI_TRANS_PIPELINE_SLOT_SIZE)  return -1;
-    uint16_t msk;
-    Wire.readBytes((uint8*)&msk,sizeof(uint16_t));
-		if ( msk != EEPROM_Params.midiTransPipelineSlots[arg1].attachedJacksMsk) {
-			EEPROM_Params.midiTransPipelineSlots[arg1].attachedJacksMsk = msk;
-			I2C_SlaveSyncDoUpdate = true;
-		}
-	}
-	else
-	if (dataType == B_DTYPE_MIDI_TRANSPIPE_SLOT_ITHRU_MSK) {
-		if (Wire.available() != sizeof(uint16_t)) return -1;
-		if (arg1 >= MIDI_TRANS_PIPELINE_SLOT_SIZE)  return -1;
-    uint16_t msk;
-    Wire.readBytes((uint8*)&msk,sizeof(uint16_t));
-		if ( msk != EEPROM_Params.midiTransPipelineSlots[arg1].attachedIthruJacksMsk) {
-			EEPROM_Params.midiTransPipelineSlots[arg1].attachedIthruJacksMsk = msk;
-			I2C_SlaveSyncDoUpdate = true;
-		}
+		if (Wire.available() != PORT_TYPE_SIZE*sizeof(uint16_t) ) return -1;
+		uint16_t msk[PORT_TYPE_SIZE];
+		Wire.readBytes((uint8*)&msk,sizeof(msk));
+		if (memcmpcpy((void*)&EEPROM_Params.midiTransPipelineSlots[arg1].attachedPortsMsk,&msk,PORT_TYPE_SIZE*sizeof(uint16_t))) I2C_SlaveSyncDoUpdate = true;
 	}
 
   return 0;
@@ -568,9 +532,7 @@ void I2C_SlavesRoutingSyncFromMaster()
 	// Pipelines slots
 	for ( i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i ++ ) {
 
-			I2C_SendData(B_DTYPE_MIDI_TRANSPIPE_SLOT_CABLES_MSK, i, 0,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].attachedCablesMsk, sizeof(uint16_t) );
-			I2C_SendData(B_DTYPE_MIDI_TRANSPIPE_SLOT_JACKS_MSK, i, 0,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].attachedJacksMsk, sizeof(uint16_t) );
-			I2C_SendData(B_DTYPE_MIDI_TRANSPIPE_SLOT_ITHRU_MSK, i, 0,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].attachedIthruJacksMsk, sizeof(uint16_t) );
+  		I2C_SendData(B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK,i,0,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].attachedPortsMsk,PORT_TYPE_SIZE*sizeof(uint16_t));
 
 			for ( uint j=0 ; j !=  MIDI_TRANS_PIPELINE_SIZE ; j++) {
 					I2C_SendData(B_DTYPE_MIDI_TRANSPIPE, i, j,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].pipeline[j], sizeof(midiTransPipe_t));
@@ -668,11 +630,11 @@ DEBUG_END
       }
       else if ( key == 'R') {
         Serial.println();
-        ShowMidiRouting(USBCABLE_RULE);
+        ShowMidiRouting(PORT_TYPE_CABLE);
         Serial.println();
-        ShowMidiRouting(SERIAL_RULE);
+        ShowMidiRouting(PORT_TYPE_JACK);
         Serial.println();
-        ShowMidiRouting(INTELLITHRU_RULE);
+        ShowMidiRouting(PORT_TYPE_ITHRU);
         Serial.println();
       }
 	}

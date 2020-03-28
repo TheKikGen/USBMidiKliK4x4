@@ -146,6 +146,19 @@ RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
+// memcmpcpy : copy if different
+///////////////////////////////////////////////////////////////////////////////
+int memcmpcpy ( void * pDest, void * pSrc, size_t sz ) {
+
+  int r = 0;
+  if ( r = memcmp(pDest,pSrc,sz) ) {
+    memcpy(pDest,pSrc,sz);
+  };
+
+  return r;
+
+}
+///////////////////////////////////////////////////////////////////////////////
 // Timer2 interrupt handler
 ///////////////////////////////////////////////////////////////////////////////
 void Timer2Handler(void)
@@ -362,7 +375,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 {
-  static boolean pipeLineActive = false;
+  static boolean pipeLineLock = false;
 
   if ( source != FROM_USB && source != FROM_SERIAL ) return;
 
@@ -402,14 +415,14 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
       if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
       serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
       inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
-      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( INTELLITHRU_RULE, sourcePort );
+      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( PORT_TYPE_ITHRU, sourcePort );
     }
     // else Standard jack rules
     else {
       cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
       serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
       inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
-      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( SERIAL_RULE, sourcePort );
+      attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( PORT_TYPE_JACK, sourcePort );
     }
   }
   // A midi packet from USB cable out ?
@@ -418,7 +431,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
     cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
     serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
     inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
-    attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( USBCABLE_RULE, sourcePort );
+    attachedPipelineSlot = TransPacketPipeline_FindAttachedSlot( PORT_TYPE_CABLE, sourcePort );
   }
 
 	// Sysex is a particular case when using packets.
@@ -438,11 +451,13 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 	if (! (msgType & *inFilters) ) return;
 
   // 2/ Apply pipeline if any
-  if ( !pipeLineActive && attachedPipelineSlot ) {
-    pipeLineActive = true; // Avoid infinite loop
-    boolean r = TransPacketPipelineExec(source, attachedPipelineSlot, pk) ;
-    pipeLineActive = false;
-    if (!r) return; // Drop packet
+  if ( !pipeLineLock && attachedPipelineSlot ) {
+    if ( EEPROM_Params.midiTransPipelineSlots[attachedPipelineSlot].pipeline[0].pId != FN_TRANSPIPE_NOPIPE) {
+      pipeLineLock = true; // Avoid infinite loop
+      boolean r = TransPacketPipelineExec(source, attachedPipelineSlot, pk) ;
+      pipeLineLock = false;
+      if (!r) return; // Drop packet
+    }
   }
 
   // 3/ Apply serial jack routing if a target match
@@ -507,6 +522,9 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 void ResetMidiRoutingRules(uint8_t mode)
 {
 
+  // Clear all pipelines
+  if (mode == ROUTING_RESET_ALL) TransPacketPipeline_ClearSlot(0x7F);
+
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
 	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
@@ -526,10 +544,10 @@ void ResetMidiRoutingRules(uint8_t mode)
 	    EEPROM_Params.midiRoutingRulesSerial[i].jackOutTargetsMsk = 0  ;
 	  }
 
-    // Reset pipeline Slots
+    // Reset pipeline attached ports
     for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
-      EEPROM_Params.midiTransPipelineSlots[s].attachedJacksMsk = 0 ;
-      EEPROM_Params.midiTransPipelineSlots[s].attachedCablesMsk = 0;
+      EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_CABLE] = 0 ;
+      EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_JACK] = 0;
   	}
 
   }
@@ -543,9 +561,9 @@ void ResetMidiRoutingRules(uint8_t mode)
 		EEPROM_Params.intelliThruJackInMsk = 0;
 	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
 
-    // Reset pipeline Slots
+    // Reset pipeline attached ports
     for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ )
-      EEPROM_Params.midiTransPipelineSlots[s].attachedIthruJacksMsk = 0;
+      EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_ITHRU] = 0;
 	}
 
 	// Disable "Intelligent thru" serial mode
@@ -1164,8 +1182,8 @@ void SysExInternalProcess(uint8_t source, uint8_t sxBuff[])
       // Commands are :
       //  00 slot operation  <00 = Copy>   <source slot number 1-8> <dest slot number 1-8>
       //                     <01 = Clear>  <Slot number 1-8  0x7F = ALL SLOTS>
-      //                     <02 = Attach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
-      //                     <03 = Detach> <Slot number 1-8> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F>
+      //                     <02 = Attach> <port type : 0 cable | 1 jack serial | 2 Ithru> <port # 0-F> <Slot number 1-8>
+      //                     <03 = Detach> <port type : 0 cable | 1 jack serial | 2 Ithru | 0x7F=ALL> [<port # 0-F>]
       //
       //  01 pipe operations <00 = Add pipe>            <slot number 1-8> <FN id> <par1> <par2> <par3> <par4>
       //                     <01 = Insert before>       <slot number 1-8> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
@@ -1193,9 +1211,13 @@ void SysExInternalProcess(uint8_t source, uint8_t sxBuff[])
             if ( ! TransPacketPipeline_AttachPort(true,sxBuff[4],sxBuff[5],sxBuff[6]) )  break;
         } else
 
-        // Detach port from slot
-        if (sxBuff[3] == 0x03  && msgLen == 6) {
-            if ( ! TransPacketPipeline_AttachPort(false,sxBuff[4],sxBuff[5],sxBuff[6]) )  break;
+        // Detach port from any slot. 0x7F : detach all.
+        if (sxBuff[3] == 0x03 ) {
+            if ( msgLen == 4 && sxBuff[4] == 0x7F )
+              if (! TransPacketPipeline_AttachPort(false,sxBuff[4],0,0 ))  break;
+            else if ( msgLen == 5 )
+              if (! TransPacketPipeline_AttachPort(false,sxBuff[4],sxBuff[5],0 ) )  break;
+            else break;
         }
         else break;
 

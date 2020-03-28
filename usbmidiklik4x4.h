@@ -101,10 +101,11 @@ enum MidiRoutingDirection {
   TO_USB,
 } ;
 
-enum MidiRoutingRuleType {
-  USBCABLE_RULE=0,
-  SERIAL_RULE=1,
-  INTELLITHRU_RULE=2
+enum MidiPortType {
+  PORT_TYPE_CABLE,
+  PORT_TYPE_JACK,
+  PORT_TYPE_ITHRU,
+  PORT_TYPE_SIZE
 };
 
 enum MidiRoutingReset {
@@ -127,9 +128,7 @@ typedef struct {
 // Transformation pipeline
 typedef struct {
     midiTransPipe_t pipeline[MIDI_TRANS_PIPELINE_SIZE];
-    uint16_t attachedCablesMsk;
-    uint16_t attachedJacksMsk;
-    uint16_t attachedIthruJacksMsk;
+    uint16_t attachedPortsMsk[PORT_TYPE_SIZE];
 } __packed midiTransPipeline_t;
 
 
@@ -223,9 +222,7 @@ enum BusDataType {
   B_DTYPE_MIDI_ROUTING_RULES_CABLE,
   B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
   B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
-  B_DTYPE_MIDI_TRANSPIPE_SLOT_CABLES_MSK,
-  B_DTYPE_MIDI_TRANSPIPE_SLOT_JACKS_MSK,
-  B_DTYPE_MIDI_TRANSPIPE_SLOT_ITHRU_MSK,
+  B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK,
   B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
@@ -289,6 +286,7 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
+int memcmpcpy ( void * , void * , size_t );
 void Timer2Handler(void);
 void FlashAllLeds(uint8_t);
 void SerialMidi_SendMsg(uint8_t *, uint8_t);
