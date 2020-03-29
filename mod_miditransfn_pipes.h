@@ -87,19 +87,6 @@ boolean MidiTransFn_ClockDivider(uint8_t, midiPacket_t *, midiTransPipe_t *);
 //  Midi transformation functions vector
 ///////////////////////////////////////////////////////////////////////////////
 
-typedef boolean (*MidiTransFnP_t) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
-typedef boolean (*MidiTransFn_CheckParmsP_t) (midiTransPipe_t *pipe) ;
-
-// Transformation pipe function vector
-typedef struct {
-    char *                    shortName;
-    MidiTransFnP_t            pipeFn;
-    MidiTransFn_CheckParmsP_t checkFn;
-} __packed MidiTransFnVector_t;
-
-// Empty pipe
-#define FN_TRANSPIPE_NOPIPE 0xFF
-
 // 1 Id by pipe. FN_TRANSPIPE_VECTOR_SIZE must the last one
 // PID is the array index in the vector fn table, so the order must be strictly the same.
 enum MidiTransPipeId {
@@ -111,16 +98,29 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
+// Empty pipe
+#define FN_TRANSPIPE_NOPIPE 0xFF
+
+// Transformation pipe function vector
+
+typedef boolean (*MidiTransFnP_t) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
+typedef boolean (*MidiTransFn_CheckParmsP_t) (midiTransPipe_t *pipe) ;
+typedef struct {
+    char *                    shortName;
+    MidiTransFnP_t            pipeFn;
+    MidiTransFn_CheckParmsP_t checkFn;
+} __packed MidiTransFnVector_t;
+
 const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
-  {"NOTECHG", &MidiTransFn_NoteChanger,   &MidiTransFn_NoteChanger_CheckParms},
-  {"CHANMAP", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-  {"VELOCHG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-  {"CCCHANG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-  {"CLKDIVD", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+   {"NOTECHG", &MidiTransFn_NoteChanger,   &MidiTransFn_NoteChanger_CheckParms},
+   {"CHANMAP", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+   {"VELOCHG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+   {"CCCHANG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+   {"CLKDIVD", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// PIPES
+// PIPES.
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////

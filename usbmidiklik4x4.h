@@ -128,19 +128,18 @@ typedef struct {
 // Transformation pipeline
 typedef struct {
     midiTransPipe_t pipeline[MIDI_TRANS_PIPELINE_SIZE];
-    uint16_t attachedPortsMsk[PORT_TYPE_SIZE];
 } __packed midiTransPipeline_t;
 
 
 // Routing & transformation rules structures
 typedef struct {
-      uint8_t  filterMsk;
+      uint8_t  attachedSlot;
       uint16_t cableInTargetsMsk;
       uint16_t jackOutTargetsMsk;
 } __packed midiRoutingRule_t;
 
 typedef struct {
-      uint8_t  filterMsk;
+      uint8_t  attachedSlot;
       uint16_t jackOutTargetsMsk;
 } __packed midiRoutingRuleJack_t;
 
@@ -222,7 +221,6 @@ enum BusDataType {
   B_DTYPE_MIDI_ROUTING_RULES_CABLE,
   B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
   B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
-  B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK,
   B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
@@ -286,23 +284,23 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-int memcmpcpy ( void * , void * , size_t );
-void Timer2Handler(void);
-void FlashAllLeds(uint8_t);
-void SerialMidi_SendMsg(uint8_t *, uint8_t);
-void SerialMidi_SendPacket(midiPacket_t *, uint8_t );
-void SerialMidi_RouteMsg( uint8_t, midiXparser*  );
-void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
-void SysExInternalParse(uint8_t, midiPacket_t *);
-void RoutePacketToTarget(uint8_t , midiPacket_t *);
-void ResetMidiRoutingRules(uint8_t);
+int     memcmpcpy ( void * , void * , size_t );
+void    Timer2Handler(void);
+void    FlashAllLeds(uint8_t);
+void    SerialMidi_SendMsg(uint8_t *, uint8_t);
+void    SerialMidi_SendPacket(midiPacket_t *, uint8_t );
+void    SerialMidi_RouteMsg( uint8_t, midiXparser*  );
+void    SerialMidi_RouteSysEx( uint8_t , midiXparser* );
+void    SysExInternalParse(uint8_t, midiPacket_t *);
+void    RoutePacketToTarget(uint8_t , midiPacket_t *);
+void    ResetMidiRoutingRules(uint8_t);
 uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
-void SysexInternalDumpToStream(uint8_t ) ;
-void SysExSendMsgPacket(uint8_t *,uint16_t );
-void SysExInternalProcess(uint8_t, uint8_t *);
-void CheckBootMode();
-void USBMidi_Init();
-void USBMidi_Process();
-void SerialMidi_Process();
+void    SysexInternalDumpToStream(uint8_t ) ;
+void    SysExSendMsgPacket(uint8_t *,uint16_t );
+void    SysExInternalProcess(uint8_t, uint8_t *);
+void    CheckBootMode();
+void    USBMidi_Init();
+void    USBMidi_Process();
+void    SerialMidi_Process();
 
 #endif

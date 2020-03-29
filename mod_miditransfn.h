@@ -68,26 +68,20 @@ __ __| |           |  /_) |     ___|             |           |
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 
-void TransPacketPipeline_Clear(midiTransPipeline_t *);
+void    TransPacketPipeline_Clear(midiTransPipeline_t *);
 boolean TransPacketPipeline_ClearSlot(uint8_t);
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
-uint8_t TransPacketPipeline_FindAttachedSlot(uint8_t , uint8_t );
-boolean TransPacketPipeline_AttachPort(boolean,uint8_t,uint8_t,uint8_t );
-
-void TransPacketPipe_Clear(midiTransPipe_t *);
-
+boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
+void    TransPacketPipe_Clear(midiTransPipe_t *);
 boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
 boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean isIndex,uint8_t);
+boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
-
-boolean TransPacketPipelineExec(uint8_t, uint8_t,  midiPacket_t *);
-
-void ShowPipelineSlot(uint8_t );
+boolean TransPacketPipelineExec(uint8_t, midiTransPipe_t *,  midiPacket_t *);
+void    ShowPipelineSlot(uint8_t );
 
 ///////////////////////////////////////////////////////////////////////////////
-// Include PIPES.
-// Do not change location of the include file.
+// PIPES.
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "mod_miditransfn_pipes.h"
@@ -101,10 +95,6 @@ void TransPacketPipeline_Clear(midiTransPipeline_t *pl) {
 
   for (uint8_t p=0 ; p != MIDI_TRANS_PIPELINE_SIZE ; p++ )
       TransPacketPipe_Clear( pipe++ );
-
-  pl->attachedPortsMsk[PORT_TYPE_CABLE] = 0;
-  pl->attachedPortsMsk[PORT_TYPE_JACK] = 0 ;
-  pl->attachedPortsMsk[PORT_TYPE_ITHRU] = 0 ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -149,45 +139,46 @@ boolean TransPacketPipeline_CopySlot(uint8_t sourceSlot,uint8_t destSlot) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Find the slot of an attahced port
-///////////////////////////////////////////////////////////////////////////////
-uint8_t TransPacketPipeline_FindAttachedSlot(uint8_t portType, uint8_t port) {
-
-  uint16_t portMsk = (1L << port ); // Make port a bit mask
-
-  for (uint8_t s=0 ; s != MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
-    if ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] & portMsk )
-      return s+1;
-  }
-  return 0;
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // Detach/Attach a port from/to a pipeline slot
-// Only one slot attached to a given port !
-// Detach is (attach==false). Slot is not required when detach.
-// If portType = 0x7F and detach, ALL ports are detached.
+// Only one slot attached to a given port.
+// To Detach pass a pipeline == 0.
+// If portType = 0x7F , ALL ports are detached.
 ///////////////////////////////////////////////////////////////////////////////
-boolean TransPacketPipeline_AttachPort(boolean attach,uint8_t portType,uint8_t port,uint8_t pipelineSlot ) {
-
-  if ( attach && (pipelineSlot < 1 || pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE)  )  return false;
-
-  if ( port > 0x0F ) return false;
-
-  uint16_t portMsk = (1L << port ); // Make port a bit mask
-
-  for (uint8_t s = 0 ; s < MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++ ) {
-
+boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pipelineSlot )
+{
     // Detach ALL
-    if (!attach && portType == 0x7F)
-          for (uint8_t p=0; p != PORT_TYPE_SIZE ; p++) EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[p] = 0;
-    else {
-      // Detach port from previous slot before attaching to a new one
-      EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] &= (~portMsk); // Clear bit
-      if ( attach && (s == pipelineSlot-1) ) EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[portType] |= portMsk; // Set bit
+    if (portType == 0x7F) {
+        for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++)
+              EEPROM_Params.midiRoutingRulesCable[i].attachedSlot=0;
+        for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++) {
+              EEPROM_Params.midiRoutingRulesSerial[i].attachedSlot = 0;
+              EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot=0;
+        }
+        return true;
     }
-  }
-  return true;
+
+    if ( pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE )    return false;
+
+  	if (portType == PORT_TYPE_CABLE ) {
+      if ( port < USBCABLE_INTERFACE_MAX )
+        EEPROM_Params.midiRoutingRulesCable[port].attachedSlot = 0 ;
+      else return false;
+    }
+    else
+    if (portType == PORT_TYPE_JACK ) {
+      if ( port < SERIAL_INTERFACE_COUNT )
+        EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = 0 ;
+      else return false;
+    }
+    else
+    if (portType == PORT_TYPE_ITHRU ) {
+      if ( port < SERIAL_INTERFACE_COUNT )
+        EEPROM_Params.midiRoutingRulesIntelliThru[port].attachedSlot = 0 ;
+      else return false;
+    }
+    else return false;
+
+    return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -346,17 +337,7 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
 // Modify the packet according pipeline slot affected to the source port
 // return true if the result must be routed, false if the packet is finally dropped
 ///////////////////////////////////////////////////////////////////////////////
-boolean TransPacketPipelineExec(uint8_t source, uint8_t pipelineSlot,  midiPacket_t *pk)
-{
-  // Nb : First slot is 1 but 0 in the C array
-  // Ignore if slot is out of bounds
-
-  if (pipelineSlot < 1 || pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE ) return true;
-  pipelineSlot--;
-
-  // Get a pointer of the 1st pipe in the attached pipeline
-  midiTransPipe_t *pipeLine = EEPROM_Params.midiTransPipelineSlots[pipelineSlot].pipeline ;
-
+boolean TransPacketPipelineExec(uint8_t source, midiTransPipe_t *pipeLine,  midiPacket_t *pk) {
   // Apply transformation function pipes
   for (uint8_t i=0; i != MIDI_TRANS_PIPELINE_SIZE ; i++) {
       // Apply active pipes only
@@ -365,7 +346,6 @@ boolean TransPacketPipelineExec(uint8_t source, uint8_t pipelineSlot,  midiPacke
       if (! MidiTransFnVector[pipeLine->pId].pipeFn(source, pk , pipeLine++) )
           return false;
   }
-
   return true;
 }
 //////////////////////////////////////////////////////////////////////////////
@@ -375,29 +355,11 @@ void ShowPipelineSlot(uint8_t s) {
 
   if (s < 1 || s > MIDI_TRANS_PIPELINE_SLOT_SIZE ) return ;
 
-/*
-  PIPELINE SLOT 1
-
-  |Idx| Pipe id    ( p1, p2, p3, p4 ) |Bypass|
-  | 0 | 01 NOTECHG ( 01, 00, 00, 00 ) |   X  |
-  | 0 | 01 NOTECHG ( 01, 00, 00, 00 ) |   X  |
-  | 0 | 01 NOTECHG ( 01, 00, 00, 00 ) |   X  |
-  | 0 | 01 NOTECHG ( 01, 00, 00, 00 ) |   X  |
-  | 0 | 01 NOTECHG ( 01, 00, 00, 00 ) |   X  |
-  | Attached ports        |          1111111 |
-  |                       | 1234567890123456 |
-  | Cables                | X............... |
-  | Jacks                 | .X.............. |
-  | Jacks Ithru           | ..X............. |
-
-*/
-
   // Get a pointer of the 1st pipe in the attached pipeline
-  midiTransPipe_t *pipeLine = EEPROM_Params.midiTransPipelineSlots[--s].pipeline ;
-
+  midiTransPipe_t *pipeLine = EEPROM_Params.midiTransPipelineSlots[s-1].pipeline ;
 
   Serial.println();
-  Serial.print("PIPELINE SLOT ");Serial.print(s+1);Serial.print(" :");
+  Serial.print("PIPELINE SLOT ");Serial.print(s);Serial.print(" :");
 
   if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) {
       Serial.println(" EMPTY");
@@ -431,19 +393,32 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.println("| Attached ports        |          1111111 |");
   Serial.println("|                       | 1234567890123456 |");
     Serial.print("| Cables                | ");
+
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_CABLE] & (1L<<j) ?"X":".");
+    if (j > USBCABLE_INTERFACE_MAX) Serial.print(" ");
+    else if ( EEPROM_Params.midiRoutingRulesCable[j].attachedSlot == s)
+        Serial.print ("x");
+    else Serial.print(".");
   }
+
   Serial.println(" |");
   Serial.print("| Jacks                 | ");
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_JACK] & (1L<<j) ?"X":".");
+    if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
+    else if ( EEPROM_Params.midiRoutingRulesSerial[j].attachedSlot == s)
+        Serial.print ("x");
+    else Serial.print(".");
   }
+
   Serial.println(" |");
   Serial.print("| Jacks Ithru           | ");
   for (uint8_t j=0; j < 16 ; j++) {
-    Serial.print ( EEPROM_Params.midiTransPipelineSlots[s].attachedPortsMsk[PORT_TYPE_ITHRU] & (1L<<j) ?"X":".");
+    if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
+    else if ( EEPROM_Params.midiRoutingRulesIntelliThru[j].attachedSlot == s)
+        Serial.print ("x");
+    else Serial.print(".");
   }
+
   Serial.println(" |");
 
 }

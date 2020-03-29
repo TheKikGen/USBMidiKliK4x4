@@ -178,15 +178,6 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
 		Wire.readBytes((uint8_t *)&pSrc, sizeof(midiTransPipe_t));
 		if (memcmpcpy((void*)pDest,(void*)&pSrc,sizeof(midiTransPipe_t))) I2C_SlaveSyncDoUpdate = true;
 	}
-	else
-	// Slots attached ports
-	if (dataType == B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK) {
-		if (arg1 >= MIDI_TRANS_PIPELINE_SLOT_SIZE)  return -1;
-		if (Wire.available() != PORT_TYPE_SIZE*sizeof(uint16_t) ) return -1;
-		uint16_t msk[PORT_TYPE_SIZE];
-		Wire.readBytes((uint8*)&msk,sizeof(msk));
-		if (memcmpcpy((void*)&EEPROM_Params.midiTransPipelineSlots[arg1].attachedPortsMsk,&msk,PORT_TYPE_SIZE*sizeof(uint16_t))) I2C_SlaveSyncDoUpdate = true;
-	}
 
   return 0;
 }
@@ -531,8 +522,6 @@ void I2C_SlavesRoutingSyncFromMaster()
 
 	// Pipelines slots
 	for ( i=0 ; i != MIDI_TRANS_PIPELINE_SLOT_SIZE ; i ++ ) {
-
-  		I2C_SendData(B_DTYPE_MIDI_TRANSPIPE_SLOT_PORTS_MSK,i,0,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].attachedPortsMsk,PORT_TYPE_SIZE*sizeof(uint16_t));
 
 			for ( uint j=0 ; j !=  MIDI_TRANS_PIPELINE_SIZE ; j++) {
 					I2C_SendData(B_DTYPE_MIDI_TRANSPIPE, i, j,(uint8_t *)&EEPROM_Params.midiTransPipelineSlots[i].pipeline[j], sizeof(midiTransPipe_t));
