@@ -42,6 +42,7 @@ __ __| |           |  /_) |     ___|             |           |
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 */
+
 ///////////////////////////////////////////////////////////////////////////////
 //  MIDI TRANSFORMATION PIPES FUNCTIONS
 //-----------------------------------------------------------------------------
@@ -68,6 +69,9 @@ __ __| |           |  /_) |     ___|             |           |
 //boolean MidiTransFn_MYPIPE_CheckParms(midiTransPipe_t *);
 //boolean MidiTransFn_MYPIPE(uint8_t, midiPacket_t *, midiTransPipe_t *);
 
+boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *);
+boolean MidiTransFn_MessageFilter(uint8_t, midiPacket_t *, midiTransPipe_t *);
+
 boolean MidiTransFn_NoteChanger_CheckParms(midiTransPipe_t *);
 boolean MidiTransFn_NoteChanger(uint8_t, midiPacket_t *, midiTransPipe_t *);
 
@@ -90,6 +94,7 @@ boolean MidiTransFn_ClockDivider(uint8_t, midiPacket_t *, midiTransPipe_t *);
 // 1 Id by pipe. FN_TRANSPIPE_VECTOR_SIZE must the last one
 // PID is the array index in the vector fn table, so the order must be strictly the same.
 enum MidiTransPipeId {
+  FN_TRANSPIPE_MSG_FILTER,
   FN_TRANSPIPE_NOTE_CHANGER,
   FN_TRANSPIPE_CHANNEL_MAPPER,
   FN_TRANSPIPE_VELO_CHANGER,
@@ -112,11 +117,12 @@ typedef struct {
 } __packed MidiTransFnVector_t;
 
 const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
+   {"MSGFLTR", &MidiTransFn_MessageFilter, &MidiTransFn_MessageFilter_CheckParms},
    {"NOTECHG", &MidiTransFn_NoteChanger,   &MidiTransFn_NoteChanger_CheckParms},
    {"CHANMAP", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-   {"VELOCHG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-   {"CCCHANG", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
-   {"CLKDIVD", &MidiTransFn_ChannelMapper, &MidiTransFn_ChannelMapper_CheckParms},
+   {"VELOCHG", &MidiTransFn_VeloChanger,   &MidiTransFn_VeloChanger_CheckParms},
+   {"CCCHANG", &MidiTransFn_CCChanger,     &MidiTransFn_CCChanger_CheckParms},
+   {"CLKDIVD", &MidiTransFn_ClockDivider,  &MidiTransFn_ClockDivider_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -336,4 +342,30 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
   }
 
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Message filter
+//----------------------------------------------------------------------------
+// par1 : 00 High level filter (par2=mask)
+//                mask is channel Voice = 0001 (1), (binary OR)
+//                        system Common = 0010 (2), (binary OR)
+//                        realTime      = 0100 (4), (binary OR)
+//                        sysEx         = 1000 (8)
+// The mask must match with xParser definition.
+///////////////////////////////////////////////////////////////////////////////
+boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *pipe) {
+  if ( pipe->par1 > 0 ) return false;
+  if ( pipe->par2 > 0B1111 ) return false;
+
+  return true;
+}
+
+boolean MidiTransFn_MessageFilter(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+
+	// Apply high level midi filters before pipeline
+  if ( pipe->par1 == 0 && (! (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2 ) ) )
+          return false;
+
+  return true;
 }

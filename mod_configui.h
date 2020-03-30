@@ -54,7 +54,8 @@ __ __| |           |  /_) |     ___|             |           |
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 void PrintCleanHEX(uint8_t) __attribute__((optimize("-Os")));
-void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
+//Shared. See usbmidiKlik4x4.h
+//void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
 void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((optimize("-Os")));
 uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
@@ -76,10 +77,6 @@ void AskProductString() __attribute__((optimize("-Os")));
 void AskVIDPID() __attribute__((optimize("-Os")));
 void MenuItems( const char * ) __attribute__((optimize("-Os")));
 void ShowConfigMenu() __attribute__((optimize("-Os")));
-
-// External
-void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
-void ShowPipelineSlot(uint8_t s) ;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Serial print a formated hex value
@@ -527,12 +524,14 @@ void AskMidiRouting(uint8_t portType)
 				return;
 			}
       Serial.println();
-      if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk )
+      if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk ) {
         if (AskChoice("Keep existing routing ?","") == 'y') {
           Serial.println();
           EEPROM_Params.intelliThruJackInMsk |= (1 << port); // enable Ithru for this port
           return;
         }
+        Serial.println();
+      }
 		}
 
     uint8_t attachedSlot;
@@ -599,7 +598,6 @@ void AskProductString()
 		memset(EEPROM_Params.productString,0,sizeof(EEPROM_Params.productString) );
 		memcpy(EEPROM_Params.productString,buff,i);
 	}
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -823,7 +821,7 @@ void ShowConfigMenu()
 
       // Sysex config dump
 			case 'd':
-          SysexInternalDumpToStream(0);
+          SysexInternal_DumpToStream(0);
           Serial.println();
         break;
 

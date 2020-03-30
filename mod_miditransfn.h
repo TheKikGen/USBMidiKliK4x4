@@ -70,15 +70,18 @@ __ __| |           |  /_) |     ___|             |           |
 
 void    TransPacketPipeline_Clear(midiTransPipeline_t *);
 boolean TransPacketPipeline_ClearSlot(uint8_t);
-boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
-boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
+//Shared. See usbmidiKlik4x4.h
+//boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
+//boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
 void    TransPacketPipe_Clear(midiTransPipe_t *);
-boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
-boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
+//Shared. See usbmidiKlik4x4.h
+//boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
+//boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
+//boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
+//boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 boolean TransPacketPipelineExec(uint8_t, midiTransPipe_t *,  midiPacket_t *);
-void    ShowPipelineSlot(uint8_t );
+//Shared. See usbmidiKlik4x4.h
+//void    ShowPipelineSlot(uint8_t );
 
 ///////////////////////////////////////////////////////////////////////////////
 // PIPES.

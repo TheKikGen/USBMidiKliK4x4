@@ -62,11 +62,13 @@ void I2C_SlaveRequestEvent ();
 void I2C_BusChecks() __attribute__((optimize("-Os")));
 void I2C_BusStartWire() __attribute__((optimize("-Os")));
 int16_t I2C_SendCommand(uint8_t,BusCommand);
-void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
+//Shared. See usbmidiKlik4x4.h
+//void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 int16_t I2C_getPacket(uint8_t , masterMidiPacket_t *);
 boolean I2C_isDeviceActive(uint8_t );
 int8_t I2C_SendData(uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
-void I2C_SlavesRoutingSyncFromMaster();
+//Shared. See usbmidiKlik4x4.h
+//void I2C_SlavesRoutingSyncFromMaster();
 void I2C_ProcessMaster ();
 void I2C_ProcessSlave ();
 

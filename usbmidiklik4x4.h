@@ -57,18 +57,7 @@ __ __| |           |  /_) |     ___|             |           |
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
 
-// Sysex used to set some parameters of the interface.
-// Be aware that the 0x77 manufacturer id is reserved in the MIDI standard (but not used)
-// The second byte is usually an id number or a func code + the midi channel (forced to 0x77 here)
-// The Third is the product id
-#define SYSEX_MANUFACTURER_ID 0x77
-// UsbMidiKlik multi-port interface STM32F103 family
-#define SYSEX_PRODUCT_FAMILY 0x0,0x01
-#define SYSEX_MODEL_NUMBER 0x00,0x78
-#define SYSEX_INTERNAL_HEADER 0xF0,SYSEX_MANUFACTURER_ID,0x77,0x78,
-#define SYSEX_INTERNAL_ACK 0x7F
-#define SYSEX_INTERNAL_IDENTITY_RQ_REPLY 0xF0,0x7E,0x7F,0x06,0x02,\
-        SYSEX_MANUFACTURER_ID,SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,VERSION_MAJOR,VERSION_MINOR,0x00,0X00,0xF7
+
 #define SYSEX_INTERNAL_BUFF_SIZE 64
 
 // LED light duration in milliseconds
@@ -291,16 +280,28 @@ void    SerialMidi_SendMsg(uint8_t *, uint8_t);
 void    SerialMidi_SendPacket(midiPacket_t *, uint8_t );
 void    SerialMidi_RouteMsg( uint8_t, midiXparser*  );
 void    SerialMidi_RouteSysEx( uint8_t , midiXparser* );
-void    SysExInternalParse(uint8_t, midiPacket_t *);
 void    RoutePacketToTarget(uint8_t , midiPacket_t *);
 void    ResetMidiRoutingRules(uint8_t);
-uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *);
-void    SysexInternalDumpToStream(uint8_t ) ;
-void    SysExSendMsgPacket(uint8_t *,uint16_t );
-void    SysExInternalProcess(uint8_t, uint8_t *);
+void    USBMidi_SendSysExPacket(const uint8_t *,uint16_t );
 void    CheckBootMode();
 void    USBMidi_Init();
 void    USBMidi_Process();
 void    SerialMidi_Process();
+
+///////////////////////////////////////////////////////////////////////////////
+// EXTERNAL SHARED FUNCTIONS PROTOTYPES (MODULES)
+///////////////////////////////////////////////////////////////////////////////
+void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
+
+void I2C_SlavesRoutingSyncFromMaster();
+void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
+
+boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
+boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
+boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
+boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
+boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
+boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
+void ShowPipelineSlot(uint8_t s) ;
 
 #endif
