@@ -370,21 +370,25 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 	// Sysex is a particular case when using packets.
 	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever pipelines  are
 	// This insures that the internal sysex will be always interpreted.
-	// If the MCU is resetted, the msg will not be sent
+	// If the MCU is resetted, the msg will not be sent to the target.
+  // If bus active, sysex are locked for slaves as the master synchronizes all of them.
 	uint8_t  msgType=0;
 
-	if (cin >= 4 && cin <= 7  ) {
+
+  if (cin >= 4 && cin <= 7  ) {
     msgType =  midiXparser::sysExMsgTypeMsk;
-		if (sourcePort == 0 && SysExInternal_Parse(source, pk,sysExInternalBuffer) ) {
+
+		if ( !(B_IS_SLAVE) && sourcePort == 0 && SysExInternal_Parse(source, pk,sysExInternalBuffer) ) {
         SysExInternal_Process(source,sysExInternalBuffer);
     }
+
 	} else msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 
   // 1/ Apply pipeline if any and not empty
   if ( !pipeLineLock && attachedSlot ) {
-    if ( EEPROM_Params.midiTransPipelineSlots[attachedSlot].pipeline[0].pId != FN_TRANSPIPE_NOPIPE) {
+    if ( EEPROM_Params.midiTransPipelineSlots[attachedSlot-1].pipeline[0].pId != FN_TRANSPIPE_NOPIPE) {
       pipeLineLock = true; // Avoid infinite loop
-      boolean r = TransPacketPipelineExec(source, EEPROM_Params.midiTransPipelineSlots[attachedSlot].pipeline, pk) ;
+      boolean r = TransPacketPipelineExec(source, EEPROM_Params.midiTransPipelineSlots[attachedSlot-1].pipeline, pk) ;
       pipeLineLock = false;
       if (!r) return; // Drop packet
     }

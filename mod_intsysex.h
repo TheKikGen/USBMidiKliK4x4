@@ -57,7 +57,7 @@ boolean SysExInternal_Process(uint8_t, uint8_t *);
 boolean SysExInternal_Parse(uint8_t, midiPacket_t *);
 uint8_t SysexInternal_DumpConf(uint32_t , uint8_t ,uint8_t *);
 void    SysexInternal_DumpToStream(uint8_t ) ;
-void SysExInternal_SendCommandACK(uint8_t ,uint8_t ) ;
+void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnIdentityRequest(uint8_t ,uint8_t *);
@@ -69,6 +69,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnPipelinesSettings(uint8_t ,uint8_t *);
+uint8_t SysExInternal_fnSxFnAckToggle(uint8_t ,uint8_t *);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Sysex is used to set some parameters of the interface.
@@ -100,6 +101,8 @@ enum SysExInternal_Error {
   SX_ERROR_BAD_DEVICEID,
 } ;
 
+boolean sysExFunctionAckToggle = false;
+
 ///////////////////////////////////////////////////////////////////////////////
 //  Midi SYSEX functions vector
 ///////////////////////////////////////////////////////////////////////////////
@@ -126,6 +129,7 @@ enum SysExInternal_FnId {
   FN_SX_MIDI_ROUTING_SET  = 0X0F,
   FN_SX_BUS_SET           = 0X10,
   FN_SX_PIPELINE_SET      = 0X11,
+  FN_SX_FN_ACK_TOGGLE     = 0X7F,
 } ;
 
 // Sysex function vector
@@ -141,19 +145,20 @@ typedef struct {
     boolean             needResetIfSucceed;
 } __packed SysExInternalFnVector_t;
 
-#define FN_SX_VECTOR_SIZE 10
+#define FN_SX_VECTOR_SIZE 11
 
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
   { FN_SX_IDREQUEST         ,&SysExInternal_fnIdentityRequest,     false,false,false,false },
   { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig,          false,false,false,false },
   { FN_SX_CONFIG_MODE       ,&SysExInternal_fnConfigMode,          false,true ,false,true  },
   { FN_SX_HARD_RESET        ,&SysExInternal_fnHardReset,           false,false,false,true  },
-  { FN_SX_USB_PR_STR_SET    ,&SysExInternal_fnSetUsbProductString, false,true ,false,false },
-  { FN_SX_USB_VID_PID_SET   ,&SysExInternal_fnSetUsbPidVid,        false,true ,false,false },
-  { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings,       false,true ,true,false  },
-  { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings, false,true ,true,false  },
+  { FN_SX_USB_PR_STR_SET    ,&SysExInternal_fnSetUsbProductString, true ,true ,false,false },
+  { FN_SX_USB_VID_PID_SET   ,&SysExInternal_fnSetUsbPidVid,        true ,true ,false,false },
+  { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings,       true ,true ,true ,false },
+  { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings, true ,true ,true ,false },
   { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings,     false,true ,false,true  },
-  { FN_SX_PIPELINE_SET      ,&SysExInternal_fnPipelinesSettings,   true,true ,true,false  },
+  { FN_SX_PIPELINE_SET      ,&SysExInternal_fnPipelinesSettings,   true ,true ,true ,false },
+  { FN_SX_FN_ACK_TOGGLE     ,&SysExInternal_fnSxFnAckToggle,       true ,false,false,false },
 };
 
 
@@ -175,13 +180,10 @@ const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
 boolean SysExInternal_Process(uint8_t source, uint8_t sxMsg[]) {
 
   if ( sxMsg[0] < 1 ) return false;
-  // If slave on Bus : No Sysex
-  if ( B_IS_SLAVE ) return false;
-
   for (uint8_t i=0 ; i < FN_SX_VECTOR_SIZE ; i++ ) {
       if ( SysExInternalFnVector[i].fnId == sxMsg[1] ) {
           uint8_t r =  SysExInternalFnVector[i].fn(source,sxMsg);
-          if ( SysExInternalFnVector[i].needACK) SysExInternal_SendCommandACK(source,r);
+          if ( SysExInternalFnVector[i].needACK && sysExFunctionAckToggle) SysExInternal_SendFnACK(source,r);
           if ( r == SX_ERROR_NO_ERROR ) {
             if ( SysExInternalFnVector[i].needStoreIfSucceed) EEPROM_ParamsSave();
             if ( SysExInternalFnVector[i].needResetIfSucceed) nvic_sys_reset();
@@ -197,7 +199,7 @@ boolean SysExInternal_Process(uint8_t source, uint8_t sxMsg[]) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send ACK sysex msg.
 ///////////////////////////////////////////////////////////////////////////////
-void SysExInternal_SendCommandACK(uint8_t source,uint8_t errorCode) {
+void SysExInternal_SendFnACK(uint8_t source,uint8_t errorCode) {
 
   sysExInternalCommandACK[5] = errorCode;
   if (source == FROM_USB && midiUSBCx) {
@@ -376,7 +378,7 @@ uint8_t SysExInternal_fnSetUsbPidVid(uint8_t source,uint8_t *sxMsg) {
 //  01 Disable Intellithru
 //  02 Set  Intellithru timeout <0xnn (number of 15s periods 1-127)>
 //  03 Set thru mode jack routing < Jack In = (0-F)> <Attached slot 0-8 . => zero if no slot (detach).>
-//      <t1> <t2>...<tn>  0-F 16 jack out targets maximum. => Disable intellithru if no jack out
+//      <t1> <t2>...<tn>  0-F 16 jack out targets list maximum. => Disable intellithru if no jack out
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 
@@ -440,7 +442,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// USB/Serial Midi midi routing rules
+// USB/Serial Midi midi routing rules - F0 77 77 78 0F
 // ---------------------------------------------------------------------------
 // Commands are :
 //  00 Reset to default midi routing
@@ -448,7 +450,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 //      arg1 - in port type : <0x00 usb cable | 0x01 jack serial>
 //      arg2 - in port id : id for cable or jack serial (0-F)
 //      arg3 - out port type = <0x00 usb cable in | 0x01 jack serial out>
-//      arg4 - out port id targets : <port 0 1 2...n> 16 max (0-F)
+//      arg4 - out port id targets list : <port 0 1 2...n> 16 max (0-F) or none
 //  02  Set Slot
 //      arg1 - port type : : <0x00 usb cable | 0x01 jack serial>
 //      arg2 - port id : id for cable or jack serial (0-F)
@@ -467,7 +469,7 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
   else
 
   // Set Routing targets - (len) (fnid) (cmd) 00 0F 01  00 01 02 03
-  if (cmdId == 0x01 && msgLen >= 6 ) {
+  if (cmdId == 0x01 && msgLen >= 5 ) {
 
     uint8_t inPortType  = sxMsg[3];
     uint8_t inPort      = sxMsg[4];
@@ -490,14 +492,16 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
     }
     else return SX_ERROR_ANY;
 
-    // Compute mask from the port list
     uint16_t msk = 0;
-    for ( uint8_t i = 6 ; i <= msgLen  ; i++) {
-        if ( (outPortType == PORT_TYPE_CABLE && sxMsg[i] < USBCABLE_INTERFACE_MAX) ||
-             (outPortType == PORT_TYPE_JACK  && sxMsg[i] < SERIAL_INTERFACE_COUNT) ) {
-               msk |= 	1 << sxMsg[i] ;
-        }
-    }// for
+    // If port list, Compute mask else no target
+    if ( msgLen > 5 ) {
+      for ( uint8_t i = 6 ; i <= msgLen  ; i++) {
+          if ( (outPortType == PORT_TYPE_CABLE && sxMsg[i] < USBCABLE_INTERFACE_MAX) ||
+               (outPortType == PORT_TYPE_JACK  && sxMsg[i] < SERIAL_INTERFACE_COUNT) ) {
+                 msk |= 	1 << sxMsg[i] ;
+          }
+      }// for
+    }
 
     // Set masks
     if (inPortType == PORT_TYPE_CABLE ) {
@@ -539,7 +543,7 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Bus mode management
+// Bus mode management - F0 77 77 78 10
 // ---------------------------------------------------------------------------
 // Commands are :
 //  00 Toggle bus mode <00 = off | 01 = ON>
@@ -573,7 +577,7 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t source,uint8_t *sxMsg) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Midi transformation pipelines
+// Midi transformation pipelines - F0 77 77 78 11
 // ---------------------------------------------------------------------------
 // Commands are :
 //  00 slot operation  <00 = Copy>   <source slot number 1-8> <dest slot number 1-8>
@@ -644,6 +648,18 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t source,uint8_t *sxMsg) {
 
   return SX_ERROR_ANY;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Toggle function ACK.  Send an ACK midi message or not
+// This is not saved and is active during the current session only.
+// No Ack by default. F0 77 77 78 7F F7
+///////////////////////////////////////////////////////////////////////////////
+uint8_t SysExInternal_fnSxFnAckToggle(uint8_t source,uint8_t *sxMsg) {
+  if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
+    sysExFunctionAckToggle = ! sysExFunctionAckToggle;
+  return SX_ERROR_NO_ERROR;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Send a SYSEX dump to the appropriate destination stream

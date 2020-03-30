@@ -376,7 +376,7 @@ void ShowPipelineSlot(uint8_t s) {
         if ( pipeLine->pId <= 0x0F ) Serial.print( "0");
         Serial.print(pipeLine->pId,HEX);
         Serial.print(" ");
-        Serial.print(MidiTransFnVector[i].shortName);
+        Serial.print(MidiTransFnVector[pipeLine->pId].shortName);
         Serial.print(" ( ");
         if ( pipeLine->par1 <= 0x0F ) Serial.print( "0");
         Serial.print(pipeLine->par1,HEX);Serial.print(", ");

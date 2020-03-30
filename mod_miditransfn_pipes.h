@@ -129,8 +129,35 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // PIPES.
 ///////////////////////////////////////////////////////////////////////////////
 
+
 ///////////////////////////////////////////////////////////////////////////////
-// Note changer. 00
+// Message filter 00
+//----------------------------------------------------------------------------
+// par1 : 00 High level filter (par2=mask)
+//                mask is channel Voice = 0001 (1), (binary OR)
+//                        system Common = 0010 (2), (binary OR)
+//                        realTime      = 0100 (4), (binary OR)
+//                        sysEx         = 1000 (8)
+// The mask must match with xParser definition.
+///////////////////////////////////////////////////////////////////////////////
+boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *pipe) {
+  if ( pipe->par1 > 0 ) return false;
+  if ( pipe->par2 > 0B1111 ) return false;
+
+  return true;
+}
+
+boolean MidiTransFn_MessageFilter(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+
+	// Apply high level midi filters before pipeline
+  if ( pipe->par1 == 0 && (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2)  )
+          return true;
+
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Note changer. 01
 //----------------------------------------------------------------------------
 // par1  : 0 Transpose + (par2 = semitones)
 //       : 1 Transpose - (par2 = semitones)
@@ -153,41 +180,51 @@ boolean MidiTransFn_NoteChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_
         return true;
 
   // Add semitones to the note value
-  if (pipe->par1 == 0 )
-    pk->packet[2] = ( pk->packet[2] + pipe->par2 > 127 ? pk->packet[2] : pk->packet[2] + pipe->par2 );
+  if (pipe->par1 == 0 ) {
+    if ( (pk->packet[2] + pipe->par2 > 127) ) return false ; // Drop packet
+    pk->packet[2] += pipe->par2;
+  }
   else
+
   // Sub semitones to the note value
-  if (pipe->par1 == 1 )
-    pk->packet[2] = ( pipe->par2 >= pk->packet[2] ? pk->packet[2] : pk->packet[2] - pipe->par2 );
+  if (pipe->par1 == 1 ) {
+    if ( pipe->par2 > pk->packet[2] ) return false;
+    pk->packet[2] -= pipe->par2;
+  }
   else
+
   // Split point
   if (pipe->par1 == 2 ) {
     if ( pk->packet[2] >= pipe->par2  )
         pk->packet[1] = midiStatus + pipe->par3;
   }
+  else
+
   // Velo Split
   if (pipe->par1 == 3 ) {
 
     if ( midiStatus == midiXparser::noteOffStatus ) {
       // Send a note off to the channel to ensure note stop  in all case
       // as no history of note on exists.
-      // packet copy
+      // Current packet copy
       midiPacket_t pk2 = { .i = pk->i };
       pk2.packet[1] = midiStatus + pipe->par3;
       RoutePacketToTarget(source, &pk2);
     }
-    else
+    else // Note On case
     if ( pk->packet[3] >= pipe->par2  ) {
         pk->packet[1] = midiStatus + pipe->par3;
         if (pipe->par4) pk->packet[3] = pipe->par4;
     }
   }
 
+  else return false;
+
   return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Midi channel mapper 01
+// Midi channel mapper 02
 //----------------------------------------------------------------------------
 // par1 : 0 Map channel(par2= source channel- 0x7F=any, par3= dest channel).
 //      : 1 Map to port (par2=source channel, par3=midi port)
@@ -342,30 +379,4 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
   }
 
   return false;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Message filter
-//----------------------------------------------------------------------------
-// par1 : 00 High level filter (par2=mask)
-//                mask is channel Voice = 0001 (1), (binary OR)
-//                        system Common = 0010 (2), (binary OR)
-//                        realTime      = 0100 (4), (binary OR)
-//                        sysEx         = 1000 (8)
-// The mask must match with xParser definition.
-///////////////////////////////////////////////////////////////////////////////
-boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *pipe) {
-  if ( pipe->par1 > 0 ) return false;
-  if ( pipe->par2 > 0B1111 ) return false;
-
-  return true;
-}
-
-boolean MidiTransFn_MessageFilter(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
-
-	// Apply high level midi filters before pipeline
-  if ( pipe->par1 == 0 && (! (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2 ) ) )
-          return false;
-
-  return true;
 }
