@@ -1,0 +1,78 @@
+USBMIDIKLIK 4X4 - SYSEX IMPLEMENTATION - V2.1
+© TheKikGen Labs - 2020.
+
+-------------------------------------------------------------------------------
+05 Configuration sysex dump
+F0 77 77 78 05 F7
+-------------------------------------------------------------------------------
+06 General Information - 01 Identity request
+F0 77 77 78 06 01 F7
+-------------------------------------------------------------------------------
+08 Reboot in configuration mode
+F0 77 77 78 08 F7
+-------------------------------------------------------------------------------
+0A Hardware reset
+F0 77 77 78 0A F7
+-------------------------------------------------------------------------------
+0B Set USB product string
+F0 77 77 78 0B <usb product string not accentuated> F7
+-------------------------------------------------------------------------------
+0C Set USB vendor ID and product ID
+F0 77 77 78 0C <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
+-------------------------------------------------------------------------------
+0E Intelligent thru - 00 Reset to default
+F0 77 77 78 0E 00 F7
+-------------------------------------------------------------------------------
+0E Intelligent thru - 01 Disable
+F0 77 77 78 0E 01 F7
+-------------------------------------------------------------------------------
+0E Intelligent thru - 02 Set USB idle
+F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
+-------------------------------------------------------------------------------
+0E Intelligent thru - 03 Set jack routing
+F0 77 77 78 0E 03 <JackIn port: 0-F> [jk out ports list: nn nn … nn] F7
+If no jack out ports list, IThru mode is disabled.
+-------------------------------------------------------------------------------
+0F Midi routing - 00 Reset to default
+F0 77 77 78 0F 00 F7
+
+0F Midi routing - 01 Set midi port routing
+F0 77 77 78 0F <in port type> <in port> <out port type>[out ports list: nn...nn] F7
+port type : cable = 0 |jack=1     port : 0-F
+-------------------------------------------------------------------------------
+10 Bus mode - 00 Enable/disable bus mode
+F0 77 77 78 10 < enable:1 | disable:0 > F7
+
+10 Bus mode - 01 Set device ID
+F0 77 77 78 10 < deviceid:04-08 > F7
+deviceid must be set to 4 when master.
+-------------------------------------------------------------------------------
+11 Transformation pipelines - 00 Slot operation - 00 slot copy
+F0 77 77 78 11 00 00 < src slot:01-08 > < dest slot: 01-08 > F7
+
+11 Transformation pipelines - 00 Slot operation - 01 clear slot
+F0 77 77 78 11 00 01 < slot: 01-08 | All slot:7F > F7
+
+11 Transformation pipelines - 00 Slot operation - 02 slot attach port
+F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
+port type : cable = 0 | jack = 1 | ithru = 2
+When slot = 0, the port is considered as detached from any slot.
+
+11 Transformation pipelines - 01 Pipe operation - 00 add pipe
+F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
+
+11 Transformation pipelines - 01 Pipe operation - 01 insert pipe before
+F0 77 77 78 11 01 01 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
+
+11 Transformation pipelines - 01 Pipe operation - 02 replace pipe
+F0 77 77 78 11 01 02 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
+
+11 Transformation pipelines - 02 Pipe operation - 03 clear pipe index
+F0 77 77 78 11 01 03 <slot:1-8> <pipe idx:nn> F7
+
+11 Transformation pipelines - 02 Pipe operation - 04 clear first pipe id
+F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
+
+11 Transformation pipelines - 02 Pipe operation - 05 pipe bypass index
+F0 77 77 78 11 01 04 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+-------------------------------------------------------------------------------

@@ -229,7 +229,7 @@ boolean TransPacketPipe_AddToSlot(uint8_t pipelineSlot, midiTransPipe_t *pipe) {
 // Insert a pipe to a transformation pipeline slot at a specific index
 // Return true if pipe added succefully
 ///////////////////////////////////////////////////////////////////////////////
-boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, midiTransPipe_t *pipe) {
+boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, midiTransPipe_t *pipe, boolean replace) {
 
   // The slot must exists here
   if (pipelineSlot < 1 || pipelineSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE ) return false;
@@ -253,9 +253,11 @@ boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, midiTr
   for (uint8_t i=0; i != MIDI_TRANS_PIPELINE_SIZE ; i++) {
       if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE && i < index ) return false;
       if ( i == index) {
-        // Move pipes down from the next index.
-        while ( pipeLine2-- > pipeLine ) *(pipeLine2+1) = *pipeLine2;
-        // Copy the pipe at this now free location
+        if (! replace) {
+          // Move pipes down from the next index.
+          while ( pipeLine2-- > pipeLine ) *(pipeLine2+1) = *pipeLine2;
+          // Copy the pipe at this now free location
+        }
         *pipeLine = *pipe;
         return true;
       }

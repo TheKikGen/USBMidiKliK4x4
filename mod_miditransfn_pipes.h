@@ -87,6 +87,10 @@ boolean MidiTransFn_CCChanger(uint8_t, midiPacket_t *, midiTransPipe_t *);
 boolean MidiTransFn_ClockDivider_CheckParms(midiTransPipe_t *);
 boolean MidiTransFn_ClockDivider(uint8_t, midiPacket_t *, midiTransPipe_t *);
 
+boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *);
+boolean MidiTransFn_LoopBack(uint8_t, midiPacket_t *, midiTransPipe_t *);
+
+
 ///////////////////////////////////////////////////////////////////////////////
 //  Midi transformation functions vector
 ///////////////////////////////////////////////////////////////////////////////
@@ -100,6 +104,7 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_VELO_CHANGER,
   FN_TRANSPIPE_CC_CHANGER,
   FN_TRANSPIPE_CLOCK_DIVIDER,
+  FN_TRANSPIPE_LOOPBACK,
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
@@ -123,6 +128,7 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
    {"VELOCHG", &MidiTransFn_VeloChanger,   &MidiTransFn_VeloChanger_CheckParms},
    {"CCCHANG", &MidiTransFn_CCChanger,     &MidiTransFn_CCChanger_CheckParms},
    {"CLKDIVD", &MidiTransFn_ClockDivider,  &MidiTransFn_ClockDivider_CheckParms},
+   {"LOOPBCK", &MidiTransFn_LoopBack,      &MidiTransFn_LoopBack_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -260,7 +266,7 @@ boolean MidiTransFn_ChannelMapper(uint8_t source, midiPacket_t *pk, midiTransPip
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Midi Velocity changer
+// Midi Velocity changer 03
 //----------------------------------------------------------------------------
 // par1 : 00 half velocity
 //        01 full velocity
@@ -307,7 +313,7 @@ boolean MidiTransFn_VeloChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// CC changer
+// CC changer 04
 //----------------------------------------------------------------------------
 // par1 : 00 map(par2=source cc,par3=dest cc)
 //        01 filter include range[par2,par3])
@@ -355,7 +361,7 @@ boolean MidiTransFn_CCChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_t 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Midi Clock Divider
+// Midi Clock Divider 05
 //----------------------------------------------------------------------------
 // par1 : ratio : 2 to 16
 // Example for a div 2 : 1---(2)---3---(4)---5---(6)---7---(8)
@@ -379,4 +385,32 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
   }
 
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LoopBack. Loopback a packet again to a specific port.   06
+//----------------------------------------------------------------------------
+// par1 : source Port type  0 = CABLE OUT, 1 = JACK IN or 7F= No change
+// par2 : port/cable 0-F  (any if no change)
+///////////////////////////////////////////////////////////////////////////////
+boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
+  if ( pipe->par1 > 1 && pipe->par1 != 0x7F ) return false;
+  if ( pipe->par2 > 0x0F ) return false;
+  return true;
+}
+
+boolean MidiTransFn_LoopBack(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+
+  midiPacket_t pk2 = { .i = pk->i }; // copy packet
+
+  // No change
+  if      ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
+  else {
+    pk2.packet[0] = (pk2.packet[0] & 0x0F) + (pipe->par2 << 4);
+    if ( pipe->par1 == 0  ) RoutePacketToTarget(FROM_USB, &pk2);
+    else if ( pipe->par1 == 1 ) RoutePacketToTarget(FROM_SERIAL, &pk2);
+    else return false;
+  }
+
+  return true;
 }

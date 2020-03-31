@@ -374,7 +374,6 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
   // If bus active, sysex are locked for slaves as the master synchronizes all of them.
 	uint8_t  msgType=0;
 
-
   if (cin >= 4 && cin <= 7  ) {
     msgType =  midiXparser::sysExMsgTypeMsk;
 
@@ -628,12 +627,10 @@ void SerialMidi_Process()
 								// We manage sysEx "on the fly". Clean end of a sysexe msg ?
 								if ( midiSerial[s].getMidiMsgType() == midiXparser::sysExMsgTypeMsk )
 									SerialMidi_RouteSysEx(s, &midiSerial[s]) ;
-
 								// Not a sysex. The message is complete.
 								else {
                   SerialMidi_RouteMsg( s, &midiSerial[s]);
                 }
-
 					 }
 					 else
 					 // Acknowledge any sysex error

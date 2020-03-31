@@ -117,6 +117,7 @@ boolean sysExFunctionAckToggle = false;
 // 0X0F Midi routing settings
 // 0x10 Bus mode settings
 // 0x11 Midi transformation pipelines settings
+// 0x7F Midi function ID acknowledgment
 
 enum SysExInternal_FnId {
   FN_SX_DUMP              = 0X05,
@@ -376,9 +377,9 @@ uint8_t SysExInternal_fnSetUsbPidVid(uint8_t source,uint8_t *sxMsg) {
 // F0 77 77 78 0E 02 04 F7
 //  00 Reset Intellithru to default
 //  01 Disable Intellithru
-//  02 Set  Intellithru timeout <0xnn (number of 15s periods 1-127)>
-//  03 Set thru mode jack routing < Jack In = (0-F)> <Attached slot 0-8 . => zero if no slot (detach).>
-//      <t1> <t2>...<tn>  0-F 16 jack out targets list maximum. => Disable intellithru if no jack out
+//  02 Set  Intellithru timeout <nn (number of 15s periods 1-127)>
+//  03 Set thru mode jack routing < Jack In = (0-F)> <t1 >...<tn>  0-F jacks out list.
+//  => intellithru is disabled if no jack out list. List is 16 ports max.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 
@@ -408,17 +409,13 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
   // Set routing
   //   0     1     2   3  4  5 6 7
   // (len) (id) (cmd) 01 01  0 1 2 3 4 5 6 7 8 9 A B C D E F
-  if (cmdId == 0x03 && msgLen >= 4 && msgLen <= SERIAL_INTERFACE_COUNT+4 ) {
+  if (cmdId == 0x03 && msgLen >= 3 && msgLen <= SERIAL_INTERFACE_COUNT+4 ) {
       uint8_t jackIn = sxMsg[3];
-      uint8_t attachedSlot = sxMsg[4];
 
       if ( jackIn >= SERIAL_INTERFACE_COUNT) return SX_ERROR_BAD_PORT;
-      if ( attachedSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE  ) return SX_ERROR_BAD_SLOT;
 
-      EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].attachedSlot = attachedSlot;
-
-      // If not jack out : disable Intellithru for this port
-      if (msgLen == 4) {
+      // If no jack out list : disable Intellithru for this port
+      if (msgLen == 3) {
         EEPROM_Params.intelliThruJackInMsk &= ~(1 << jackIn);
         return SX_ERROR_NO_ERROR;
       }
@@ -427,7 +424,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 
       // Set target Jacks out msk
       uint16_t msk = 0;
-      for ( uint8_t i = 5 ; i <= msgLen  ; i++) {
+      for ( uint8_t i = 4 ; i <= msgLen  ; i++) {
           if ( sxMsg[i] < SERIAL_INTERFACE_COUNT )
                 msk |= 	1 << sxMsg[i] ;
           else return SX_ERROR_BAD_PORT;
@@ -451,10 +448,6 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 //      arg2 - in port id : id for cable or jack serial (0-F)
 //      arg3 - out port type = <0x00 usb cable in | 0x01 jack serial out>
 //      arg4 - out port id targets list : <port 0 1 2...n> 16 max (0-F) or none
-//  02  Set Slot
-//      arg1 - port type : : <0x00 usb cable | 0x01 jack serial>
-//      arg2 - port id : id for cable or jack serial (0-F)
-//      arg3 - slot number 0-8 => 0 is no slot
 // EOX = F7
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
@@ -515,28 +508,6 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
 
     return SX_ERROR_NO_ERROR;
   }
-  else
-
-  // Set Slot  - (len) (fnid) (cmd) 00 0F 01
-  if (cmdId == 0x02 && msgLen == 5 ) {
-    uint8_t portType = sxMsg[3];
-    uint8_t port     = sxMsg[4];
-    uint8_t attachedSlot = sxMsg[5];
-
-    if ( attachedSlot > MIDI_TRANS_PIPELINE_SLOT_SIZE  ) return SX_ERROR_BAD_SLOT;
-    // Cable
-    if (portType == PORT_TYPE_CABLE ) {
-        if ( port  >= USBCABLE_INTERFACE_MAX) return SX_ERROR_BAD_PORT;
-        EEPROM_Params.midiRoutingRulesCable[port].attachedSlot = attachedSlot;
-    }  else
-    // Jack Serial
-    if (portType == PORT_TYPE_JACK) {
-      if ( port >= SERIAL_INTERFACE_COUNT) return SX_ERROR_BAD_PORT;
-        EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = attachedSlot;
-    } else return SX_ERROR_ANY;
-
-    return SX_ERROR_NO_ERROR;
-  }
 
   return SX_ERROR_ANY;
 
@@ -589,9 +560,11 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t source,uint8_t *sxMsg) {
 //                                                        <FN id> <par1> <par2> <par3> <par4>
 //                     <01 = Insert before>       <slot number 1-8> <pipe index 0-n>
 //                                                        <FN id> <par1> <par2> <par3> <par4>
-//                     <02 = Clear Pipe by Index> <slot number 1-8> <pipe index 0-n>
-//                     <03 = Clear pipe by pipe Id>  <slot number 1-8> <pipe Id>
-//                     <04 = ByPass pipe by index>  <slot number> <pipe index 0-n> <byPass:0=no. 1=yes>
+//                     <02 = Replace>             <slot number 1-8> <pipe index 0-n>
+//                                                        <FN id> <par1> <par2> <par3> <par4>
+//                     <03 = Clear Pipe by Index> <slot number 1-8> <pipe index 0-n>
+//                     <04 = Clear pipe by pipe Id>  <slot number 1-8> <pipe Id>
+//                     <05 = ByPass pipe by index>  <slot number> <pipe index 0-n> <byPass:0=no. 1=yes>
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnPipelinesSettings(uint8_t source,uint8_t *sxMsg) {
   uint8_t msgLen    = sxMsg[0];
@@ -633,16 +606,25 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t source,uint8_t *sxMsg) {
       return TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p)  ? SX_ERROR_NO_ERROR : SX_ERROR_ANY;
     }
     else
+    // 11 01 <02 = Replace>
+    if (cmdSubId == 0x02  && msgLen == 10) {
+      midiTransPipe_t p;
+      p.pId = sxMsg[6];  p.byPass = 0;
+      p.par1 = sxMsg[7]; p.par2 = sxMsg[8];
+      p.par3 = sxMsg[9]; p.par4 = sxMsg[10];
+      return TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p,true)  ? SX_ERROR_NO_ERROR : SX_ERROR_ANY;
+    }
+    else
     // Clear pipe by index
-    if (cmdSubId == 0x02  && msgLen == 5 )
+    if (cmdSubId == 0x03  && msgLen == 5 )
       return TransPacketPipe_ClearSlotIndexPid(sxMsg[4],true,sxMsg[5])  ? SX_ERROR_NO_ERROR : SX_ERROR_ANY;
     else
     // Clear pipe first pId
-    if (cmdSubId == 0x03  && msgLen == 5 )
+    if (cmdSubId == 0x04  && msgLen == 5 )
       return TransPacketPipe_ClearSlotIndexPid(sxMsg[4],false,sxMsg[5])  ? SX_ERROR_NO_ERROR : SX_ERROR_ANY;
     else
     // ByPass pipe by index
-    if (cmdSubId == 0x04  && msgLen == 6 )
+    if (cmdSubId == 0x05  && msgLen == 6 )
       return TransPacketPipe_ByPass(sxMsg[4],sxMsg[5],sxMsg[6]) ? SX_ERROR_NO_ERROR : SX_ERROR_ANY;
   }
 

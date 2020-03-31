@@ -299,7 +299,7 @@ void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
 boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
 boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
+boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *,boolean replace = false);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 void ShowPipelineSlot(uint8_t s) ;
