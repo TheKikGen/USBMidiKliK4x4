@@ -84,16 +84,16 @@ enum nextBootMode {
 #define MIDI_TRANS_PIPELINE_SLOT_SIZE 8
 
 enum MidiRoutingDirection {
-  FROM_SERIAL,
-  FROM_USB,
+  FROM_USB=0,
+  FROM_SERIAL=1,
   TO_SERIAL,
   TO_USB,
 } ;
 
 enum MidiPortType {
-  PORT_TYPE_CABLE,
-  PORT_TYPE_JACK,
-  PORT_TYPE_ITHRU,
+  PORT_TYPE_CABLE=0,
+  PORT_TYPE_JACK=1,
+  PORT_TYPE_ITHRU=2,
   PORT_TYPE_SIZE
 };
 
@@ -131,6 +131,7 @@ typedef struct {
       uint8_t  attachedSlot;
       uint16_t jackOutTargetsMsk;
 } __packed midiRoutingRuleJack_t;
+
 
 // Use this structure to send and receive packet to/from USB /serial/BUS
 typedef union  {

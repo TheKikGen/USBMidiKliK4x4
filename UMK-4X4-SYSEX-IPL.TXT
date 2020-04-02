@@ -1,5 +1,52 @@
 USBMIDIKLIK 4X4 - SYSEX IMPLEMENTATION - V2.1
-© TheKikGen Labs - 2020.
+(c) TheKikGen Labs - 2020.
+
+All values are hexadecimal.
+
+-------------------------------------------------------------------------------
+
+USBMIDIKLIK 4X4 SYSEX HEADER : F0 77 77 78
+
+-------------------------------------------------------------------------------
+
+SYSEX FUNCTIONS OVERVIEW
+
+FN Description / sub command
+
+05 Configuration sysex dump
+06 General Information
+    01 Identity request
+08 Reboot in configuration mode
+0A Hardware reset
+0B Set USB product string
+0C Set USB vendor id and product id
+0E Intelligent thru mode settings
+    00 Reset to default
+    01 Disable
+    02 set USB idle
+    03 Set jack routing
+0F Midi routing settings
+    00 set midi port routing
+10 Bus mode settings
+    00 Enable bus mode
+    01 Set device Id
+11 Midi transformation pipelines settings
+   Slot operations
+    00 00 Copy slot
+    00 01 Clear slot
+    00 02 Attach/detach port
+   Pipe operations
+    01 00 Add pipe to slot
+    01 01 Insert pipe
+    01 02 Replace pipe
+    01 03 Clear pipe by index
+    01 04 Clear pipe by id
+    01 05 pipe bypass
+7F Midi function ID acknowledgment
+
+-------------------------------------------------------------------------------
+
+SYSEX MESSAGES
 
 -------------------------------------------------------------------------------
 05 Configuration sysex dump
@@ -20,59 +67,94 @@ F0 77 77 78 0B <usb product string not accentuated> F7
 0C Set USB vendor ID and product ID
 F0 77 77 78 0C <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
 -------------------------------------------------------------------------------
-0E Intelligent thru - 00 Reset to default
+0E Intelligent thru
+
+0E 00 Reset to default
 F0 77 77 78 0E 00 F7
--------------------------------------------------------------------------------
-0E Intelligent thru - 01 Disable
+
+0E 01 Disable
 F0 77 77 78 0E 01 F7
--------------------------------------------------------------------------------
-0E Intelligent thru - 02 Set USB idle
+
+0E 02 Set USB idle
 F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
--------------------------------------------------------------------------------
-0E Intelligent thru - 03 Set jack routing
-F0 77 77 78 0E 03 <JackIn port: 0-F> [jk out ports list: nn nn … nn] F7
+
+0E 03 Set jack routing
+F0 77 77 78 0E 03 <JackIn port: 0-F> [jk out ports list: nn...nn] F7
 If no jack out ports list, IThru mode is disabled.
 -------------------------------------------------------------------------------
-0F Midi routing - 00 Reset to default
+0F Midi routing 
+
+0F 00 Reset to default
 F0 77 77 78 0F 00 F7
 
-0F Midi routing - 01 Set midi port routing
-F0 77 77 78 0F <in port type> <in port> <out port type>[out ports list: nn...nn] F7
-port type : cable = 0 |jack=1     port : 0-F
+0F 01 Set midi port routing
+F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
+port type : cable = 0 |jack=1     port : 0-F      out ports list is optional.
 -------------------------------------------------------------------------------
-10 Bus mode - 00 Enable/disable bus mode
-F0 77 77 78 10 < enable:1 | disable:0 > F7
+10 Bus mode
 
-10 Bus mode - 01 Set device ID
-F0 77 77 78 10 < deviceid:04-08 > F7
-deviceid must be set to 4 when master.
+10 00 Enable/disable bus mode
+F0 77 77 78 10 00 < enable:1 | disable:0 > F7
+The device will reboot after the command.
+
+10 01 Set device ID
+F0 77 77 78 10 01 < deviceid:04-08 > F7
+deviceid must be set to 4 when master. The device will reboot after the command.
 -------------------------------------------------------------------------------
-11 Transformation pipelines - 00 Slot operation - 00 slot copy
+11 Transformation pipelines 
+
+00 Slot operation
+-----------------
+11 00 00 slot copy
 F0 77 77 78 11 00 00 < src slot:01-08 > < dest slot: 01-08 > F7
 
-11 Transformation pipelines - 00 Slot operation - 01 clear slot
+11 00 01 clear slot
 F0 77 77 78 11 00 01 < slot: 01-08 | All slot:7F > F7
 
-11 Transformation pipelines - 00 Slot operation - 02 slot attach port
+11 00 02 slot attach port
 F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
 port type : cable = 0 | jack = 1 | ithru = 2
 When slot = 0, the port is considered as detached from any slot.
 
-11 Transformation pipelines - 01 Pipe operation - 00 add pipe
+01 Pipe operation
+-----------------
+
+11 01 00 add pipe
 F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
 
-11 Transformation pipelines - 01 Pipe operation - 01 insert pipe before
+11 01 01 insert pipe before
 F0 77 77 78 11 01 01 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
 
-11 Transformation pipelines - 01 Pipe operation - 02 replace pipe
+11 01 02 replace pipe
 F0 77 77 78 11 01 02 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
 
-11 Transformation pipelines - 02 Pipe operation - 03 clear pipe index
+11 01 03 clear pipe index
 F0 77 77 78 11 01 03 <slot:1-8> <pipe idx:nn> F7
 
-11 Transformation pipelines - 02 Pipe operation - 04 clear first pipe id
+11 01 04 clear first pipe id
 F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
 
-11 Transformation pipelines - 02 Pipe operation - 05 pipe bypass index
-F0 77 77 78 11 01 04 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+11 01 05 pipe bypass index
+F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 -------------------------------------------------------------------------------
+7F Midi function ID acknowledgment toogle
+F0 77 77 78 7F F7
+-------------------------------------------------------------------------------
+
+PipeID     par1                 par2                       par3          par4
+00 MSGFLTR 0:high level filter  Filter bits mask 	  00              00
+                                channel voice:0001 (1)	  00              00
+			        syst. common :0010 (2)    00              00
+			        realtime     :0100 (4)    00              00
+			        realtime     :1000 (8)    00              00
+
+01 NOTECHG 0:transpose +        semitone:00-7F            00              00
+           1:transpose -        semitone:00-7F            00              00
+           2:split              split point: 00-7F        midi ch:00-7F   00
+           3:velocity split     velocity threshold:00-7F  midi ch:00-7F   00
+
+02 CHANMAP
+03 VELOCHG
+04 CCCHANG
+05 CLKDIVD
+06 LOOPBCK

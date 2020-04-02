@@ -349,6 +349,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
     // IntelliThru active ? If so, take the good routing rules
     if ( ithru ) {
       if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
+      cableInTargets = (uint16_t*)NULL; // To avoid warning
       serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
       attachedSlot = EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].attachedSlot;
     }

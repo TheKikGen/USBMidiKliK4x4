@@ -164,19 +164,19 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
 
   	if (portType == PORT_TYPE_CABLE ) {
       if ( port < USBCABLE_INTERFACE_MAX )
-        EEPROM_Params.midiRoutingRulesCable[port].attachedSlot = 0 ;
+        EEPROM_Params.midiRoutingRulesCable[port].attachedSlot = pipelineSlot ;
       else return false;
     }
     else
     if (portType == PORT_TYPE_JACK ) {
       if ( port < SERIAL_INTERFACE_COUNT )
-        EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = 0 ;
+        EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = pipelineSlot ;
       else return false;
     }
     else
     if (portType == PORT_TYPE_ITHRU ) {
       if ( port < SERIAL_INTERFACE_COUNT )
-        EEPROM_Params.midiRoutingRulesIntelliThru[port].attachedSlot = 0 ;
+        EEPROM_Params.midiRoutingRulesIntelliThru[port].attachedSlot = pipelineSlot ;
       else return false;
     }
     else return false;

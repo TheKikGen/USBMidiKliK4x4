@@ -390,7 +390,7 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
 ///////////////////////////////////////////////////////////////////////////////
 // LoopBack. Loopback a packet again to a specific port.   06
 //----------------------------------------------------------------------------
-// par1 : source Port type  0 = CABLE OUT, 1 = JACK IN or 7F= No change
+// par1 : port type  0 = CABLE OUT, 1 = JACK IN or 7F= No change
 // par2 : port/cable 0-F  (any if no change)
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
@@ -401,15 +401,14 @@ boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
 
 boolean MidiTransFn_LoopBack(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
-  midiPacket_t pk2 = { .i = pk->i }; // copy packet
-
+  midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
   // No change
-  if      ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
+  if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
   else {
-    pk2.packet[0] = (pk2.packet[0] & 0x0F) + (pipe->par2 << 4);
-    if ( pipe->par1 == 0  ) RoutePacketToTarget(FROM_USB, &pk2);
-    else if ( pipe->par1 == 1 ) RoutePacketToTarget(FROM_SERIAL, &pk2);
-    else return false;
+    // Adjust the port/cable nible but keep the CIN
+    pk2.packet[0] = (pk2.packet[0] & 0x0F) + ( pipe->par2 << 4 );
+    // Route with par1 value as  "FROM_USB" or "FROM_SERIAL"
+    RoutePacketToTarget(pipe->par1 , &pk2);
   }
 
   return true;
