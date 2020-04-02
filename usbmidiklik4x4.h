@@ -101,7 +101,8 @@ enum MidiRoutingReset {
   ROUTING_RESET_ALL,
   ROUTING_RESET_MIDIUSB,
   ROUTING_RESET_INTELLITHRU,
-  ROUTING_INTELLITHRU_OFF
+  ROUTING_INTELLITHRU_OFF,
+  ROUTING_CLEAR_ALL,
 };
 
 // Transformation pipe
@@ -255,7 +256,7 @@ typedef struct {
         // To allow dynamic change of bus mode.
 
         midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesSerial[B_SERIAL_INTERFACE_MAX];
+        midiRoutingRule_t midiRoutingRulesJack[B_SERIAL_INTERFACE_MAX];
 
         // IntelliThru routing rules
         midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];

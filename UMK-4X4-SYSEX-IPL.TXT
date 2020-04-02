@@ -18,6 +18,7 @@ FN Description / sub command
     01 Identity request
 08 Reboot in configuration mode
 0A Hardware reset
+    7F clear all midi, ithru, pipelines routing rules
 0B Set USB product string
 0C Set USB vendor id and product id
 0E Intelligent thru mode settings
@@ -26,7 +27,9 @@ FN Description / sub command
     02 set USB idle
     03 Set jack routing
 0F Midi routing settings
-    00 set midi port routing
+    00 Reset to factory default
+    01 set midi port routing
+    02 clear all midi, ithru, pipelines routing rules
 10 Bus mode settings
     00 Enable bus mode
     01 Set device Id
@@ -82,14 +85,17 @@ F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
 F0 77 77 78 0E 03 <JackIn port: 0-F> [jk out ports list: nn...nn] F7
 If no jack out ports list, IThru mode is disabled.
 -------------------------------------------------------------------------------
-0F Midi routing 
+0F Midi routing
 
-0F 00 Reset to default
+0F 00 Reset to factory default
 F0 77 77 78 0F 00 F7
 
 0F 01 Set midi port routing
 F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
 port type : cable = 0 |jack=1     port : 0-F      out ports list is optional.
+
+0F 02 Clear all midi, Ithru routing rules and pipelines
+F0 77 77 78 0F 02 F7
 -------------------------------------------------------------------------------
 10 Bus mode
 
@@ -101,7 +107,7 @@ The device will reboot after the command.
 F0 77 77 78 10 01 < deviceid:04-08 > F7
 deviceid must be set to 4 when master. The device will reboot after the command.
 -------------------------------------------------------------------------------
-11 Transformation pipelines 
+11 Transformation pipelines
 
 00 Slot operation
 -----------------

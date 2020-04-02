@@ -355,9 +355,9 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
     }
     // else Standard jack rules
     else {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
-      attachedSlot = EEPROM_Params.midiRoutingRulesSerial[sourcePort].attachedSlot;
+      cableInTargets = &EEPROM_Params.midiRoutingRulesJack[sourcePort].cableInTargetsMsk;
+      serialOutTargets = &EEPROM_Params.midiRoutingRulesJack[sourcePort].jackOutTargetsMsk;
+      attachedSlot = EEPROM_Params.midiRoutingRulesJack[sourcePort].attachedSlot;
     }
   }
   // A midi packet from USB cable out ?
@@ -452,11 +452,38 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 // ROUTING_RESET_MIDIUSB     : Midi USB and serial routing to defaults
 // ROUTING_RESET_INTELLITHRU : Intellithru to factory defaults
 // ROUTING_INTELLITHRU_OFF   : Stop IntelliThru
+// ROUTING_CLEAR_ALL         : Erase all routing and pipeline rules
 ///////////////////////////////////////////////////////////////////////////////
 void ResetMidiRoutingRules(uint8_t mode) {
 
   // Clear all pipelines slots
-  if (mode == ROUTING_RESET_ALL) TransPacketPipeline_ClearSlot(0x7F);
+  if (mode == ROUTING_RESET_ALL || ROUTING_CLEAR_ALL ) TransPacketPipeline_ClearSlot(0x7F);
+
+  if (mode == ROUTING_CLEAR_ALL ) {
+    for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
+
+      // Cables
+      EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
+      EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 0 ;
+
+    }
+    // Jack serial
+    for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
+      EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
+      EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
+    }
+
+    // "Intelligent thru" serial mode
+	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
+	    EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot = 0;
+	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0 ;
+		}
+		EEPROM_Params.intelliThruJackInMsk = 0;
+	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
+	}
+
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
@@ -465,16 +492,16 @@ void ResetMidiRoutingRules(uint8_t mode) {
 			// Cables
 	    EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
-	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1L << i ;
+	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
 
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 
 			// Jack serial
-	    EEPROM_Params.midiRoutingRulesSerial[i].attachedSlot = 0;
-	    EEPROM_Params.midiRoutingRulesSerial[i].cableInTargetsMsk = 1L << i ;
-	    EEPROM_Params.midiRoutingRulesSerial[i].jackOutTargetsMsk = 0  ;
+	    EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
+	    EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 1 << i ;
+	    EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
 	  }
 
   }

@@ -130,7 +130,7 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
     else
     {
         if (arg1 >= B_SERIAL_INTERFACE_MAX)  return -1;
-        mr = &EEPROM_Params.midiRoutingRulesSerial[arg1];
+        mr = &EEPROM_Params.midiRoutingRulesJack[arg1];
     }
     midiRoutingRule_t r;
     Wire.readBytes((uint8_t *)&r,sizeof(midiRoutingRule_t));
@@ -513,9 +513,9 @@ void I2C_SlavesRoutingSyncFromMaster()
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_CABLE, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesCable[i], sizeof(midiRoutingRule_t));
   }
 
-  // Send midiRoutingRulesSerial -  midiRoutingRulesIntelliThru
+  // Send midiRoutingRulesJack -  midiRoutingRulesIntelliThru
   for ( i=0 ; i != B_SERIAL_INTERFACE_MAX ; i ++ ) {
-    I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_SERIAL, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesSerial[i], sizeof(midiRoutingRule_t));
+    I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_SERIAL, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesJack[i], sizeof(midiRoutingRule_t));
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesIntelliThru[i], sizeof(midiRoutingRuleJack_t));
   }
 

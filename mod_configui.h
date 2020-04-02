@@ -248,7 +248,7 @@ void ShowMask16(uint16_t bitMsk,uint8_t maxValue)
         if (p >= maxValue ) {
           Serial.print(" ");
         } else {
-            if ( bitMsk & ( 1L << p) ) Serial.print("X");
+            if ( bitMsk & ( 1 << p) ) Serial.print("X");
             else   Serial.print(".");
         }
   }
@@ -270,9 +270,9 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
   } else
 
   if ( portType == PORT_TYPE_JACK ) {
-    attachedSlot  = EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot;
-    inTargetsMsk  = EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk;
-    outTargetsMsk = EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk;
+    attachedSlot  = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
+    inTargetsMsk  = EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
+    outTargetsMsk = EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
   }
   else return;
 
@@ -561,10 +561,10 @@ void AskMidiRouting(uint8_t portType)
       }
 		} else
 		if (portType == PORT_TYPE_JACK ) {
-			EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = attachedSlot;
+			EEPROM_Params.midiRoutingRulesJack[port].attachedSlot = attachedSlot;
       if ( jTargets + cTargets != 0 ) {
-			    EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk = cTargets;
-			    EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk = jTargets ;
+			    EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk = cTargets;
+			    EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk = jTargets ;
       }
 		} else
 		if (portType == PORT_TYPE_ITHRU ) {
@@ -821,7 +821,7 @@ void ShowConfigMenu()
 
       // Sysex config dump
 			case 'd':
-          SysexInternal_DumpToStream(0);
+          SysexInternal_DumpFullConfToStream(2);
           Serial.println();
         break;
 

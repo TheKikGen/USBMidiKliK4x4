@@ -154,7 +154,7 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
         for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++)
               EEPROM_Params.midiRoutingRulesCable[i].attachedSlot=0;
         for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++) {
-              EEPROM_Params.midiRoutingRulesSerial[i].attachedSlot = 0;
+              EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
               EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot=0;
         }
         return true;
@@ -170,7 +170,7 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
     else
     if (portType == PORT_TYPE_JACK ) {
       if ( port < SERIAL_INTERFACE_COUNT )
-        EEPROM_Params.midiRoutingRulesSerial[port].attachedSlot = pipelineSlot ;
+        EEPROM_Params.midiRoutingRulesJack[port].attachedSlot = pipelineSlot ;
       else return false;
     }
     else
@@ -410,7 +410,7 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.print("| Jacks                 | ");
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
-    else if ( EEPROM_Params.midiRoutingRulesSerial[j].attachedSlot == s)
+    else if ( EEPROM_Params.midiRoutingRulesJack[j].attachedSlot == s)
         Serial.print ("x");
     else Serial.print(".");
   }
