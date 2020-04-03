@@ -95,7 +95,7 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
   // Master packet have  a "dest" byte before the midi packet.
   if ( EEPROM_Params.I2C_DeviceId != B_MASTERID ) {
     masterMidiPacket_t mpk;
-    mpk.mpk.dest = TO_SERIAL;
+    mpk.mpk.dest = TO_JACK;
     mpk.mpk.pk.i = pk2.i;// Copy the midi packet &  queue it
 		I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
 		return;
@@ -117,7 +117,8 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
 {
   // midiRoutingRule
-  if (dataType == B_DTYPE_MIDI_ROUTING_RULES_CABLE  || dataType == B_DTYPE_MIDI_ROUTING_RULES_SERIAL )
+  if (dataType == B_DTYPE_MIDI_ROUTING_RULES_CABLE  || dataType == B_DTYPE_MIDI_ROUTING_RULES_SERIAL
+				|| dataType == B_DTYPE_MIDI_ROUTING_RULES_VIRTUAL )
   {
     midiRoutingRule_t *mr ;
     if (Wire.available() != sizeof(midiRoutingRule_t)) return -1;
@@ -128,10 +129,16 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
         mr = &EEPROM_Params.midiRoutingRulesCable[arg1];
     }
     else
+		if ( dataType == B_DTYPE_MIDI_ROUTING_RULES_SERIAL )
     {
         if (arg1 >= B_SERIAL_INTERFACE_MAX)  return -1;
         mr = &EEPROM_Params.midiRoutingRulesJack[arg1];
     }
+		else
+		{
+				if (arg1 >= VIRTUAL_INTERFACE_MAX)  return -1;
+				mr = &EEPROM_Params.midiRoutingRulesVirtual[arg1];
+		}
     midiRoutingRule_t r;
     Wire.readBytes((uint8_t *)&r,sizeof(midiRoutingRule_t));
     if (memcmpcpy((void*)mr,(void*)&r,sizeof(midiRoutingRule_t))) I2C_SlaveSyncDoUpdate = true;
@@ -519,6 +526,12 @@ void I2C_SlavesRoutingSyncFromMaster()
     I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesIntelliThru[i], sizeof(midiRoutingRuleJack_t));
   }
 
+	// Send midiRoutingRulesVirtual
+  for ( i=0 ; i != VIRTUAL_INTERFACE_MAX ; i ++ ) {
+    I2C_SendData(B_DTYPE_MIDI_ROUTING_RULES_VIRTUAL, i, 0, (uint8_t *)&EEPROM_Params.midiRoutingRulesVirtual[i], sizeof(midiRoutingRule_t));
+  }
+
+
   I2C_SendData(B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK, 0, 0,(uint8_t *)&EEPROM_Params.intelliThruJackInMsk, sizeof(EEPROM_Params.intelliThruJackInMsk));
   I2C_SendData(B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD, 0, 0, (uint8_t *)&EEPROM_Params.intelliThruDelayPeriod, sizeof(EEPROM_Params.intelliThruDelayPeriod));
 
@@ -558,7 +571,7 @@ void I2C_ProcessMaster ()
       if ( I2C_getPacket(I2C_DeviceIdActive[d],&mpk) <= 0 ) continue; // Error or nothing got
       if ( mpk.mpk.pk.i == 0 ) continue;  // Process only non empty packets
 
-      if ( mpk.mpk.dest == TO_SERIAL ) {
+      if ( mpk.mpk.dest == TO_JACK ) {
           uint8_t targetPort = mpk.mpk.pk.packet[0] >> 4;
           I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
          // Send to a cable IN only if USB is available on the master

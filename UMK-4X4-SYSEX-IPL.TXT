@@ -92,7 +92,7 @@ F0 77 77 78 0F 00 F7
 
 0F 01 Set midi port routing
 F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
-port type : cable = 0 |jack=1     port : 0-F      out ports list is optional.
+port type : cable = 0 |jack=1 | virtual=2 (in only) port : 0-F out ports list is optional
 
 0F 02 Clear all midi, Ithru routing rules and pipelines
 F0 77 77 78 0F 02 F7
@@ -119,7 +119,7 @@ F0 77 77 78 11 00 01 < slot: 01-08 | All slot:7F > F7
 
 11 00 02 slot attach port
 F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
-port type : cable = 0 | jack = 1 | ithru = 2
+port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 When slot = 0, the port is considered as detached from any slot.
 
 01 Pipe operation

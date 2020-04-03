@@ -79,7 +79,7 @@ void    TransPacketPipe_Clear(midiTransPipe_t *);
 //boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
 //boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 //boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
-boolean TransPacketPipelineExec(uint8_t, midiTransPipe_t *,  midiPacket_t *);
+boolean TransPacketPipelineExec(uint8_t, uint8_t,  midiPacket_t *);
 //Shared. See usbmidiKlik4x4.h
 //void    ShowPipelineSlot(uint8_t );
 
@@ -151,11 +151,14 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
 {
     // Detach ALL
     if (portType == 0x7F) {
-        for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++)
+        for (uint8_t i = 0; i != USBCABLE_INTERFACE_MAX ; i++)
               EEPROM_Params.midiRoutingRulesCable[i].attachedSlot=0;
-        for (uint8_t i = 0; i< USBCABLE_INTERFACE_MAX ; i++) {
+        for (uint8_t i = 0; i != SERIAL_INTERFACE_COUNT ; i++) {
               EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
               EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot=0;
+        }
+        for (uint8_t i = 0; i != VIRTUAL_INTERFACE_MAX ; i++) {
+              EEPROM_Params.midiRoutingRulesVirtual[i].attachedSlot = 0;
         }
         return true;
     }
@@ -171,6 +174,11 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
     if (portType == PORT_TYPE_JACK ) {
       if ( port < SERIAL_INTERFACE_COUNT )
         EEPROM_Params.midiRoutingRulesJack[port].attachedSlot = pipelineSlot ;
+      else return false;
+    }
+    if (portType == PORT_TYPE_VIRTUAL ) {
+      if ( port < VIRTUAL_INTERFACE_MAX )
+        EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot = pipelineSlot ;
       else return false;
     }
     else
@@ -342,16 +350,32 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
 // Modify the packet according pipeline slot affected to the source port
 // return true if the result must be routed, false if the packet is finally dropped
 ///////////////////////////////////////////////////////////////////////////////
-boolean TransPacketPipelineExec(uint8_t source, midiTransPipe_t *pipeLine,  midiPacket_t *pk) {
+boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk) {
+
+  // Eight Slot are possible currently. Change to uint16_t if more.
+  static uint8_t slotLockMsk = 0;
+
+  if ( slot < 1 || slot > MIDI_TRANS_PIPELINE_SLOT_SIZE) return false;
+
+  // Check if the pipeline slot is already running, and block it to avoid infinite loop
+  if ( slotLockMsk & ( 1 << --slot) ) return true; // True will allow port routing
+
+  slotLockMsk |= (1 << slot); // Lock slot
+
+  midiTransPipe_t *pipeLine = EEPROM_Params.midiTransPipelineSlots[slot].pipeline;
+
+  boolean r = true ;
   // Apply transformation function pipes
   for (uint8_t i=0; i != MIDI_TRANS_PIPELINE_SIZE ; i++) {
       // Apply active pipes only
       if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) break;
       if ( pipeLine->byPass ) continue; // ByPass
-      if (! MidiTransFnVector[pipeLine->pId].pipeFn(source, pk , pipeLine++) )
-          return false;
+      if (! (r = MidiTransFnVector[pipeLine->pId].pipeFn(source, pk , pipeLine++)) )
+          break;
   }
-  return true;
+
+  slotLockMsk &= ~(1 << slot);  // Unlock slot
+  return r;
 }
 //////////////////////////////////////////////////////////////////////////////
 // Show the content of a pipeline
@@ -420,6 +444,15 @@ void ShowPipelineSlot(uint8_t s) {
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EEPROM_Params.midiRoutingRulesIntelliThru[j].attachedSlot == s)
+        Serial.print ("x");
+    else Serial.print(".");
+  }
+
+  Serial.println(" |");
+  Serial.print("| Virtual               | ");
+  for (uint8_t j=0; j < 16 ; j++) {
+    if (j > VIRTUAL_INTERFACE_MAX) Serial.print(" ");
+    else if ( EEPROM_Params.midiRoutingRulesVirtual[j].attachedSlot == s)
         Serial.print ("x");
     else Serial.print(".");
   }

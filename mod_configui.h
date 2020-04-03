@@ -273,6 +273,11 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
     attachedSlot  = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
     inTargetsMsk  = EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
     outTargetsMsk = EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
+  } else
+  if (portType == PORT_TYPE_VIRTUAL ) {
+    attachedSlot  = EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot;
+    inTargetsMsk  = EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk;
+    outTargetsMsk = EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk;
   }
   else return;
 
@@ -345,6 +350,12 @@ void ShowMidiRouting(uint8_t portType)
 			Serial.print("MIDI IN JACK ROUTING ");
 			maxPorts = SERIAL_INTERFACE_COUNT;
 	}
+  // Virtual
+	else
+	if (portType == PORT_TYPE_VIRTUAL) {
+			Serial.print("VIRTUAL IN ROUTING ");
+			maxPorts = VIRTUAL_INTERFACE_MAX;
+	}
   else return;
 
 	Serial.print(" (");Serial.print(maxPorts);
@@ -355,7 +366,9 @@ void ShowMidiRouting(uint8_t portType)
 
 	Serial.println();
 	Serial.print("| ");
-	Serial.print(portType == PORT_TYPE_CABLE ? "Cb":"Jk");
+  if (portType == PORT_TYPE_CABLE) Serial.print("Cb");
+  else if (portType == PORT_TYPE_VIRTUAL) Serial.print("Vr");
+  else Serial.print("Jk");
 
 	Serial.print(" | Pipeline | Cable IN 1111111 | Jack OUT 1111111 |");
   if ( portType == PORT_TYPE_JACK) Serial.print("    <-- ITHRU -->  Jack OUT  1111111 |");
@@ -444,6 +457,9 @@ void ShowGlobalSettings()
 	Serial.print("MIDI serial ports   : ");
 	Serial.println(SERIAL_INTERFACE_COUNT);
 
+  Serial.print("MIDI virtual ports  : ");
+	Serial.println(VIRTUAL_INTERFACE_MAX);
+
 	Serial.print("USB VID - PID       : ");
 	Serial.print( EEPROM_Params.vendorID,HEX);
 	Serial.print(" - ");
@@ -460,14 +476,22 @@ void ShowGlobalSettings()
 uint16_t AskMidiRoutingTargets(uint8_t portType,uint8_t portTypeOut, uint8_t port)
 {
 	uint16_t targetsMsk = 0;
-	uint8_t  portMax = (portTypeOut == PORT_TYPE_CABLE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
-	uint8_t choice;
+	uint8_t  portMax;
+
+  if      (portTypeOut == PORT_TYPE_CABLE) portMax = USBCABLE_INTERFACE_MAX;
+  else if (portTypeOut == PORT_TYPE_JACK ) portMax = SERIAL_INTERFACE_COUNT;
+  else return 0;
+
+  uint8_t choice;
 
 	if (portType == PORT_TYPE_ITHRU && portTypeOut == PORT_TYPE_CABLE ) return 0;
 
 	for ( uint8_t i=0 ; i != portMax  ; i++ ){
 		Serial.print("Route ");
-		Serial.print(portType == PORT_TYPE_CABLE ? "Cable OUT#":"Jack IN#");
+    if (portType == PORT_TYPE_CABLE ) Serial.print("Cable OUT#");
+    else if (portType == PORT_TYPE_VIRTUAL ) Serial.print("Virtual IN#");
+    else Serial.print("Jack IN#");
+
 		if (port+1 < 10) Serial.print("0");
 		Serial.print(port+1);
 		Serial.print(" to ");
@@ -487,16 +511,28 @@ uint16_t AskMidiRoutingTargets(uint8_t portType,uint8_t portTypeOut, uint8_t por
 ///////////////////////////////////////////////////////////////////////////////
 void AskMidiRouting(uint8_t portType)
 {
-	uint8_t  portMax = (portType == PORT_TYPE_CABLE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
+	uint8_t  portMax;
+
+  if      (portType == PORT_TYPE_CABLE) portMax = USBCABLE_INTERFACE_MAX;
+  else if (portType == PORT_TYPE_JACK || portType == PORT_TYPE_ITHRU) portMax = SERIAL_INTERFACE_COUNT;
+  else if (portType == PORT_TYPE_VIRTUAL) portMax = VIRTUAL_INTERFACE_MAX;
+  else return ;
+
 	uint8_t  choice;
 
 	Serial.print("-- Set ");
-	Serial.print(portType == PORT_TYPE_CABLE ? "USB Cable OUT":"Jack IN");
+  if      (portType == PORT_TYPE_CABLE) Serial.print("USB Cable OUT");
+  else if (portType == PORT_TYPE_VIRTUAL) Serial.print("Virtual IN");
+  else Serial.print("Jack IN");
+
 	if (portType == PORT_TYPE_ITHRU ) Serial.print(" IntelliThru ");
 	Serial.println(" routing --");
 
 	Serial.print("Enter ");
-	Serial.print(portType == PORT_TYPE_CABLE ? "Cable OUT":"Jack IN");
+	if      (portType == PORT_TYPE_CABLE) Serial.print("Cable OUT");
+  else if (portType == PORT_TYPE_VIRTUAL) Serial.print("Virtual IN");
+  else Serial.print("Jack IN");
+
 	Serial.print (" # (01-");
 	Serial.print( portMax > 9 ? "":"0");
 	Serial.print( portMax);
@@ -567,7 +603,14 @@ void AskMidiRouting(uint8_t portType)
 			    EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk = jTargets ;
       }
 		} else
-		if (portType == PORT_TYPE_ITHRU ) {
+    if (portType == PORT_TYPE_VIRTUAL ) {
+      EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot = attachedSlot;
+      if ( jTargets + cTargets != 0 ) {
+          EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk = cTargets;
+          EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk = jTargets ;
+      }
+    } else
+  	if (portType == PORT_TYPE_ITHRU ) {
 			if ( jTargets != 0 ) {
         EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk = jTargets ;
         EEPROM_Params.intelliThruJackInMsk |= (1 << port); // enable Ithru for this port
@@ -665,21 +708,22 @@ void ShowConfigMenu()
   {
   "0Show global settings",
   "1Show midi routing",
+  "vShow virtual routing",
   "2Usb VID PID",
   "3Usb product string",
   "4Cable OUT routing",
   "5Jack IN routing",
   "6IThru routing",
   "7IThru timeout",
+  "tVirtual IN routing",
+  "pShow pipeline",
   "8Toggle bus mode",
   "9Set device Id",
   "aShow active devices",
   "dSYSEX settings dump",
   ".",
-  ".",
   "eReload settings",
   "fFactory settings",
-  "pShow pipeline",
   "rFactory routing",
   "sSave settings",
   "zDebug mode",
@@ -888,6 +932,19 @@ void ShowConfigMenu()
 					showMenu = false;
 				}
 				break;
+
+      // Show virtual midi routing
+			case 't':
+          ShowMidiRouting(PORT_TYPE_VIRTUAL);
+          Serial.println();
+  	      showMenu = false;
+  			  break;
+
+      // Virtual In midi routing
+			case 'v':
+  				AskMidiRouting(PORT_TYPE_VIRTUAL);
+  				Serial.println();
+  				break;
 
       // debug Mode
       case 'z':

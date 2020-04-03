@@ -90,6 +90,8 @@ boolean MidiTransFn_ClockDivider(uint8_t, midiPacket_t *, midiTransPipe_t *);
 boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *);
 boolean MidiTransFn_LoopBack(uint8_t, midiPacket_t *, midiTransPipe_t *);
 
+boolean MidiTransFn_SlotChain_CheckParms(midiTransPipe_t *);
+boolean MidiTransFn_SlotChain(uint8_t, midiPacket_t *, midiTransPipe_t *);
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Midi transformation functions vector
@@ -105,6 +107,7 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_CC_CHANGER,
   FN_TRANSPIPE_CLOCK_DIVIDER,
   FN_TRANSPIPE_LOOPBACK,
+  FN_TRANSPIPE_SLOT_CHAIN,
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
@@ -129,6 +132,7 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
    {"CCCHANG", &MidiTransFn_CCChanger,     &MidiTransFn_CCChanger_CheckParms},
    {"CLKDIVD", &MidiTransFn_ClockDivider,  &MidiTransFn_ClockDivider_CheckParms},
    {"LOOPBCK", &MidiTransFn_LoopBack,      &MidiTransFn_LoopBack_CheckParms},
+   {"SLOTCHN", &MidiTransFn_SlotChain,     &MidiTransFn_SlotChain_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -390,11 +394,11 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
 ///////////////////////////////////////////////////////////////////////////////
 // LoopBack. Loopback a packet again to a specific port.   06
 //----------------------------------------------------------------------------
-// par1 : port type  0 = CABLE OUT, 1 = JACK IN or 7F= No change
+// par1 : port type  0 = CABLE OUT, 1 = JACK IN , 2=VIRTUAL or 7F= No change
 // par2 : port/cable 0-F  (any if no change)
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
-  if ( pipe->par1 > 1 && pipe->par1 != 0x7F ) return false;
+  if ( pipe->par1 > 2 && pipe->par1 != 0x7F ) return false;
   if ( pipe->par2 > 0x0F ) return false;
   return true;
 }
@@ -407,9 +411,23 @@ boolean MidiTransFn_LoopBack(uint8_t source, midiPacket_t *pk, midiTransPipe_t *
   else {
     // Adjust the port/cable nible but keep the CIN
     pk2.packet[0] = (pk2.packet[0] & 0x0F) + ( pipe->par2 << 4 );
-    // Route with par1 value as  "FROM_USB" or "FROM_SERIAL"
+    // Route with par1 value as  "FROM_USB" or "FROM_JACK" or "FROM_VIRTUAL"
     RoutePacketToTarget(pipe->par1 , &pk2);
   }
 
   return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// SlotChain. Chain a slot from another.   07
+//----------------------------------------------------------------------------
+// par1 : slot #
+///////////////////////////////////////////////////////////////////////////////
+boolean MidiTransFn_SlotChain_CheckParms(midiTransPipe_t *pipe) {
+  if (pipe->par1 < 1 || pipe->par1 > MIDI_TRANS_PIPELINE_SLOT_SIZE ) return false;
+  return true;
+}
+
+boolean MidiTransFn_SlotChain(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+  return TransPacketPipelineExec(source, pipe->par1,  pk) ;
 }

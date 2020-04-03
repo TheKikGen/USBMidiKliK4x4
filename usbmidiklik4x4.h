@@ -83,17 +83,23 @@ enum nextBootMode {
 // Number of pipelines slots
 #define MIDI_TRANS_PIPELINE_SLOT_SIZE 8
 
+// Number of virtual interface ports
+#define VIRTUAL_INTERFACE_MAX 8
+
+
 enum MidiRoutingDirection {
   FROM_USB=0,
-  FROM_SERIAL=1,
-  TO_SERIAL,
+  FROM_JACK=1,
+  FROM_VIRTUAL=2,
+  TO_JACK,
   TO_USB,
 } ;
 
 enum MidiPortType {
   PORT_TYPE_CABLE=0,
   PORT_TYPE_JACK=1,
-  PORT_TYPE_ITHRU=2,
+  PORT_TYPE_VIRTUAL=2,
+  PORT_TYPE_ITHRU=3,
   PORT_TYPE_SIZE
 };
 
@@ -211,6 +217,7 @@ uint8_t static const BusCommandRequestSize[]= {
 enum BusDataType {
   B_DTYPE_MIDI_ROUTING_RULES_CABLE,
   B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
+  B_DTYPE_MIDI_ROUTING_RULES_VIRTUAL,
   B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
   B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
@@ -257,6 +264,7 @@ typedef struct {
 
         midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
         midiRoutingRule_t midiRoutingRulesJack[B_SERIAL_INTERFACE_MAX];
+        midiRoutingRule_t midiRoutingRulesVirtual[VIRTUAL_INTERFACE_MAX];
 
         // IntelliThru routing rules
         midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];

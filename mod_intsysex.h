@@ -209,7 +209,7 @@ void SysExInternal_SendFnACK(uint8_t source,uint8_t errorCode) {
       // send to USB , cable 0
       USBMidi_SendSysExPacket(sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
   } else
-  if (source == FROM_SERIAL ) {
+  if (source == FROM_JACK ) {
       // Send to serial port 0 being the only possible for sysex
       serialHw[0]->write(sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
   }
@@ -302,7 +302,7 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t source,uint8_t *sxMsg) {
     return SX_ERROR_NO_ERROR;
 
   } else
-  if (source == FROM_SERIAL ) {
+  if (source == FROM_JACK ) {
     // Send to serial port 0 being the only possible for sysex
     serialHw[0]->write(sysExInternalBuffer,l);
     return SX_ERROR_NO_ERROR;
@@ -321,7 +321,7 @@ uint8_t SysExInternal_fnIdentityRequest(uint8_t source,uint8_t *sxMsg) {
         USBMidi_SendSysExPacket(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_ERROR_NO_ERROR;
       } else
-      if (source == FROM_SERIAL ) {
+      if (source == FROM_JACK ) {
         // Send to serial port 0 being the only possible for sysex
         serialHw[0]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_ERROR_NO_ERROR;
@@ -470,7 +470,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 //
 // 0F 01 Set midi port routing
 // F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
-// port type : cable = 0 |jack=1     port : 0-F    out ports list is optional.
+// port type : cable = 0 |jack=1 | virtual=2 (in only)   port : 0-F    out ports list is optional.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
@@ -493,13 +493,15 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
     if (inPortType == PORT_TYPE_CABLE ) {
       if ( inPort >= USBCABLE_INTERFACE_MAX ) return SX_ERROR_BAD_PORT;
     }
+    if (inPortType == PORT_TYPE_JACK ) {
+      if ( inPort >= SERIAL_INTERFACE_COUNT ) return SX_ERROR_BAD_PORT;
+    }
+    if (inPortType == PORT_TYPE_VIRTUAL ) {
+      if ( inPort >= VIRTUAL_INTERFACE_MAX ) return SX_ERROR_BAD_PORT;
+    }
     else
     if (outPortType == PORT_TYPE_CABLE ) {
       if (msgLen > (USBCABLE_INTERFACE_MAX + 5) ) return SX_ERROR_BAD_MSG_SIZE;
-    }
-    else
-    if (inPortType == PORT_TYPE_JACK ) {
-      if ( inPort >= SERIAL_INTERFACE_COUNT ) return SX_ERROR_BAD_PORT;
     }
     else
     if (outPortType == PORT_TYPE_JACK  ) {
@@ -587,7 +589,7 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t source,uint8_t *sxMsg) {
 //
 // 11 00 Slot operation - 02 slot attach port
 // F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
-// port type : cable = 0 | jack = 1 | ithru = 2
+// port type : cable = 0 | jack = 1 | virtual = 2 | ithru = 3
 // When slot = 0, the port is considered as detached from any slot.
 //
 // 11 01 Pipe operation - 00 add pipe
@@ -726,6 +728,10 @@ void SysexInternal_DumpFullConfToStream(uint8_t dest) {
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
         SysexInternal_DumpSendConfToStream(0x0F010100 + i , dest);
 
+  // Virtual In Routing,
+  for (  uint32_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++)
+        SysexInternal_DumpSendConfToStream(0x0F010200 + i , dest);
+
   // Cable out attached slot
   for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++)
         SysexInternal_DumpSendConfToStream(0x11000000 + i , dest);
@@ -734,9 +740,13 @@ void SysexInternal_DumpFullConfToStream(uint8_t dest) {
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
         SysexInternal_DumpSendConfToStream(0x11000100 + i , dest);
 
+  // Virtual In attached slot
+  for (  uint32_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++)
+        SysexInternal_DumpSendConfToStream(0x11000200 + i , dest);
+
   // Ithru attached slot
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x11000200 + i , dest);
+        SysexInternal_DumpSendConfToStream(0x11000300 + i , dest);
 
   // PIPES Dump : 11 01 <slot> < pipe index>
   for (  uint32_t s=1; s <= MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++)
@@ -830,7 +840,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // 0F Midi routing - 01 Set midi port routing
   // Dump : 0F 01 <inport type> <inport>
   // Generate F0 77 77 78 0F 01 <inport type> <inport> <outport type>[outports list: nn...nn] F7
-  if ( sxAddr >= 0x0F010000 && sxAddr <= 0x0F01010F ) {
+  if ( sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F ) {
       uint8_t inPortType = ( (sxAddr<<16) >> 24 );
       uint8_t inPort = ( sxAddr & 0x0000000FF );
       uint16_t cmsk = 0;
@@ -847,6 +857,10 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       else if (inPortType == 1 ){  // jack
         cmsk = EEPROM_Params.midiRoutingRulesJack[inPort].cableInTargetsMsk;
         jmsk = EEPROM_Params.midiRoutingRulesJack[inPort].jackOutTargetsMsk;
+      }
+      else if (inPortType == 2 ) {  // Virtual
+        cmsk = EEPROM_Params.midiRoutingRulesVirtual[inPort].cableInTargetsMsk;
+        jmsk = EEPROM_Params.midiRoutingRulesVirtual[inPort].jackOutTargetsMsk;
       } else return 0;
 
       if ( ! (cmsk + jmsk) ) return 0;
@@ -906,7 +920,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // Dump : 11 00 < in port type> < in port: 0-F>
   // Generates : F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
 
-  if ( sxAddr >= 0x11000000 && sxAddr <= 0x1100020F ) {
+  if ( sxAddr >= 0x11000000 && sxAddr <= 0x1100030F ) {
 
     uint8_t inPortType = ( (sxAddr<<16) >> 24 );
     uint8_t inPort = ( sxAddr & 0x0000000FF );
@@ -919,7 +933,8 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = inPort;
     if ( inPortType == 0) *(++buff2) = EEPROM_Params.midiRoutingRulesCable[inPort].attachedSlot;
     else if ( inPortType == 1) *(++buff2) = EEPROM_Params.midiRoutingRulesJack[inPort].attachedSlot;
-    else if ( inPortType == 2) *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[inPort].attachedSlot;
+    else if ( inPortType == 2) *(++buff2) = EEPROM_Params.midiRoutingRulesVirtual[inPort].attachedSlot;
+    else if ( inPortType == 3) *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[inPort].attachedSlot;
     else return 0;
 
     *(++buff2) = 0xF7;

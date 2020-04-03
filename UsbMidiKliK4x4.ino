@@ -252,7 +252,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 
     else return; // We should never be here !
 
-    RoutePacketToTarget( FROM_SERIAL,&pk);
+    RoutePacketToTarget( FROM_JACK,&pk);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -285,7 +285,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
       pk[cable].packet[ packetLen[cable] ] = midiXparser::eoxStatus;
       // CIN = 5/6/7  sysex ends with one/two/three bytes,
       pk[cable].packet[0] = (cable << 4) + (packetLen[cable] + 4) ;
-      RoutePacketToTarget( FROM_SERIAL,&pk[cable]);
+      RoutePacketToTarget( FROM_JACK,&pk[cable]);
       packetLen[cable] = 0;
       pk[cable].i = 0;
 			return;
@@ -299,7 +299,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 	  // Packet complete ?
 	  if (packetLen[cable] == 3 ) {
 	      pk[cable].packet[0] = (cable << 4) + 4 ; // Sysex start or continue
-	      RoutePacketToTarget( FROM_SERIAL,&pk[cable]);
+	      RoutePacketToTarget( FROM_JACK,&pk[cable]);
 	      packetLen[cable] = 0;
 	      pk[cable].i = 0;
 	  }
@@ -314,9 +314,8 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 {
-  static boolean pipeLineLock = false;
 
-  if ( source != FROM_USB && source != FROM_SERIAL ) return;
+  if ( source != FROM_USB && source != FROM_JACK && source != FROM_VIRTUAL) return;
 
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
@@ -334,7 +333,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
   FLASH_LED_IN(sourcePort);
 
   // A midi packet from serial jack ?
-  if ( source == FROM_SERIAL ) {
+  if ( source == FROM_JACK ) {
     // Check at the physical level (i.e. not the bus)
     if ( sourcePort >= SERIAL_INTERFACE_MAX ) return;
 
@@ -361,11 +360,18 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
     }
   }
   // A midi packet from USB cable out ?
-  else {
+  else if ( source == FROM_USB ) {
     if ( sourcePort >= USBCABLE_INTERFACE_MAX ) return;
     cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
     serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
     attachedSlot = EEPROM_Params.midiRoutingRulesCable[sourcePort].attachedSlot;
+  }
+  // Virtual port
+  else if ( source == FROM_VIRTUAL ) {
+    if ( sourcePort >= VIRTUAL_INTERFACE_MAX ) return;
+    cableInTargets = &EEPROM_Params.midiRoutingRulesVirtual[sourcePort].cableInTargetsMsk;
+    serialOutTargets = &EEPROM_Params.midiRoutingRulesVirtual[sourcePort].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesVirtual[sourcePort].attachedSlot;
   }
 
 	// Sysex is a particular case when using packets.
@@ -384,15 +390,8 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 
 	} else msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
 
-  // 1/ Apply pipeline if any and not empty
-  if ( !pipeLineLock && attachedSlot ) {
-    if ( EEPROM_Params.midiTransPipelineSlots[attachedSlot-1].pipeline[0].pId != FN_TRANSPIPE_NOPIPE) {
-      pipeLineLock = true; // Avoid infinite loop
-      boolean r = TransPacketPipelineExec(source, EEPROM_Params.midiTransPipelineSlots[attachedSlot-1].pipeline, pk) ;
-      pipeLineLock = false;
-      if (!r) return; // Drop packet
-    }
-  }
+  // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
+  if ( attachedSlot && !TransPacketPipelineExec(source, attachedSlot, pk) ) return ;
 
   // 2/ Apply serial jack routing if a target match
   if ( *serialOutTargets) {
@@ -449,7 +448,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 ///////////////////////////////////////////////////////////////////////////////
 // Reset routing rules to default factory
 // ROUTING_RESET_ALL         : Factory defaults
-// ROUTING_RESET_MIDIUSB     : Midi USB and serial routing to defaults
+// ROUTING_RESET_MIDIUSB     : Midi USB , serial, virtual routing to defaults
 // ROUTING_RESET_INTELLITHRU : Intellithru to factory defaults
 // ROUTING_INTELLITHRU_OFF   : Stop IntelliThru
 // ROUTING_CLEAR_ALL         : Erase all routing and pipeline rules
@@ -457,7 +456,19 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 void ResetMidiRoutingRules(uint8_t mode) {
 
   // Clear all pipelines slots
-  if (mode == ROUTING_RESET_ALL || ROUTING_CLEAR_ALL ) TransPacketPipeline_ClearSlot(0x7F);
+  if (mode == ROUTING_RESET_ALL || mode == ROUTING_CLEAR_ALL ) {
+      TransPacketPipeline_ClearSlot(0x7F);
+  }
+
+  if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB || mode == ROUTING_CLEAR_ALL ) {
+    // Virtual
+    for ( uint8_t i = 0 ; i != VIRTUAL_INTERFACE_MAX ; i++ ) {
+      EEPROM_Params.midiRoutingRulesVirtual[i].attachedSlot = 0;
+      EEPROM_Params.midiRoutingRulesVirtual[i].cableInTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesVirtual[i].jackOutTargetsMsk = 0  ;
+    }
+  }
+
 
   if (mode == ROUTING_CLEAR_ALL ) {
     for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
@@ -488,16 +499,13 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
 	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
-
 			// Cables
 	    EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
 	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
-
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-
 			// Jack serial
 	    EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 1 << i ;
