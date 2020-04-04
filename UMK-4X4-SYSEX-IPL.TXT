@@ -168,7 +168,7 @@ PipeID     par1                 par2                     par3            par4
            ch map to port:02    source ch:0-F             midi port:0-F   00
 
 
-06 LOOPBCK dest portype dest    port:0-F                  00              00
+06 LOOPBCK dest portype dest    filter bits mask          port:0-F        00
            0:cbl out| 1:jk in|
            2:virtual|7F:no chg
 

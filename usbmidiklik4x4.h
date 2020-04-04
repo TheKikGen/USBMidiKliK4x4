@@ -89,30 +89,18 @@ enum nextBootMode {
 // Empty pipe
 #define FN_TRANSPIPE_NOPIPE 0xFF
 
-// Structures
-enum MidiRoutingDirection {
-  FROM_USB=0,
-  FROM_JACK=1,
-  FROM_VIRTUAL=2,
-  TO_JACK,
-  TO_USB,
-} ;
+// Port types
+#define PORT_TYPE_CABLE 0
+#define PORT_TYPE_JACK 1
+#define PORT_TYPE_VIRTUAL 2
+#define PORT_TYPE_ITHRU 3
 
-enum MidiPortType {
-  PORT_TYPE_CABLE=0,
-  PORT_TYPE_JACK=1,
-  PORT_TYPE_VIRTUAL=2,
-  PORT_TYPE_ITHRU=3,
-  PORT_TYPE_SIZE
-};
-
-enum MidiRoutingReset {
-  ROUTING_RESET_ALL,
-  ROUTING_RESET_MIDIUSB,
-  ROUTING_RESET_INTELLITHRU,
-  ROUTING_INTELLITHRU_OFF,
-  ROUTING_CLEAR_ALL,
-};
+// Routing reset modes
+#define ROUTING_RESET_ALL 0
+#define ROUTING_RESET_MIDIUSB 1
+#define ROUTING_RESET_INTELLITHRU 2
+#define ROUTING_INTELLITHRU_OFF 3
+#define ROUTING_CLEAR_ALL 4
 
 // Transformation pipe
 typedef struct {
@@ -269,7 +257,7 @@ typedef struct {
         midiRoutingRule_t midiRoutingRulesJack[B_SERIAL_INTERFACE_MAX];
         midiRoutingRule_t midiRoutingRulesVirtual[VIRTUAL_INTERFACE_MAX];
 
-        // IntelliThru routing rules
+        // IntelliThru routing rules jack only
         midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];
         uint16_t              intelliThruJackInMsk;
         uint8_t               intelliThruDelayPeriod; // 1 to 255 periods of 15s.

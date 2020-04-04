@@ -150,7 +150,7 @@ RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 int memcmpcpy ( void * pDest, void * pSrc, size_t sz ) {
 
   int r = 0;
-  if ( r = memcmp(pDest,pSrc,sz) ) {
+  if ( ( r = memcmp(pDest,pSrc,sz) ) ) {
     memcpy(pDest,pSrc,sz);
   };
 
@@ -252,7 +252,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 
     else return; // We should never be here !
 
-    RoutePacketToTarget( FROM_JACK,&pk);
+    RoutePacketToTarget( PORT_TYPE_JACK,&pk);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -285,7 +285,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
       pk[cable].packet[ packetLen[cable] ] = midiXparser::eoxStatus;
       // CIN = 5/6/7  sysex ends with one/two/three bytes,
       pk[cable].packet[0] = (cable << 4) + (packetLen[cable] + 4) ;
-      RoutePacketToTarget( FROM_JACK,&pk[cable]);
+      RoutePacketToTarget( PORT_TYPE_JACK,&pk[cable]);
       packetLen[cable] = 0;
       pk[cable].i = 0;
 			return;
@@ -299,7 +299,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 	  // Packet complete ?
 	  if (packetLen[cable] == 3 ) {
 	      pk[cable].packet[0] = (cable << 4) + 4 ; // Sysex start or continue
-	      RoutePacketToTarget( FROM_JACK,&pk[cable]);
+	      RoutePacketToTarget( PORT_TYPE_JACK,&pk[cable]);
 	      packetLen[cable] = 0;
 	      pk[cable].i = 0;
 	  }
@@ -312,88 +312,86 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 // Route a packet from a midi IN jack / USB OUT to
 // a midi OUT jacks / USB IN  or I2C remote serial midi on another device
 ///////////////////////////////////////////////////////////////////////////////
-void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
+void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 {
 
-  if ( source != FROM_USB && source != FROM_JACK && source != FROM_VIRTUAL) return;
+  if ( portType != PORT_TYPE_CABLE && portType != PORT_TYPE_JACK && portType != PORT_TYPE_VIRTUAL) return;
 
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
-  uint8_t sourcePort  = pk->packet[0] >> 4;
+  uint8_t port  = pk->packet[0] >> 4;
   uint8_t cin         = pk->packet[0] & 0x0F ;
 
   // ROUTING rules pointers
-	uint16_t *cableInTargets ;
-	uint16_t *serialOutTargets ;
+	uint16_t *cbInTargets  = (uint16_t*)NULL; // To avoid warning ;
+	uint16_t *jkOutTargets = (uint16_t*)NULL;
   uint8_t   attachedSlot = 0;
 
   // Save intelliThruActive state as it could be changed in an interrupt
   boolean ithru = intelliThruActive;
 
-  FLASH_LED_IN(sourcePort);
+  FLASH_LED_IN(port);
 
   // A midi packet from serial jack ?
-  if ( source == FROM_JACK ) {
+  if ( portType == PORT_TYPE_JACK ) {
     // Check at the physical level (i.e. not the bus)
-    if ( sourcePort >= SERIAL_INTERFACE_MAX ) return;
+    if ( port >= SERIAL_INTERFACE_MAX ) return;
 
     // If bus mode active, the local port# must be translated according
 		// to the device Id, before routing
     if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-			sourcePort = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,sourcePort);
+			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,port);
       // Rebuild packet header with source port translated
-      pk->packet[0] = cin + ( sourcePort << 4) ;
+      pk->packet[0] = cin + ( port << 4) ;
     }
 
     // IntelliThru active ? If so, take the good routing rules
     if ( ithru ) {
       if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
-      cableInTargets = (uint16_t*)NULL; // To avoid warning
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
-      attachedSlot = EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].attachedSlot;
+      jkOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk;
+      attachedSlot = EEPROM_Params.midiRoutingRulesIntelliThru[port].attachedSlot;
     }
     // else Standard jack rules
     else {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesJack[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesJack[sourcePort].jackOutTargetsMsk;
-      attachedSlot = EEPROM_Params.midiRoutingRulesJack[sourcePort].attachedSlot;
+      cbInTargets = &EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
+      jkOutTargets = &EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
+      attachedSlot = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
     }
   }
   // A midi packet from USB cable out ?
-  else if ( source == FROM_USB ) {
-    if ( sourcePort >= USBCABLE_INTERFACE_MAX ) return;
-    cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
-    serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
-    attachedSlot = EEPROM_Params.midiRoutingRulesCable[sourcePort].attachedSlot;
+  else if ( portType == PORT_TYPE_CABLE ) {
+    if ( port >= USBCABLE_INTERFACE_MAX ) return;
+    cbInTargets = &EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
+    jkOutTargets = &EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesCable[port].attachedSlot;
   }
   // Virtual port
-  else if ( source == FROM_VIRTUAL ) {
-    if ( sourcePort >= VIRTUAL_INTERFACE_MAX ) return;
-    cableInTargets = &EEPROM_Params.midiRoutingRulesVirtual[sourcePort].cableInTargetsMsk;
-    serialOutTargets = &EEPROM_Params.midiRoutingRulesVirtual[sourcePort].jackOutTargetsMsk;
-    attachedSlot = EEPROM_Params.midiRoutingRulesVirtual[sourcePort].attachedSlot;
+  else if ( portType == PORT_TYPE_VIRTUAL ) {
+    if ( port >= VIRTUAL_INTERFACE_MAX ) return;
+    cbInTargets = &EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk;
+    jkOutTargets = &EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot;
   }
 
-	// Sysex is a particular case when using packets.
-	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever pipelines  are
-	// This insures that the internal sysex will be always interpreted.
-	// If the MCU is resetted, the msg will not be sent to the target.
-  // If in a pipe (could corrupt the sysex),or slave on active bus
-  // (slaves are synchronized by the master), internal sysex are locked .
-  if (cin >= 4 && cin <= 7  ) {
-		if ( sourcePort == 0 && !slotLockMsk && !(B_IS_SLAVE) ) {
-      if (SysExInternal_Parse(source, pk,sysExInternalBuffer))
-            SysExInternal_Process(source,sysExInternalBuffer);
+	// Sysex is a particular case when routing or modifying packets.
+	// Internal sysex must be sent Jack/Cable port 0. These ports 0 must be ALWAYS
+  // available whatever routing is to insure that internal sysex will be always interpreted.
+  // Internal sysex packets can't be looped back, because that will corrupt the flow.
+  // A slave must not interpret sysex when active on bus to stay  synchronized with the master.
+  if (cin >= 4 && cin <= 7  && port == 0) {
+		if ( !slotLockMsk && !(B_IS_SLAVE) ) {
+      if (SysExInternal_Parse(portType, pk,sysExInternalBuffer))
+            SysExInternal_Process(portType,sysExInternalBuffer);
     }
 	}
 
   // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
-  if ( attachedSlot && !TransPacketPipelineExec(source, attachedSlot, pk) ) return ;
+  if ( attachedSlot && !TransPacketPipelineExec(portType, attachedSlot, pk) ) return ;
 
   // 2/ Apply serial jack routing if a target match
-  if ( *serialOutTargets) {
+  if ( *jkOutTargets) {
 				for (	uint16_t t=0; t != SERIAL_INTERFACE_COUNT ; t++)
-					if ( (*serialOutTargets & ( 1 << t ) ) ) {
+					if ( (*jkOutTargets & ( 1 << t ) ) ) {
 								// Route via the bus
 								if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
                      I2C_BusSerialSendMidiPacket(pk, t);
@@ -412,10 +410,10 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 
 	// 3/ Apply cable routing rules from serial or USB
 	// Only if USB connected and thru mode inactive
-  if (  *cableInTargets  ) {
+  if (  *cbInTargets  ) {
       midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
 			for (uint8_t t=0; t != USBCABLE_INTERFACE_MAX ; t++) {
-	      if ( *cableInTargets & ( 1 << t ) ) {
+	      if ( *cbInTargets & ( 1 << t ) ) {
 	          pk2.packet[0] = ( t << 4 ) + cin;
             // Only the master has USB midi privilege in bus MODE
             // Everybody else if an usb connection is active
@@ -426,7 +424,7 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
             // We need to add a master packet to the Master's queue.
             {
                 masterMidiPacket_t mpk;
-                mpk.mpk.dest = TO_USB;
+                mpk.mpk.dest = PORT_TYPE_CABLE;
                 // Copy the midi packet to the master packet
                 mpk.mpk.pk.i = pk2.i;
                 I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
@@ -624,7 +622,7 @@ void USBMidi_Process()
 			if ( !isSerialBusy ) {
 				midiPacket_t pk ;
 				pk.i = MidiUSB.readPacket();
-				RoutePacketToTarget( FROM_USB,  &pk );
+				RoutePacketToTarget( PORT_TYPE_CABLE,  &pk );
 			} else {
 					isSerialBusy = false ;
 			}

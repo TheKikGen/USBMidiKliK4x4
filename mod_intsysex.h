@@ -137,7 +137,7 @@ enum SysExInternal_FnId {
 
 // Sysex function vector
 
-typedef uint8_t (*SysExInternalFnP_t) (uint8_t source,uint8_t *sxMsg) ;
+typedef uint8_t (*SysExInternalFnP_t) (uint8_t portType,uint8_t *sxMsg) ;
 
 typedef struct {
     uint8_t             fnId;
@@ -179,14 +179,14 @@ const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
 // sxMsg[1] function id
 // sxMsg[2] data without EOX
 ///////////////////////////////////////////////////////////////////////////////
-boolean SysExInternal_Process(uint8_t source, uint8_t sxMsg[]) {
+boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
 
   if ( sxMsg[0] < 1 ) return false;
   for (uint8_t i=0 ; i < FN_SX_VECTOR_SIZE ; i++ ) {
       if ( SysExInternalFnVector[i].fnId == sxMsg[1] ) {
-          uint8_t r =  SysExInternalFnVector[i].fn(source,sxMsg);
+          uint8_t r =  SysExInternalFnVector[i].fn(portType,sxMsg);
           if ( sysExFunctionAckToggle && r != SX_NO_ACK && SysExInternalFnVector[i].needACK )
-              SysExInternal_SendFnACK(source,r);
+              SysExInternal_SendFnACK(portType,r);
           if ( r == SX_NO_ERROR ) {
             if ( SysExInternalFnVector[i].needStoreIfSucceed) EEPROM_ParamsSave();
             if ( SysExInternalFnVector[i].needBusSyncIfSucceed && (B_IS_MASTER) ) I2C_SlavesRoutingSyncFromMaster();
@@ -202,14 +202,14 @@ boolean SysExInternal_Process(uint8_t source, uint8_t sxMsg[]) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send ACK sysex msg.F0 77 77 78 06 03 <ack> F7
 ///////////////////////////////////////////////////////////////////////////////
-void SysExInternal_SendFnACK(uint8_t source,uint8_t errorCode) {
+void SysExInternal_SendFnACK(uint8_t portType,uint8_t errorCode) {
 
   sysExInternalCommandACK[6] = errorCode;
-  if (source == FROM_USB && midiUSBCx) {
+  if (portType == PORT_TYPE_CABLE && midiUSBCx) {
       // send to USB , cable 0
       USBMidi_SendSysExPacket(sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
   } else
-  if (source == FROM_JACK ) {
+  if (portType == PORT_TYPE_JACK ) {
       // Send to serial port 0 being the only possible for sysex
       serialHw[0]->write(sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
   }
@@ -222,7 +222,7 @@ void SysExInternal_SendFnACK(uint8_t source,uint8_t errorCode) {
 // Internal sysex are purely ignored on other cables or jack.
 // Return true if an internal sysex message is ready
 ///////////////////////////////////////////////////////////////////////////////
-boolean SysExInternal_Parse(uint8_t source, midiPacket_t *pk,uint8_t sxMsg[])
+boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 {
     static unsigned sxMsgIdx = 0;
 		static bool 	  sxHeaderFound = false;
@@ -286,7 +286,7 @@ boolean SysExInternal_Parse(uint8_t source, midiPacket_t *pk,uint8_t sxMsg[])
 // F0 77 77 78 05 <fnId> <command id | 00 > <sub id1 |00 ><sub id2 | 00 > F7
 // F0 77 77 78 05 E0 00 00 00
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnDumpConfig(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
 
   if (sxMsg[0] != 5) SX_ERROR_BAD_MSG_SIZE;
 
@@ -296,13 +296,13 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t source,uint8_t *sxMsg) {
   uint8_t l = SysexInternal_DumpConf(sxAddr,sysExInternalBuffer) ;
   if (!l) return SX_ERROR_ANY;
 
-  if (source == FROM_USB && midiUSBCx) {
+  if (portType == PORT_TYPE_CABLE && midiUSBCx) {
     // send to USB , cable 0
     USBMidi_SendSysExPacket(sysExInternalBuffer,l);
     return SX_NO_ERROR;
 
   } else
-  if (source == FROM_JACK ) {
+  if (portType == PORT_TYPE_JACK ) {
     // Send to serial port 0 being the only possible for sysex
     serialHw[0]->write(sysExInternalBuffer,l);
     return SX_NO_ERROR;
@@ -321,14 +321,14 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t source,uint8_t *sxMsg) {
 // 06 03 Sysex acknowledgment (received)
 // F0 77 77 78 06 03 <ack> F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnIdentityRequest(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnIdentityRequest(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
-      if (source == FROM_USB && midiUSBCx) {
+      if (portType == PORT_TYPE_CABLE && midiUSBCx) {
         // send to USB , cable 0
         USBMidi_SendSysExPacket(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_NO_ACK; // Force no ACK in that case
       } else
-      if (source == FROM_JACK ) {
+      if (portType == PORT_TYPE_JACK ) {
         // Send to serial port 0 being the only possible for sysex
         serialHw[0]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_NO_ACK; // Force no ACK in that case
@@ -347,7 +347,7 @@ uint8_t SysExInternal_fnIdentityRequest(uint8_t source,uint8_t *sxMsg) {
 // 08 Reboot in configuration mode
 // F0 77 77 78 08 F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnConfigMode(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnConfigMode(uint8_t portType,uint8_t *sxMsg) {
   // Set serial boot mode & Write the whole param struct
   if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
   EEPROM_Params.nextBootMode = bootModeConfigMenu;
@@ -358,7 +358,7 @@ uint8_t SysExInternal_fnConfigMode(uint8_t source,uint8_t *sxMsg) {
 // 0A Hardware reset
 // F0 77 77 78 0A F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnHardReset(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnHardReset(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
   return SX_NO_ERROR;
 }
@@ -372,7 +372,7 @@ uint8_t SysExInternal_fnHardReset(uint8_t source,uint8_t *sxMsg) {
 // accentuated ASCII characters, below 128 are non supported.
 // Size without null termination is defined by USB_MIDI_PRODUCT_STRING_SIZE
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbProductString(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnSetUsbProductString(uint8_t portType,uint8_t *sxMsg) {
 
   if ( sxMsg[0] < 2 || (sxMsg[0]-1) > USB_MIDI_PRODUCT_STRING_SIZE )  return SX_ERROR_BAD_MSG_SIZE;
 
@@ -392,7 +392,7 @@ uint8_t SysExInternal_fnSetUsbProductString(uint8_t source,uint8_t *sxMsg) {
 // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
 //                8  F  1  2  9  0  6  7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbPidVid(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnSetUsbPidVid(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[0] != 9 ) return SX_ERROR_BAD_MSG_SIZE;
   EEPROM_Params.vendorID = (sxMsg[2] << 12) + (sxMsg[3] << 8) +
                                  (sxMsg[4] << 4) + sxMsg[5] ;
@@ -418,7 +418,7 @@ uint8_t SysExInternal_fnSetUsbPidVid(uint8_t source,uint8_t *sxMsg) {
 // If no jack out ports list, IThru mode is disabled.
 // If JackIn = 0x7F
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
@@ -485,7 +485,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t source,uint8_t *sxMsg) {
 // F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
 // port type : cable = 0 |jack=1 | virtual=2 (in only)   port : 0-F    out ports list is optional.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
@@ -575,7 +575,7 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t source,uint8_t *sxMsg) {
 // F0 77 77 78 10 01 < deviceid:04-08 > F7
 // deviceid must be set to 4 when master. The device will reboot after the command.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnBusModeSettings(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
@@ -634,7 +634,7 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t source,uint8_t *sxMsg) {
 // 11 01 Pipe operation - 05 pipe bypass index
 // F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnPipelinesSettings(uint8_t source,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen    = sxMsg[0];
   uint8_t cmdId     = sxMsg[2];
   uint8_t cmdSubId  = sxMsg[3];

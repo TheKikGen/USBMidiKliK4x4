@@ -113,7 +113,7 @@ enum MidiTransPipeId {
 
 // Transformation pipe function vector
 
-typedef boolean (*MidiTransFnP_t) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
+typedef boolean (*MidiTransFnP_t) (uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) ;
 typedef boolean (*MidiTransFn_CheckParmsP_t) (midiTransPipe_t *pipe) ;
 typedef struct {
     char *                    shortName;
@@ -154,7 +154,7 @@ boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_MessageFilter(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
 	// Apply high level midi filters before pipeline
   if ( pipe->par1 == 0 && (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2)  )
@@ -178,7 +178,7 @@ boolean MidiTransFn_NoteChanger_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_NoteChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -216,7 +216,7 @@ boolean MidiTransFn_NoteChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_
       // Current packet copy
       midiPacket_t pk2 = { .i = pk->i };
       pk2.packet[1] = midiStatus + pipe->par3;
-      RoutePacketToTarget(source, &pk2);
+      RoutePacketToTarget(portType, &pk2);
     }
     else // Note On case
     if ( pk->packet[3] >= pipe->par2  ) {
@@ -244,7 +244,7 @@ boolean MidiTransFn_ChannelMapper_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_ChannelMapper(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
   if (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) !=  midiXparser::channelVoiceMsgTypeMsk)
       return true;
@@ -280,7 +280,7 @@ boolean MidiTransFn_VeloChanger_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_VeloChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_VeloChanger(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -327,7 +327,7 @@ boolean MidiTransFn_CCChanger_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_CCChanger(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_CCChanger(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -374,7 +374,7 @@ boolean MidiTransFn_ClockDivider_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
   if ( pk->packet[1] != midiXparser::timingClockStatus)
       return true;
@@ -391,7 +391,7 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
 ///////////////////////////////////////////////////////////////////////////////
 // LoopBack. Loopback a packet again to a specific port.   06
 //----------------------------------------------------------------------------
-// par1 : port type  0 = CABLE OUT, 1 = JACK IN , 2=VIRTUAL or 7F= No change
+// par1 : port type  0 = CABLE , 1 = JACK IN , 2=VIRTUAL or 7F= No change
 // par2 : filter mask =   Voice = 0001 (1), (binary OR)
 //                        system Common = 0010 (2), (binary OR)
 //                        realTime      = 0100 (4), (binary OR)
@@ -408,18 +408,27 @@ boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_LoopBack(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
+boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
+  uint8_t cin         = pk->packet[0] & 0x0F;
+  uint8_t sourcePort  = pk->packet[0] >> 4;
+  // Protect sysex integrity. Don't route a sysex pk 2 times on the same port
+  // Cb0 F0 01 02 => Loopback cb0 F0 01 02 = a corrupted pk F0 01 02 F0 01 02
+  // but let the packet in the pipeline.
+  if ( cin >= 4 && cin <= 7) {
+      if ( pipe->par1 == 0x7F || (pipe->par1 == portType && pipe->par3 == sourcePort) )
+          return true;
+  }
 
   // Apply filter
   if ( midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2  ) {
-
     midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
+
     // No change
-    if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
+    if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(portType, &pk2);
     else {
       // Adjust the port/cable nible but keep the CIN
-      pk2.packet[0] = (pk2.packet[0] & 0x0F) + ( pipe->par2 << 4 );
-      // Route with par1 value as  "FROM_USB" or "FROM_JACK" or "FROM_VIRTUAL"
+      pk2.packet[0] = cin + ( pipe->par2 << 4 );
+      // Route with par1 value as  USB or JACK or VIRTUAL
       RoutePacketToTarget(pipe->par1 , &pk2);
     }
   }
@@ -436,6 +445,6 @@ boolean MidiTransFn_SlotChain_CheckParms(midiTransPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_SlotChain(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
-  return TransPacketPipelineExec(source, pipe->par1,  pk) ;
+boolean MidiTransFn_SlotChain(uint8_t portType, midiPacket_t *pk, midiTransPipe_t *pipe) {
+  return TransPacketPipelineExec(portType, pipe->par1,  pk) ;
 }

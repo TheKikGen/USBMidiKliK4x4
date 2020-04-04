@@ -95,7 +95,7 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
   // Master packet have  a "dest" byte before the midi packet.
   if ( EEPROM_Params.I2C_DeviceId != B_MASTERID ) {
     masterMidiPacket_t mpk;
-    mpk.mpk.dest = TO_JACK;
+    mpk.mpk.dest = PORT_TYPE_JACK;
     mpk.mpk.pk.i = pk2.i;// Copy the midi packet &  queue it
 		I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
 		return;
@@ -564,11 +564,11 @@ void I2C_ProcessMaster ()
       if ( I2C_getPacket(I2C_DeviceIdActive[d],&mpk) <= 0 ) continue; // Error or nothing got
       if ( mpk.mpk.pk.i == 0 ) continue;  // Process only non empty packets
 
-      if ( mpk.mpk.dest == TO_JACK ) {
+      if ( mpk.mpk.dest == PORT_TYPE_JACK ) {
           uint8_t targetPort = mpk.mpk.pk.packet[0] >> 4;
           I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
          // Send to a cable IN only if USB is available on the master
-       } else if ( mpk.mpk.dest == TO_USB )
+       } else if ( mpk.mpk.dest == PORT_TYPE_CABLE )
         //&& midiUSBCx && !midiUSBdle && !intelliThruActive)
        {
           MidiUSB.writePacket(&(mpk.mpk.pk.i));
