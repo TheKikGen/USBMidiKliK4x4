@@ -67,6 +67,7 @@ char AskChar()  __attribute__((optimize("-Os")));
 uint8_t AsknHexChar(char *, uint8_t ,char,char) __attribute__((optimize("-Os")));
 char AskChoice(const char * , const char * ) __attribute__((optimize("-Os")));
 void ShowMask16(uint16_t ,uint8_t );
+void ShowPipelineSlotBrowser(boolean mustLoop=true) ;
 void ShowMidiRoutingLine(uint8_t ,uint8_t ) __attribute__((optimize("-Os"))) ;
 void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
 void ShowMidiKliKHeader() __attribute__((optimize("-Os")));
@@ -251,6 +252,25 @@ void ShowMask16(uint16_t bitMsk,uint8_t maxValue)
             if ( bitMsk & ( 1 << p) ) Serial.print("X");
             else   Serial.print(".");
         }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Browse pipelines
+///////////////////////////////////////////////////////////////////////////////
+void ShowPipelineSlotBrowser(boolean mustLoop) {
+  while (1) {
+    Serial.print("Enter pipeline slot 1-8, or 0 to exit :");
+    uint8_t choice = AsknNumber(1);
+    Serial.println();
+    if ( choice == 0 ) break;
+    if ( choice < 1 || choice > MIDI_TRANS_PIPELINE_SLOT_SIZE ) {
+      Serial.println("# error. Please try again :");
+    } else {
+      ShowPipelineSlot(choice);
+      Serial.println();
+      if (!mustLoop) break;
+    }
   }
 }
 
@@ -896,18 +916,7 @@ void ShowConfigMenu()
 
       // Show pipeline
 			case 'p':
-      	while (1) {
-          Serial.print("Enter pipeline slot 1-8, or 0 to exit :");
-      		uint8_t choice = AsknNumber(1);
-      		Serial.println();
-          if ( choice == 0 ) break;
-      		if ( choice < 1 || choice > MIDI_TRANS_PIPELINE_SLOT_SIZE ) {
-      			Serial.println("# error. Please try again :");
-      		} else {
-            ShowPipelineSlot(choice);
-            Serial.println();
-          }
-      	}
+        ShowPipelineSlotBrowser();
 				showMenu = false;
 				break;
 

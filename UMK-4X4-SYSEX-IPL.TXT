@@ -16,6 +16,8 @@ FN Description / sub command
 05 Configuration sysex dump
 06 General Information
     01 Identity request
+    02 Sysex acknowledgment toggle
+    03 Sysex acknowledgment
 08 Reboot in configuration mode
 0A Hardware reset
     7F clear all midi, ithru, pipelines routing rules
@@ -45,8 +47,6 @@ FN Description / sub command
     01 03 Clear pipe by index
     01 04 Clear pipe by id
     01 05 pipe bypass
-7F Midi function ID acknowledgment
-
 -------------------------------------------------------------------------------
 
 SYSEX MESSAGES
@@ -55,8 +55,16 @@ SYSEX MESSAGES
 05 Configuration sysex dump
 F0 77 77 78 05 F7
 -------------------------------------------------------------------------------
-06 General Information - 01 Identity request
+06 General Information
+
+06 01 Identity request
 F0 77 77 78 06 01 F7
+
+06 02 Sysex acknowledgment toggle (on/off)
+F0 77 77 78 06 02 F7
+
+06 03 Sysex acknowledgment (received)
+F0 77 77 78 06 03 <ack> F7
 -------------------------------------------------------------------------------
 08 Reboot in configuration mode
 F0 77 77 78 08 F7
@@ -124,7 +132,6 @@ When slot = 0, the port is considered as detached from any slot.
 
 01 Pipe operation
 -----------------
-
 11 01 00 add pipe
 F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
 
@@ -143,24 +150,33 @@ F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
 11 01 05 pipe bypass index
 F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 -------------------------------------------------------------------------------
-7F Midi function ID acknowledgment toogle
-F0 77 77 78 7F F7
--------------------------------------------------------------------------------
 
-PipeID     par1                 par2                       par3          par4
-00 MSGFLTR 0:high level filter  Filter bits mask 	  00              00
+PipeID     par1                 par2                     par3            par4
+
+00 MSGFLTR 0:high level filter  Filter bits mask 	        00              00
                                 channel voice:0001 (1)	  00              00
-			        syst. common :0010 (2)    00              00
-			        realtime     :0100 (4)    00              00
-			        realtime     :1000 (8)    00              00
+			                          syst. common :0010 (2)    00              00
+			                          realtime     :0100 (4)    00              00
+			                          sysex        :1000 (8)    00              00
 
-01 NOTECHG 0:transpose +        semitone:00-7F            00              00
-           1:transpose -        semitone:00-7F            00              00
-           2:split              split point: 00-7F        midi ch:00-7F   00
-           3:velocity split     velocity threshold:00-7F  midi ch:00-7F   00
+01 NOTECHG transpose+:0         semitone:00-7F            00              00
+           transpose-:1         semitone:00-7F            00              00
+           split:2              split point: 00-7F        midi ch:00-7F   00
+           velocity split:3     velocity threshold:00-7F  midi ch:00-7F   00
 
-02 CHANMAP
+02 CHANMAP ch map:01            source ch:0-F|any ch:7F   dest ch:0-F     00
+           ch map to port:02    source ch:0-F             midi port:0-F   00
+
+
+06 LOOPBCK dest portype dest    port:0-F                  00              00
+           0:cbl out| 1:jk in|
+           2:virtual|7F:no chg
+
+
 03 VELOCHG
 04 CCCHANG
 05 CLKDIVD
+
+
+
 06 LOOPBCK

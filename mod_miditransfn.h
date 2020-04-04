@@ -76,7 +76,7 @@ boolean TransPacketPipeline_ClearSlot(uint8_t);
 void    TransPacketPipe_Clear(midiTransPipe_t *);
 //Shared. See usbmidiKlik4x4.h
 //boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
-//boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *);
+//boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *,boolean);
 //boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 //boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 boolean TransPacketPipelineExec(uint8_t, uint8_t,  midiPacket_t *);
@@ -247,11 +247,11 @@ boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, midiTr
   pipelineSlot--; // Adjust for C array
 
   // Get a pointer of the 1st/last pipes in the attached pipeline
-  midiTransPipe_t *pipeLine = EEPROM_Params.midiTransPipelineSlots[pipelineSlot].pipeline ;
+  midiTransPipe_t *pipeLine  = &EEPROM_Params.midiTransPipelineSlots[pipelineSlot].pipeline[0] ;
   midiTransPipe_t *pipeLine2 = &EEPROM_Params.midiTransPipelineSlots[pipelineSlot].pipeline[MIDI_TRANS_PIPELINE_SIZE-1] ;
 
-  // Slot full ?
-  if ( pipeLine2->pId != FN_TRANSPIPE_NOPIPE ) return false;
+  // Slot full ? can't insert .
+  if ( !replace && pipeLine2->pId == FN_TRANSPIPE_NOPIPE ) return false;
 
   // Check the pipe parameters
   if ( pipe->pId >= FN_TRANSPIPE_VECTOR_SIZE ) return false;
@@ -353,7 +353,11 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
 boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk) {
 
   // Eight Slot are possible currently. Change to uint16_t if more.
-  static uint8_t slotLockMsk = 0;
+  #if MIDI_TRANS_PIPELINE_SLOT_SIZE > 8
+    static uint16_t slotLockMsk = 0;
+  #else
+    static uint8_t slotLockMsk = 0;
+  #endif
 
   if ( slot < 1 || slot > MIDI_TRANS_PIPELINE_SLOT_SIZE) return false;
 

@@ -412,13 +412,6 @@ void I2C_BusStartWire()
       Serial.flush();
 			delay(500);
 
-      ShowMidiKliKHeader();Serial.println();
-
-      Serial.println("Type 'C' for configuration menu (need to reboot).");
-      Serial.println("Type 'R' to show current routing rules.");
-			Serial.print("Slave ");Serial.print(EEPROM_Params.I2C_DeviceId);
-			Serial.println(" ready and listening.");
-
       DEBUG_BEGIN
       DEBUG_PRINTLN("DEBUG MODE ACTIVE.","");
       DEBUG_END
@@ -625,22 +618,26 @@ DEBUG_END
 	// Activate the configuration menu if a terminal is opened in Slave mode
   // and C pressed
 	if (Serial.available()) {
-      uint8_t key = Serial.read();
+      char key = Serial.read();
+			Serial.println();
+			ShowMidiKliKHeader();Serial.println();
 
-      if ( key == 'C') {
+			Serial.print("Slave ");Serial.print(EEPROM_Params.I2C_DeviceId);
+			Serial.println(" ready and listening.");
+			Serial.println("(r)outing rules - (1-8) pipeline slots - e(X)it to configuration menu :");
+
+      if ( key == 'X') {
         Wire.flush();
         Wire.end();
         ShowConfigMenu();
       }
-      else if ( key == 'R') {
-        Serial.println();
+      else if ( key == 'r') {
         ShowMidiRouting(PORT_TYPE_CABLE);
-        Serial.println();
         ShowMidiRouting(PORT_TYPE_JACK);
-        Serial.println();
-        ShowMidiRouting(PORT_TYPE_ITHRU);
-        Serial.println();
+				ShowMidiRouting(PORT_TYPE_VIRTUAL);
       }
+			else if ( key >= '1' || key <= '8' )
+				ShowPipelineSlot(key - '0');
 	}
 
 

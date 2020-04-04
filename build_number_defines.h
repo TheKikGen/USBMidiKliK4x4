@@ -48,7 +48,7 @@ __ __| |           |  /_) |     ___|             |           |
 #define BUILD_DEFS_H
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 1
+#define VERSION_MINOR 5
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890

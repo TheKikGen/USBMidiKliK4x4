@@ -111,9 +111,6 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
-// Empty pipe
-#define FN_TRANSPIPE_NOPIPE 0xFF
-
 // Transformation pipe function vector
 
 typedef boolean (*MidiTransFnP_t) (uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) ;
@@ -399,7 +396,10 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
   if ( pipe->par1 > 2 && pipe->par1 != 0x7F ) return false;
-  if ( pipe->par2 > 0x0F ) return false;
+  if ( pipe->par1 == 0 && pipe->par2 > USBCABLE_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 1 && pipe->par2 > B_SERIAL_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 2 && pipe->par2 > VIRTUAL_INTERFACE_MAX ) return false;
+
   return true;
 }
 

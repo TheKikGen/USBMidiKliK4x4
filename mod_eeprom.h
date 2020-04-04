@@ -318,9 +318,7 @@ void EEPROM_ParamsInit(bool factorySettings)
 
 		ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
-		TransPacketPipeline_ClearSlot(0x7F); // Clear all pipelines slots
-
-    EEPROM_Params.vendorID  = USB_MIDI_VENDORID;
+	  EEPROM_Params.vendorID  = USB_MIDI_VENDORID;
     EEPROM_Params.productID = USB_MIDI_PRODUCTID;
 
     memcpy(EEPROM_Params.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));

@@ -86,7 +86,10 @@ enum nextBootMode {
 // Number of virtual interface ports
 #define VIRTUAL_INTERFACE_MAX 8
 
+// Empty pipe
+#define FN_TRANSPIPE_NOPIPE 0xFF
 
+// Structures
 enum MidiRoutingDirection {
   FROM_USB=0,
   FROM_JACK=1,
@@ -239,7 +242,7 @@ enum BusDeviceSate {
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
 #define EE_SIGNATURE "MDK"
-#define EE_PRMVER 21
+#define EE_PRMVER 25
 
 typedef struct {
         uint8_t         signature[3];
@@ -309,7 +312,7 @@ void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
 boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
 boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *,boolean replace = false);
+boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *,boolean);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 void ShowPipelineSlot(uint8_t s) ;
