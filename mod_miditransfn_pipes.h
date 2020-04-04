@@ -149,7 +149,7 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_MessageFilter_CheckParms(midiTransPipe_t *pipe) {
   if ( pipe->par1 > 0 ) return false;
-  if ( pipe->par2 > 0B1111 ) return false;
+  if ( pipe->par2 == 0 || pipe->par2 > 0B1111 ) return false;
 
   return true;
 }
@@ -392,29 +392,37 @@ boolean MidiTransFn_ClockDivider(uint8_t source, midiPacket_t *pk, midiTransPipe
 // LoopBack. Loopback a packet again to a specific port.   06
 //----------------------------------------------------------------------------
 // par1 : port type  0 = CABLE OUT, 1 = JACK IN , 2=VIRTUAL or 7F= No change
-// par2 : port/cable 0-F  (any if no change)
+// par2 : filter mask =   Voice = 0001 (1), (binary OR)
+//                        system Common = 0010 (2), (binary OR)
+//                        realTime      = 0100 (4), (binary OR)
+//                        sysEx         = 1000 (8)
+// par3 : port/cable 0-F  (any if no change)
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_LoopBack_CheckParms(midiTransPipe_t *pipe) {
   if ( pipe->par1 > 2 && pipe->par1 != 0x7F ) return false;
-  if ( pipe->par1 == 0 && pipe->par2 > USBCABLE_INTERFACE_MAX ) return false;
-  if ( pipe->par1 == 1 && pipe->par2 > B_SERIAL_INTERFACE_MAX ) return false;
-  if ( pipe->par1 == 2 && pipe->par2 > VIRTUAL_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 0 && pipe->par3 > USBCABLE_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 1 && pipe->par3 > B_SERIAL_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 2 && pipe->par3 > VIRTUAL_INTERFACE_MAX ) return false;
+  if ( pipe->par2 == 0 || pipe->par2 > 0B1111 ) return false;
 
   return true;
 }
 
 boolean MidiTransFn_LoopBack(uint8_t source, midiPacket_t *pk, midiTransPipe_t *pipe) {
 
-  midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
-  // No change
-  if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
-  else {
-    // Adjust the port/cable nible but keep the CIN
-    pk2.packet[0] = (pk2.packet[0] & 0x0F) + ( pipe->par2 << 4 );
-    // Route with par1 value as  "FROM_USB" or "FROM_JACK" or "FROM_VIRTUAL"
-    RoutePacketToTarget(pipe->par1 , &pk2);
-  }
+  // Apply filter
+  if ( midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2  ) {
 
+    midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
+    // No change
+    if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(source, &pk2);
+    else {
+      // Adjust the port/cable nible but keep the CIN
+      pk2.packet[0] = (pk2.packet[0] & 0x0F) + ( pipe->par2 << 4 );
+      // Route with par1 value as  "FROM_USB" or "FROM_JACK" or "FROM_VIRTUAL"
+      RoutePacketToTarget(pipe->par1 , &pk2);
+    }
+  }
   return true;
 }
 

@@ -378,17 +378,14 @@ void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
 	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever pipelines  are
 	// This insures that the internal sysex will be always interpreted.
 	// If the MCU is resetted, the msg will not be sent to the target.
-  // If bus active, sysex are locked for slaves as the master synchronizes all of them.
-	uint8_t  msgType=0;
-
+  // If in a pipe (could corrupt the sysex),or slave on active bus
+  // (slaves are synchronized by the master), internal sysex are locked .
   if (cin >= 4 && cin <= 7  ) {
-    msgType =  midiXparser::sysExMsgTypeMsk;
-
-		if ( !(B_IS_SLAVE) && sourcePort == 0 && SysExInternal_Parse(source, pk,sysExInternalBuffer) ) {
-        SysExInternal_Process(source,sysExInternalBuffer);
+		if ( sourcePort == 0 && !slotLockMsk && !(B_IS_SLAVE) ) {
+      if (SysExInternal_Parse(source, pk,sysExInternalBuffer))
+            SysExInternal_Process(source,sysExInternalBuffer);
     }
-
-	} else msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
+	}
 
   // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
   if ( attachedSlot && !TransPacketPipelineExec(source, attachedSlot, pk) ) return ;

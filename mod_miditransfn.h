@@ -83,6 +83,13 @@ boolean TransPacketPipelineExec(uint8_t, uint8_t,  midiPacket_t *);
 //Shared. See usbmidiKlik4x4.h
 //void    ShowPipelineSlot(uint8_t );
 
+// SLOT LOCK to avaid infinite loop and filter internal sysex
+// Eight Slot are possible currently. Change to uint16_t if more.
+#if MIDI_TRANS_PIPELINE_SLOT_SIZE > 8
+  uint16_t slotLockMsk = 0;
+#else
+  uint8_t slotLockMsk = 0;
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 // PIPES.
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,6 +183,7 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
         EEPROM_Params.midiRoutingRulesJack[port].attachedSlot = pipelineSlot ;
       else return false;
     }
+    else
     if (portType == PORT_TYPE_VIRTUAL ) {
       if ( port < VIRTUAL_INTERFACE_MAX )
         EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot = pipelineSlot ;
@@ -352,12 +360,7 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
 ///////////////////////////////////////////////////////////////////////////////
 boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk) {
 
-  // Eight Slot are possible currently. Change to uint16_t if more.
-  #if MIDI_TRANS_PIPELINE_SLOT_SIZE > 8
-    static uint16_t slotLockMsk = 0;
-  #else
-    static uint8_t slotLockMsk = 0;
-  #endif
+
 
   if ( slot < 1 || slot > MIDI_TRANS_PIPELINE_SLOT_SIZE) return false;
 
