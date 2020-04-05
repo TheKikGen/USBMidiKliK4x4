@@ -99,8 +99,7 @@ enum nextBootMode {
 #define ROUTING_RESET_ALL 0
 #define ROUTING_RESET_MIDIUSB 1
 #define ROUTING_RESET_INTELLITHRU 2
-#define ROUTING_INTELLITHRU_OFF 3
-#define ROUTING_CLEAR_ALL 4
+#define ROUTING_CLEAR_ALL 3
 
 // Transformation pipe
 typedef struct {

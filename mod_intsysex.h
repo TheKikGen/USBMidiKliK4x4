@@ -407,16 +407,16 @@ uint8_t SysExInternal_fnSetUsbPidVid(uint8_t portType,uint8_t *sxMsg) {
 // 0E 00 Reset to default
 // F0 77 77 78 0E 00 F7
 //
-// 0E 01 Disable
+// 0E 01 Disable all jackin - IThru off.
 // F0 77 77 78 0E 01 F7
 //
 // 0E 02 Set USB idle delay
 // F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
 //
 // 0E 03 Set jack routing
-// F0 77 77 78 0E 03 <JackIn port: 0-F > [jk out ports list: nn nn ... nn] F7
-// If no jack out ports list, IThru mode is disabled.
-// If JackIn = 0x7F
+// F0 77 77 78 0E 03 <JackIn port > [<out port type><out ports list: nn...nn>] F7
+// Allowed port type : jack=1 | virtual=2   port : 0-F   outportype/out ports list are optional.
+// If only jackin is passed, this toggle on/off IThru if outpout ports exists.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
@@ -429,11 +429,11 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
        return SX_NO_ERROR;
   } else
 
-  // Disable thru mode
+  // Disable all jackin ports = Off
   if (cmdId == 0x01  && msgLen == 2) {
-      ResetMidiRoutingRules(ROUTING_INTELLITHRU_OFF);
-      return SX_NO_ERROR;
-  }	else
+       EEPROM_Params.intelliThruJackInMsk = 0;
+       return SX_NO_ERROR;
+  } else
 
   // Set Delay. Min delay is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
   if (cmdId == 0x02  && msgLen == 3) {
@@ -444,29 +444,49 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
   else
 
   // Set routing
-  //   0     1     2   3  4  5 6 7
-  // (len) (id) (cmd) 01 01  0 1 2 3 4 5 6 7 8 9 A B C D E F
-  if (cmdId == 0x03 && msgLen >= 3 && msgLen <= SERIAL_INTERFACE_COUNT+4 ) {
+  // F0 77 77 78 0E 03 <JackIn port > <out port type>[out ports list: nn...nn] F7
+  //     (len) (id)(cmd)    01          01           0 1 2 3 4 5 6 7 8 9 A B C D E
+  if (cmdId == 0x03 && msgLen >= 3  ) {
       uint8_t jackIn = sxMsg[3];
 
       if ( jackIn >= SERIAL_INTERFACE_COUNT) return SX_ERROR_BAD_PORT;
 
-      // If no jack out list : disable Intellithru for this port
-      if (msgLen == 3) {
-        EEPROM_Params.intelliThruJackInMsk &= ~(1 << jackIn);
+      // disable/enable (toggle) Intellithru for this port
+      if (msgLen == 3 ) {
+        if ( ( EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk & (1 << jackIn) )||
+             ( EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].virtualOutTargetsMsk & (1 << jackIn) ) )
+            EEPROM_Params.intelliThruJackInMsk ^= (1 << jackIn);  // Toggle
+        else EEPROM_Params.intelliThruJackInMsk &= ~(1 << jackIn); // Off if no out ports
         return SX_NO_ERROR;
       }
+
+      if (msgLen < 5 ) return SX_ERROR_BAD_MSG_SIZE;
+
+      uint16_t *msk;
+      uint8_t outPortType = sxMsg[4];
+
+      if (outPortType == PORT_TYPE_JACK  ) {
+        if ( msgLen > (SERIAL_INTERFACE_COUNT + 4) ) return SX_ERROR_BAD_MSG_SIZE;
+        msk = &EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk;
+      }
+      else
+      if (outPortType == PORT_TYPE_VIRTUAL ) {
+        if ( msgLen > (VIRTUAL_INTERFACE_MAX + 4) ) return SX_ERROR_BAD_MSG_SIZE;
+        msk = &EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].virtualOutTargetsMsk;
+      }
+      else return SX_ERROR_BAD_PORT_TYPE;
+
       // Set midi in jack msk
       EEPROM_Params.intelliThruJackInMsk |= (1 << jackIn);
 
-      // Set target Jacks out msk
-      uint16_t msk = 0;
+      // Set target port out msk
+      uint16_t newMsk = 0;
       for ( uint8_t i = 4 ; i <= msgLen  ; i++) {
           if ( sxMsg[i] < SERIAL_INTERFACE_COUNT )
-                msk |= 	1 << sxMsg[i] ;
+                newMsk |= 	1 << sxMsg[i] ;
           else return SX_ERROR_BAD_PORT;
       }
-      EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk = msk;
+      *msk = newMsk;
 
       // reset globals for a real time update
       intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
@@ -483,6 +503,10 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 //
 // 0F 01 Set midi port routing
 // F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
+//
+// 0F 01 Set midi port routing
+// F0 77 77 78 0F 02 <in port> <out port type>[out ports list: nn...nn] F7 F7
+// F0 77 77 78 0F 03 <JackIn port: 0-F > [jk out ports list: nn nn ... nn] F7
 // port type : cable = 0 |jack=1 | virtual=2    port : 0-F    out ports list is optional.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {

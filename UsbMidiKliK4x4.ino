@@ -45,6 +45,7 @@ __ __| |           |  /_) |     ___|             |           |
 
 #include "build_number_defines.h"
 #include <string.h>
+#include <stdarg.h>
 #include <libmaple/nvic.h>
 #include <Wire_slave.h>
 #include <PulseOutManager.h>
@@ -422,8 +423,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
   if ( ithru || !midiUSBCx ) return;
 
-	// 4/ Apply cable routing rules from serial or USB
-	// Only if USB connected and thru mode inactive
+	// 4/ Apply cable routing rules only if USB connected and thru mode inactive
   t=0;
   while ( cbInTargets && t != USBCABLE_INTERFACE_MAX ) {
     if ( cbInTargets & 1 ) {
@@ -474,6 +474,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EEPROM_Params.midiRoutingRulesVirtual[i].attachedSlot = 0;
       EEPROM_Params.midiRoutingRulesVirtual[i].cableInTargetsMsk = 0 ;
       EEPROM_Params.midiRoutingRulesVirtual[i].jackOutTargetsMsk = 0  ;
+      EEPROM_Params.midiRoutingRulesVirtual[i].virtualOutTargetsMsk = 0  ;
     }
   }
 
@@ -485,6 +486,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
       EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
       EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesCable[i].virtualOutTargetsMsk = 0  ;
 
     }
     // Jack serial
@@ -492,12 +494,14 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
       EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 0 ;
       EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
+      EEPROM_Params.midiRoutingRulesJack[i].virtualOutTargetsMsk = 0  ;
     }
 
     // "Intelligent thru" serial mode
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesIntelliThru[i].virtualOutTargetsMsk = 0  ;
 		}
 		EEPROM_Params.intelliThruJackInMsk = 0;
 	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
@@ -511,6 +515,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	    EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
 	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
+      EEPROM_Params.midiRoutingRulesCable[i].virtualOutTargetsMsk = 0  ;
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
@@ -518,6 +523,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	    EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 1 << i ;
 	    EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
+      EEPROM_Params.midiRoutingRulesJack[i].virtualOutTargetsMsk = 0  ;
 	  }
 
   }
@@ -527,14 +533,12 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot = 0;
 	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0 ;
+      EEPROM_Params.midiRoutingRulesIntelliThru[i].virtualOutTargetsMsk = 0  ;
 		}
 		EEPROM_Params.intelliThruJackInMsk = 0;
 	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
 
 	}
-
-	// Disable "Intelligent thru" serial mode
-	if (mode == ROUTING_INTELLITHRU_OFF ) EEPROM_Params.intelliThruJackInMsk = 0;
 
 }
 
