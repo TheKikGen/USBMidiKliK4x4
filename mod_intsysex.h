@@ -483,7 +483,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 //
 // 0F 01 Set midi port routing
 // F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
-// port type : cable = 0 |jack=1 | virtual=2 (in only)   port : 0-F    out ports list is optional.
+// port type : cable = 0 |jack=1 | virtual=2    port : 0-F    out ports list is optional.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
@@ -523,14 +523,19 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
     if (outPortType == PORT_TYPE_JACK  ) {
       if ( msgLen > (SERIAL_INTERFACE_COUNT + 5) ) return SX_ERROR_BAD_MSG_SIZE;
     }
+    else
+    if (outPortType == PORT_TYPE_VIRTUAL ) {
+      if ( msgLen > (VIRTUAL_INTERFACE_MAX + 5) ) return SX_ERROR_BAD_MSG_SIZE;
+    }
     else return SX_ERROR_BAD_PORT_TYPE;
 
     uint16_t msk = 0;
     // If port list, Compute mask else no target
     if ( msgLen > 5 ) {
       for ( uint8_t i = 6 ; i <= msgLen  ; i++) {
-          if ( (outPortType == PORT_TYPE_CABLE && sxMsg[i] < USBCABLE_INTERFACE_MAX) ||
-               (outPortType == PORT_TYPE_JACK  && sxMsg[i] < SERIAL_INTERFACE_COUNT) ) {
+          if ( (outPortType == PORT_TYPE_CABLE    && sxMsg[i] < USBCABLE_INTERFACE_MAX) ||
+               (outPortType == PORT_TYPE_JACK     && sxMsg[i] < SERIAL_INTERFACE_COUNT) ||
+               (outPortType == PORT_TYPE_VIRTUAL  && sxMsg[i] < VIRTUAL_INTERFACE_MAX) ) {
                  msk |= 	1 << sxMsg[i] ;
           }
       }// for
@@ -538,23 +543,27 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
 
     // Set masks Cable
     if (inPortType == PORT_TYPE_CABLE ) {
-          if (outPortType == PORT_TYPE_CABLE) EEPROM_Params.midiRoutingRulesCable[inPort].cableInTargetsMsk = msk;
-          else EEPROM_Params.midiRoutingRulesCable[inPort].jackOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesCable[inPort].cableInTargetsMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesCable[inPort].jackOutTargetsMsk = msk;
+          else                                    EEPROM_Params.midiRoutingRulesCable[inPort].virtualOutTargetsMsk = msk;
           return SX_NO_ERROR;
     }
     // Jack
     else if (inPortType == PORT_TYPE_JACK ) {
-          if (outPortType == PORT_TYPE_CABLE) EEPROM_Params.midiRoutingRulesJack[inPort].cableInTargetsMsk = msk;
-          else EEPROM_Params.midiRoutingRulesJack[inPort].jackOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesJack[inPort].cableInTargetsMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesJack[inPort].jackOutTargetsMsk = msk;
+          else                                    EEPROM_Params.midiRoutingRulesJack[inPort].virtualOutTargetsMsk = msk;
           return SX_NO_ERROR;
     }
     // Virtual
     else if (inPortType == PORT_TYPE_VIRTUAL ) {
-          if (outPortType == PORT_TYPE_CABLE) EEPROM_Params.midiRoutingRulesVirtual[inPort].cableInTargetsMsk = msk;
-          else EEPROM_Params.midiRoutingRulesVirtual[inPort].jackOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesVirtual[inPort].cableInTargetsMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesVirtual[inPort].jackOutTargetsMsk = msk;
+          else                                    EEPROM_Params.midiRoutingRulesVirtual[inPort].virtualOutTargetsMsk = msk;
           return SX_NO_ERROR;
     }
   } else
+
   // Clear all Routing rules, Ithru and pipelines
   if (cmdId == 0x02  && msgLen == 2) {
       ResetMidiRoutingRules(ROUTING_CLEAR_ALL);

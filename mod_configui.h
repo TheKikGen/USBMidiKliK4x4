@@ -280,24 +280,27 @@ void ShowPipelineSlotBrowser(boolean mustLoop) {
 void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
 {
   uint8_t attachedSlot = 0;
-  uint16_t inTargetsMsk =0;
-  uint16_t outTargetsMsk =0;
+  uint16_t cbInTgMsk =0;
+  uint16_t jkOutTgMsk =0;
+  uint16_t vrOutTgMsk =0;
 
 	if (portType == PORT_TYPE_CABLE ) {
-    attachedSlot  = EEPROM_Params.midiRoutingRulesCable[port].attachedSlot;
-    inTargetsMsk  = EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
-    outTargetsMsk = EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesCable[port].attachedSlot;
+    cbInTgMsk    = EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
+    jkOutTgMsk   = EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
+    vrOutTgMsk   = EEPROM_Params.midiRoutingRulesCable[port].virtualOutTargetsMsk;
   } else
-
   if ( portType == PORT_TYPE_JACK ) {
-    attachedSlot  = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
-    inTargetsMsk  = EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
-    outTargetsMsk = EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
+    cbInTgMsk    = EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
+    jkOutTgMsk   = EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
+    vrOutTgMsk   = EEPROM_Params.midiRoutingRulesJack[port].virtualOutTargetsMsk;
   } else
   if (portType == PORT_TYPE_VIRTUAL ) {
-    attachedSlot  = EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot;
-    inTargetsMsk  = EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk;
-    outTargetsMsk = EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk;
+    attachedSlot = EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot;
+    cbInTgMsk    = EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk;
+    jkOutTgMsk   = EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk;
+    vrOutTgMsk   = EEPROM_Params.midiRoutingRulesVirtual[port].virtualOutTargetsMsk;
   }
   else return;
 
@@ -315,12 +318,17 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
   Serial.print("     | ");
 
 	// Cable IN targets ports
-  ShowMask16(inTargetsMsk,USBCABLE_INTERFACE_MAX);
+  ShowMask16(cbInTgMsk,USBCABLE_INTERFACE_MAX);
 
   Serial.print(" | ");
 
   // Jack Out targets ports
-  ShowMask16(outTargetsMsk,SERIAL_INTERFACE_COUNT);
+  ShowMask16(jkOutTgMsk,SERIAL_INTERFACE_COUNT);
+
+  Serial.print(" | ");
+
+  // virtual Out targets ports
+  ShowMask16(jkOutTgMsk,VIRTUAL_INTERFACE_MAX);
 
   Serial.print(" |");
 
@@ -344,7 +352,8 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
 
     // Ithu Out targets ports
     ShowMask16(EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk,SERIAL_INTERFACE_COUNT);
-
+    Serial.print(" | ");
+    ShowMask16(EEPROM_Params.midiRoutingRulesIntelliThru[port].virtualOutTargetsMsk,VIRTUAL_INTERFACE_MAX);
     Serial.print(" |");
   }
 
@@ -381,8 +390,9 @@ void ShowMidiRouting(uint8_t portType)
 	Serial.print(" (");Serial.print(maxPorts);
 	Serial.println(" port(s) found)");
 
-  //| Jk | Pipeline | Cable IN 1111111 | Jack OUT 1111111 |        ITHRU      Jack OUT  1111111 |
-  //|    |   Slot   | 1234567890123456 | 1234567890123456 | Enabled |  Slot  | 1234567890123456 |
+//| Jk | Pipeline | Cable IN 1111111 | Jack OUT 1111111 | Virt.OUT 1111111 |    <-- ITHRU -->  Jack OUT  1111111 | Virt.OUT 1111111 |
+//|    |   Slot   | 1234567890123456 | 1234567890123456 | 1234567890123456 | Enabled |  Slot  | 1234567890123456 | 1234567890123456 |
+//|  1 |    .     | X............... | ...............  | X..............  |    .    |    .   | ...............  | X..............  |
 
 	Serial.println();
 	Serial.print("| ");
@@ -390,11 +400,11 @@ void ShowMidiRouting(uint8_t portType)
   else if (portType == PORT_TYPE_VIRTUAL) Serial.print("Vr");
   else Serial.print("Jk");
 
-	Serial.print(" | Pipeline | Cable IN 1111111 | Jack OUT 1111111 |");
-  if ( portType == PORT_TYPE_JACK) Serial.print("    <-- ITHRU -->  Jack OUT  1111111 |");
+	Serial.print(" | Pipeline | Cable IN 1111111 | Jack OUT 1111111 | Virt.OUT 1111111 |");
+  if ( portType == PORT_TYPE_JACK) Serial.print("    <-- ITHRU -->  Jack OUT  1111111 | Virt.OUT 1111111 |");
   Serial.println();
-  Serial.print("|    |   Slot   | 1234567890123456 | 1234567890123456 |");
-  if ( portType == PORT_TYPE_JACK) Serial.print(" Enabled |  Slot  | 1234567890123456 |");
+  Serial.print("|    |   Slot   | 1234567890123456 | 1234567890123456 | 1234567890123456 |");
+  if ( portType == PORT_TYPE_JACK) Serial.print(" Enabled |  Slot  | 1234567890123456 | 1234567890123456 |");
   Serial.println();
 
 	for (uint8_t p=0; p != maxPorts ; p++) ShowMidiRoutingLine(p,portType);

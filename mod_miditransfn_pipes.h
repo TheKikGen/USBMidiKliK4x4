@@ -424,10 +424,11 @@ boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, midiTransPipe_t
     midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
 
     // No change
-    if  ( pipe->par1 == 0x7F ) RoutePacketToTarget(portType, &pk2);
+    if  ( pipe->par1 == 0x7F )
+      RoutePacketToTarget(portType, &pk2);
     else {
       // Adjust the port/cable nible but keep the CIN
-      pk2.packet[0] = cin + ( pipe->par2 << 4 );
+      pk2.packet[0] = cin + ( pipe->par3 << 4 );
       // Route with par1 value as  USB or JACK or VIRTUAL
       RoutePacketToTarget(pipe->par1 , &pk2);
     }

@@ -123,11 +123,13 @@ typedef struct {
       uint8_t  attachedSlot;
       uint16_t cableInTargetsMsk;
       uint16_t jackOutTargetsMsk;
+      uint16_t virtualOutTargetsMsk;
 } __packed midiRoutingRule_t;
 
 typedef struct {
       uint8_t  attachedSlot;
       uint16_t jackOutTargetsMsk;
+      uint16_t virtualOutTargetsMsk;
 } __packed midiRoutingRuleJack_t;
 
 
