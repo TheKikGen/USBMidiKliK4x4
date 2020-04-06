@@ -50,24 +50,25 @@ __ __| |           |  /_) |     ___|             |           |
 #include "usb_midi_device.h"
 #include "hardware_config.h"
 
-// Comment this to remove all debug instructions from the compilation.
-
-//#define DEBUG_MODE
-
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
 
-
+// Sysex internal buffer size
 #define SYSEX_INTERNAL_BUFF_SIZE 64
-
-// LED light duration in milliseconds
-#define LED_PULSE_MILLIS  5
 
 // Boot modes
 enum nextBootMode {
     bootModeMidi   = 0,
     bootModeConfigMenu = 2,
 };
+// LED ON recovery time in msec when no dedicated LED for CONNECT USB
+#define LED_CONNECT_USB_RECOVER_TIME_MILLIS 500
+
+// LED Tick
+typedef struct {
+    uint8_t pin;
+    uint16_t tick;
+} __packed LEDTick_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ROUTING RULES & TRANSFORMATION PIPELINES
@@ -151,6 +152,8 @@ typedef union {
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
 ///////////////////////////////////////////////////////////////////////////////
+#define I2C_LED_TIMER_MILLIS 500*1000
+
 #define PIN_SDA PB7
 #define PIN_SCL PB6
 
@@ -183,8 +186,6 @@ enum BusCommand {
   B_CMD_HARDWARE_RESET,
   B_CMD_START_SYNC,
   B_CMD_END_SYNC,
-  B_CMD_DEBUG_MODE_ENABLED,
-  B_CMD_DEBUG_MODE_DISABLED,
 } ;
 // Corresponding "requestFrom" answer bytes size without command
 uint8_t static const BusCommandRequestSize[]= {
@@ -201,8 +202,6 @@ uint8_t static const BusCommandRequestSize[]= {
   0,                         // B_CMD_B_CMD_HARDWARE_RESET
   0,                         // B_CMD_START_SYNC,
   0,                         // B_CMD_END_SYNC,
-  0,                         // B_CMD_DEBUG_MODE_ENABLED
-  0,                         // B_CMD_DEBUG_MODE_DISABLED
 };
 
 // Bus data types for transfers
@@ -242,7 +241,6 @@ typedef struct {
         uint8_t         TimestampedVersion[14];
 
         uint8_t         nextBootMode;
-        boolean         debugMode;
 
         // I2C device
         uint8_t         I2C_DeviceId;
@@ -275,6 +273,8 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
+boolean LED_TurnOn(volatile LEDTick_t *);
+void    LED_Update();
 int     memcmpcpy ( void * , void * , size_t );
 void    Timer2Handler(void);
 void    FlashAllLeds(uint8_t);

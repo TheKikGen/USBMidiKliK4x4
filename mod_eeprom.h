@@ -310,8 +310,6 @@ void EE_PrmInit(bool factorySettings)
 
     memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
-    EE_Prm.debugMode = false;
-
 		// Default I2C Device ID and bus mode
 		EE_Prm.I2C_DeviceId = B_MASTERID;
 		EE_Prm.I2C_BusModeState = B_DISABLED;

@@ -56,7 +56,6 @@ __ __| |           |  /_) |     ___|             |           |
 void PrintCleanHEX(uint8_t) __attribute__((optimize("-Os")));
 //Shared. See usbmidiKlik4x4.h
 //void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
-void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((optimize("-Os")));
 uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Bin(char * ) __attribute__((optimize("-Os")));
@@ -144,19 +143,6 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 				PrintCleanHEX(*pp);
 				Serial.print(" ");
 				if (nl && (++j > nl) ) { Serial.println(); j=0; }
-				pp++;
-	}
-}
-
-void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz,uint8_t nl)
-{
-	uint8_t j=0;
-	uint8_t * pp = bloc;
-	for (uint16_t i=0; i != sz; i++) {
-        if ( *pp < 0x10 ) DEBUG_SERIAL.print("0");
-        DEBUG_SERIAL.print(*pp,HEX);
-				DEBUG_SERIAL.print(" ");
-				if (nl && (++j > nl) ) { DEBUG_SERIAL.println(); j=0; }
 				pp++;
 	}
 }
@@ -540,10 +526,7 @@ void ShowGlobalSettings()
 	Serial.println();
 	Serial.print("Next BootMode       : ");
 	Serial.println(EE_Prm.nextBootMode);
-
-	Serial.print("Debug Mode          : ");
-	Serial.println(EE_Prm.debugMode ? str_ENABLED_M:str_DISABLED_M);
-
+	
 	Serial.print("Hardware type       : ");
 	Serial.println(HARDWARE_TYPE);
 
@@ -827,7 +810,6 @@ void ShowConfigMenu()
   "fFactory settings",
   "rReset routing",
   "sSave settings",
-  "zDebug mode",
   "xExit",
   "!Dump EEPROM",
   ":Dump Flash memory",
@@ -1015,27 +997,6 @@ void ShowConfigMenu()
   				AskMidiRouting(PORT_TYPE_VIRTUAL);
   				Serial.println();
   				break;
-
-      // debug Mode
-      case 'z':
-        #ifdef DEBUG_MODE
-        if ( AskChoice("Enable debug mode.","") == 'y' ) {
-          EE_Prm.debugMode = true;
-          Serial.println();
-          Serial.println("Debug mode : M:Serial3, S:UsbSerial. 115200 bds.");
-          Serial.println();
-        } else {
-          EE_Prm.debugMode = false;
-          Serial.println();
-          Serial.println("Debug mode disabled.");
-          Serial.println();
-        }
-        #else
-          Serial.println("Not available.");
-          Serial.println();
-        #endif
-				showMenu = false;
-        break;
 
       // Dump EEPROM
       case '!':

@@ -236,18 +236,6 @@ void I2C_ParseImmediateCmd() {
     case B_CMD_END_SYNC:
       I2C_SlaveSyncStarted = false;
       break;
-
-  #ifdef DEBUG_MODE
-    case B_CMD_DEBUG_MODE_ENABLED:
-        // The master can enable degug mode.
-        EE_Prm.debugMode = true;
-      break;
-
-    case B_CMD_DEBUG_MODE_DISABLED:
-        // The master can disable degug mode.
-        EE_Prm.debugMode = false;
-        break;
-  #endif
   }
 }
 
@@ -260,7 +248,10 @@ void I2C_SlaveReceiveEvent(int howMany)
   I2C_MasterReadyTimeoutMillis = millis();
 
   // Update timer to avoid a permanent flash due to polling
-  if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
+  if ( I2C_MasterReadyTimeoutMillis > I2C_LedTimerMillis ) {
+			I2C_LedTimerMillis =  I2C_MasterReadyTimeoutMillis  + I2C_LED_TIMER_MILLIS;
+			LED_TurnOn(&LED_ConnectTick);
+	}
 
   // Is it a DATA SYNC ?
   if ( I2C_SlaveSyncStarted ) {
@@ -316,7 +307,12 @@ void I2C_SlaveReceiveEvent(int howMany)
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveRequestEvent ()
 {
-  if (I2C_LedTimer.start() ) flashLED_CONNECT->start();
+  // Update timer to avoid a permanent flash due to polling
+  if ( millis() > I2C_LedTimerMillis ) {
+			I2C_LedTimerMillis =  millis()  + I2C_LED_TIMER_MILLIS;
+			LED_TurnOn(&LED_ConnectTick);
+	}
+
 
   switch (I2C_Command) {
 
@@ -411,10 +407,6 @@ void I2C_BusStartWire()
   		Serial.begin(115200);
       Serial.flush();
 			delay(500);
-
-      DEBUG_BEGIN
-      DEBUG_PRINTLN("DEBUG MODE ACTIVE.","");
-      DEBUG_END
 	}
 }
 
@@ -465,11 +457,6 @@ int16_t I2C_getPacket(uint8_t deviceId, masterMidiPacket_t *mpk)
 {
     uint8_t nb = I2C_SendCommand(deviceId,B_CMD_GET_MPACKET);
     if ( nb > 0 ) Wire.readBytes( mpk->packet,sizeof(masterMidiPacket_t)) ;
-
-DEBUG_BEGIN
-DEBUG_PRINT("GetPk (","");
-DEBUG_DUMP(mpk->packet,sizeof(masterMidiPacket_t));
-DEBUG_END
 
     return (nb) ;
 }
@@ -552,11 +539,6 @@ void I2C_ProcessMaster ()
   I2C_SendCommand(0, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE );
   I2C_SendCommand(0, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ;
 
-  // Notify slaves of debug mode. The debug mode of the slave is overwriten
-  #ifdef DEBUG_MODE
-  I2C_SendCommand(0, EE_Prm.debugMode ?  B_CMD_DEBUG_MODE_ENABLED:B_CMD_DEBUG_MODE_DISABLED ) ;
-  #endif
-
   for ( uint8_t d = 0 ; d != I2C_DeviceActiveCount ; d++) {
 
       // Get a slave midi packet eventually
@@ -600,19 +582,7 @@ void I2C_ProcessSlave ()
 			midiPacket_t pk;
 			// These packets are mandatory local as a result of the routing
 			I2C_QPacketsFromMaster.readBytes(pk.packet,sizeof(midiPacket_t));
-
-DEBUG_BEGIN
-DEBUG_PRINT("Read FMQ :","");
-DEBUG_DUMP(pk.packet,sizeof(midiPacket_t));
-DEBUG_PRINTLN(". count=",I2C_QPacketsFromMaster.available()/sizeof(midiPacket_t));
-DEBUG_END
-
 			SerialMidi_SendPacket(&pk, (pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX );
-
-DEBUG_BEGIN
-DEBUG_PRINTLN(" Sent to local serial ",(pk.packet[0] >> 4) % SERIAL_INTERFACE_MAX );
-DEBUG_END
-
 	}
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
@@ -638,13 +608,4 @@ DEBUG_END
 			else if ( key >= '1' || key <= '8' )
 				ShowPipelineSlot(key - '0');
 	}
-
-
-DEBUG_BEGIN_TIMER
-DEBUG_ASSERT(I2C_MasterReady,"Master ready","");
-DEBUG_ASSERT(midiUSBCx,"USB Midi Cx alive","");
-DEBUG_ASSERT(midiUSBIdle,"USB Midi idle","");
-DEBUG_ASSERT(intelliThruActive,"Intellithru active","");
-DEBUG_END
-
 }

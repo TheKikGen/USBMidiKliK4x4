@@ -48,12 +48,12 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 
 // Macro to flash LEDS IN
-#ifdef LEDS_MIDI
-  #define FLASH_LED_IN(thisLed) flashLED_IN[thisLed]->start()
-  #define FLASH_LED_OUT(thisLed) flashLED_OUT[thisLed]->start()
+#ifdef LED_MIDI_SIZE
+  #define FLASH_LED_IN(thisLed) LED_TurnOn(&LED_MidiInTick[thisLed])
+  #define FLASH_LED_OUT(thisLed) LED_TurnOn(&LED_MidiOutTick[thisLed])
 #else
-  #define FLASH_LED_IN(thisLed) flashLED_CONNECT->start()
-  #define FLASH_LED_OUT(thisLed) flashLED_CONNECT->start()
+  #define FLASH_LED_IN(thisLed) LED_TurnOn(&LED_ConnectTick)
+  #define FLASH_LED_OUT(thisLed) LED_TurnOn(&LED_ConnectTick)
 #endif
 
 // Macro to compute the max serial port in bus mode or not.
@@ -68,30 +68,3 @@ __ __| |           |  /_) |     ___|             |           |
 
 // Macro to compute a "virtual bus serial port" from a local device and serial port
 #define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
-
-// Macro for debugging purpose when MIDI active
-#define DEBUG_SERIAL Serial3
-#ifdef DEBUG_MODE
-  // Timer used to display debug msg and avoid com overflow
-  PulseOut I2C_DebugTimer(0xFF,1000);
-
-  #define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
-  #define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
-  #define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
-  #define DEBUG_PRINT_HEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),HEX);} else {Serial.print((txt));Serial.print((val),HEX);}
-  #define DEBUG_DUMP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
-  #define DEBUG_ASSERT(cond,txt,val) if ( (cond) ) { DEBUG_PRINTLN(txt,val) }
-  #define DEBUG_BEGIN if ( EE_Prm.debugMode) {
-  #define DEBUG_BEGIN_TIMER if ( EE_Prm.debugMode && I2C_DebugTimer.start() ) {
-  #define DEBUG_END }
-#else
-  #define DEBUG_PRINT(txt,val)
-  #define DEBUG_PRINTLN(txt,val)
-  #define DEBUG_PRINT_BIN(txt,val)
-  #define DEBUG_PRINT_HEX(txt,val)
-  #define DEBUG_DUMP(buff,sz)
-  #define DEBUG_ASSERT(cond,txt,val)
-  #define DEBUG_BEGIN
-  #define DEBUG_BEGIN_TIMER
-  #define DEBUG_END
-#endif
