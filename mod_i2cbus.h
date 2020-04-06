@@ -622,8 +622,7 @@ DEBUG_END
 			Serial.println();
 			ShowMidiKliKHeader();Serial.println();
 
-			Serial.print("Slave ");Serial.print(EEPROM_Params.I2C_DeviceId);
-			Serial.println(" ready and listening.");
+			SerialPrintf("Slave %02d ready and listening.%n", EEPROM_Params.I2C_DeviceId);
 			Serial.println("(r)outing rules - (1-8) pipeline slots - e(X)it to configuration menu :");
 
       if ( key == 'X') {
@@ -632,9 +631,9 @@ DEBUG_END
         ShowConfigMenu();
       }
       else if ( key == 'r') {
+				ShowMidiRouting(PORT_TYPE_VIRTUAL);
         ShowMidiRouting(PORT_TYPE_CABLE);
         ShowMidiRouting(PORT_TYPE_JACK);
-				ShowMidiRouting(PORT_TYPE_VIRTUAL);
       }
 			else if ( key >= '1' || key <= '8' )
 				ShowPipelineSlot(key - '0');
