@@ -188,7 +188,7 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
           if ( sysExFunctionAckToggle && r != SX_NO_ACK && SysExInternalFnVector[i].needACK )
               SysExInternal_SendFnACK(portType,r);
           if ( r == SX_NO_ERROR ) {
-            if ( SysExInternalFnVector[i].needStoreIfSucceed) EEPROM_ParamsSave();
+            if ( SysExInternalFnVector[i].needStoreIfSucceed) EE_PrmSave();
             if ( SysExInternalFnVector[i].needBusSyncIfSucceed && (B_IS_MASTER) ) I2C_SlavesRoutingSyncFromMaster();
             if ( SysExInternalFnVector[i].needResetIfSucceed) nvic_sys_reset();
             return true;
@@ -350,7 +350,7 @@ uint8_t SysExInternal_fnIdentityRequest(uint8_t portType,uint8_t *sxMsg) {
 uint8_t SysExInternal_fnConfigMode(uint8_t portType,uint8_t *sxMsg) {
   // Set serial boot mode & Write the whole param struct
   if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
-  EEPROM_Params.nextBootMode = bootModeConfigMenu;
+  EE_Prm.nextBootMode = bootModeConfigMenu;
   return SX_NO_ERROR;
 }
 
@@ -377,8 +377,8 @@ uint8_t SysExInternal_fnSetUsbProductString(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[0] < 2 || (sxMsg[0]-1) > USB_MIDI_PRODUCT_STRING_SIZE )  return SX_ERROR_BAD_MSG_SIZE;
 
   // Store the new string in EEPROM
-  memset(&EEPROM_Params.productString,0, sizeof(EEPROM_Params.productString));
-  memcpy(&EEPROM_Params.productString,&sxMsg[2],sxMsg[0]-1);
+  memset(&EE_Prm.productString,0, sizeof(EE_Prm.productString));
+  memcpy(&EE_Prm.productString,&sxMsg[2],sxMsg[0]-1);
   return SX_NO_ERROR;
 }
 
@@ -394,9 +394,9 @@ uint8_t SysExInternal_fnSetUsbProductString(uint8_t portType,uint8_t *sxMsg) {
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnSetUsbPidVid(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[0] != 9 ) return SX_ERROR_BAD_MSG_SIZE;
-  EEPROM_Params.vendorID = (sxMsg[2] << 12) + (sxMsg[3] << 8) +
+  EE_Prm.vendorID = (sxMsg[2] << 12) + (sxMsg[3] << 8) +
                                  (sxMsg[4] << 4) + sxMsg[5] ;
-  EEPROM_Params.productID= (sxMsg[6] << 12) + (sxMsg[7] << 8) +
+  EE_Prm.productID= (sxMsg[6] << 12) + (sxMsg[7] << 8) +
                                  (sxMsg[8] << 4) + sxMsg[9] ;
   return SX_NO_ERROR;
 }
@@ -431,14 +431,14 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
   // Disable all jackin ports = Off
   if (cmdId == 0x01  && msgLen == 2) {
-       EEPROM_Params.intelliThruJackInMsk = 0;
+       EE_Prm.ithruJackInMsk = 0;
        return SX_NO_ERROR;
   } else
 
-  // Set Delay. Min delay is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
+  // Set USB Idle time. Min time is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
   if (cmdId == 0x02  && msgLen == 3) {
       if ( sxMsg[3] < 1 || sxMsg[3] > 0X7F ) return SX_ERROR_BAD_VALUE;
-      EEPROM_Params.intelliThruDelayPeriod = sxMsg[3];
+      EE_Prm.ithruUSBIdleTimePeriod = sxMsg[3];
       return SX_NO_ERROR;
   }
   else
@@ -453,10 +453,10 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
       // disable/enable (toggle) Intellithru for this port
       if (msgLen == 3 ) {
-        if ( ( EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk & (1 << jackIn) )||
-             ( EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].virtualOutTargetsMsk & (1 << jackIn) ) )
-            EEPROM_Params.intelliThruJackInMsk ^= (1 << jackIn);  // Toggle
-        else EEPROM_Params.intelliThruJackInMsk &= ~(1 << jackIn); // Off if no out ports
+        if ( ( EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk & (1 << jackIn) )||
+             ( EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk & (1 << jackIn) ) )
+            EE_Prm.ithruJackInMsk ^= (1 << jackIn);  // Toggle
+        else EE_Prm.ithruJackInMsk &= ~(1 << jackIn); // Off if no out ports
         return SX_NO_ERROR;
       }
 
@@ -467,17 +467,17 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
       if (outPortType == PORT_TYPE_JACK  ) {
         if ( msgLen > (SERIAL_INTERFACE_COUNT + 4) ) return SX_ERROR_BAD_MSG_SIZE;
-        msk = &EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk;
+        msk = &EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk;
       }
       else
       if (outPortType == PORT_TYPE_VIRTUAL ) {
         if ( msgLen > (VIRTUAL_INTERFACE_MAX + 4) ) return SX_ERROR_BAD_MSG_SIZE;
-        msk = &EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].virtualOutTargetsMsk;
+        msk = &EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk;
       }
       else return SX_ERROR_BAD_PORT_TYPE;
 
       // Set midi in jack msk
-      EEPROM_Params.intelliThruJackInMsk |= (1 << jackIn);
+      EE_Prm.ithruJackInMsk |= (1 << jackIn);
 
       // Set target port out msk
       uint16_t newMsk = 0;
@@ -489,7 +489,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
       *msk = newMsk;
 
       // reset globals for a real time update
-      intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
+      intelliThruDelayMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
       return SX_NO_ERROR;
   }
   return SX_ERROR_ANY;
@@ -567,23 +567,23 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
 
     // Set masks Cable
     if (inPortType == PORT_TYPE_CABLE ) {
-          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesCable[inPort].cableInTargetsMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesCable[inPort].jackOutTargetsMsk = msk;
-          else                                    EEPROM_Params.midiRoutingRulesCable[inPort].virtualOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesCable[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesCable[inPort].jkOutTgMsk = msk;
+          else                                    EE_Prm.rtRulesCable[inPort].vrOutTgMsk = msk;
           return SX_NO_ERROR;
     }
     // Jack
     else if (inPortType == PORT_TYPE_JACK ) {
-          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesJack[inPort].cableInTargetsMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesJack[inPort].jackOutTargetsMsk = msk;
-          else                                    EEPROM_Params.midiRoutingRulesJack[inPort].virtualOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesJack[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesJack[inPort].jkOutTgMsk = msk;
+          else                                    EE_Prm.rtRulesJack[inPort].vrOutTgMsk = msk;
           return SX_NO_ERROR;
     }
     // Virtual
     else if (inPortType == PORT_TYPE_VIRTUAL ) {
-          if (outPortType == PORT_TYPE_CABLE)     EEPROM_Params.midiRoutingRulesVirtual[inPort].cableInTargetsMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EEPROM_Params.midiRoutingRulesVirtual[inPort].jackOutTargetsMsk = msk;
-          else                                    EEPROM_Params.midiRoutingRulesVirtual[inPort].virtualOutTargetsMsk = msk;
+          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesVirtual[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk = msk;
+          else                                    EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
           return SX_NO_ERROR;
     }
   } else
@@ -615,10 +615,10 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
   // Toogle Bus mode
   if (cmdId == 0x00 && msgLen == 3 )  {
 
-      if ( sxMsg[3] == 1  && EEPROM_Params.I2C_BusModeState == B_DISABLED)
-              EEPROM_Params.I2C_BusModeState = B_ENABLED;
-      else if ( sxMsg[3] == 0 && EEPROM_Params.I2C_BusModeState == B_ENABLED )
-              EEPROM_Params.I2C_BusModeState = B_DISABLED;
+      if ( sxMsg[3] == 1  && EE_Prm.I2C_BusModeState == B_DISABLED)
+              EE_Prm.I2C_BusModeState = B_ENABLED;
+      else if ( sxMsg[3] == 0 && EE_Prm.I2C_BusModeState == B_ENABLED )
+              EE_Prm.I2C_BusModeState = B_DISABLED;
       else return SX_ERROR_ANY;
       return SX_NO_ERROR;
   }
@@ -627,8 +627,8 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
   // Set device Id
   if (cmdId == 0x01 && msgLen == 3 )  {
       if ( sxMsg[3] > B_SLAVE_DEVICE_LAST_ADDR || sxMsg[3] < B_SLAVE_DEVICE_BASE_ADDR ) return SX_ERROR_BAD_DEVICEID;
-      if ( sxMsg[3] != EEPROM_Params.I2C_DeviceId ) {
-        EEPROM_Params.I2C_DeviceId = sxMsg[3];
+      if ( sxMsg[3] != EE_Prm.I2C_DeviceId ) {
+        EE_Prm.I2C_DeviceId = sxMsg[3];
         return SX_NO_ERROR;
       }
   }
@@ -691,7 +691,7 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
   if (cmdId == 0x01 ) {
     //  11 01  <00 = Add pipe>  <slot number 01-08> <FN id> <par1> <par2> <par3> <par4>
     if (cmdSubId == 0x00  && msgLen == 9) {
-        midiTransPipe_t p;
+        transPipe_t p;
         p.pId = sxMsg[5];  p.byPass = 0;
         p.par1 = sxMsg[6]; p.par2 = sxMsg[7];
         p.par3 = sxMsg[8]; p.par4 = sxMsg[9];
@@ -700,7 +700,7 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
     else
     // 11 01 <01 = Insert before>  <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
     if (cmdSubId == 0x01  && msgLen == 10) {
-      midiTransPipe_t p;
+      transPipe_t p;
       p.pId = sxMsg[6];  p.byPass = 0;
       p.par1 = sxMsg[7]; p.par2 = sxMsg[8];
       p.par3 = sxMsg[9]; p.par4 = sxMsg[10];
@@ -709,7 +709,7 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
     else
     // 11 01 <02 = Replace> <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
     if (cmdSubId == 0x02  && msgLen == 10) {
-      midiTransPipe_t p;
+      transPipe_t p;
       p.pId = sxMsg[6];  p.byPass = 0;
       p.par1 = sxMsg[7]; p.par2 = sxMsg[8];
       p.par3 = sxMsg[9]; p.par4 = sxMsg[10];
@@ -792,8 +792,8 @@ void SysexInternal_DumpFullConfToStream(uint8_t dest) {
         SysexInternal_DumpSendConfToStream(0x11000300 + i , dest);
 
   // PIPES Dump : 11 01 <slot> < pipe index>
-  for (  uint32_t s=1; s <= MIDI_TRANS_PIPELINE_SLOT_SIZE ; s++) {
-    for (  uint32_t p=0; p != MIDI_TRANS_PIPELINE_SIZE ; p++)
+  for (  uint32_t s=1; s <= TRANS_PIPELINE_SLOT_SIZE ; s++) {
+    for (  uint32_t p=0; p != TRANS_PIPELINE_SIZE ; p++)
       SysexInternal_DumpSendConfToStream(0x11010000 + (s << 8) + p, dest);
   }
 
@@ -820,8 +820,8 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // Dump : 0B
   // Generate F0 77 77 78 0B <usb product string:nn...nn> F7
   if ( sxAddr == 0x0B000000 ) {
-    strcpy((char*)++buff2,(char*)EEPROM_Params.productString);
-    buff2+=strlen((char*)EEPROM_Params.productString)-1;
+    strcpy((char*)++buff2,(char*)EE_Prm.productString);
+    buff2+=strlen((char*)EE_Prm.productString)-1;
     *(++buff2) = 0xF7;
     return buff2-buff+1;
   }
@@ -830,14 +830,14 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // Dump : 0C
   // Generate F0 77 77 78 0C <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
   if ( sxAddr == 0x0C000000 ) {
-      *(++buff2) = EEPROM_Params.vendorID >> 12;
-      *(++buff2) = (EEPROM_Params.vendorID & 0x0F00) >> 8;
-      *(++buff2) = (EEPROM_Params.vendorID & 0x00F0) >> 4;
-      *(++buff2) = (EEPROM_Params.vendorID & 0x000F) ;
-      *(++buff2) = EEPROM_Params.productID >> 12;
-      *(++buff2) = (EEPROM_Params.productID & 0x0F00) >> 8;
-      *(++buff2) = (EEPROM_Params.productID & 0x00F0) >> 4;
-      *(++buff2) = (EEPROM_Params.productID & 0x000F) ;
+      *(++buff2) = EE_Prm.vendorID >> 12;
+      *(++buff2) = (EE_Prm.vendorID & 0x0F00) >> 8;
+      *(++buff2) = (EE_Prm.vendorID & 0x00F0) >> 4;
+      *(++buff2) = (EE_Prm.vendorID & 0x000F) ;
+      *(++buff2) = EE_Prm.productID >> 12;
+      *(++buff2) = (EE_Prm.productID & 0x0F00) >> 8;
+      *(++buff2) = (EE_Prm.productID & 0x00F0) >> 4;
+      *(++buff2) = (EE_Prm.productID & 0x000F) ;
       *(++buff2) = 0xF7;
       return buff2-buff+1;
   }
@@ -847,7 +847,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // Generate F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
   if ( sxAddr == 0x0E020000 ) {
       *(++buff2) = 0X02;
-      *(++buff2) = EEPROM_Params.intelliThruDelayPeriod;
+      *(++buff2) = EE_Prm.ithruUSBIdleTimePeriod;
       *(++buff2) = 0xF7;
       return buff2-buff+1;
   }
@@ -861,7 +861,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       *(++buff2) = jackIn;
       uint8_t jackOut=0;
       for (  uint8_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++) {
-      	     if ( EEPROM_Params.midiRoutingRulesIntelliThru[jackIn].jackOutTargetsMsk & ( 1 << i) ) {
+      	     if ( EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk & ( 1 << i) ) {
               *(++buff2) = i;
               jackOut++;
            }
@@ -869,7 +869,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       if (!jackOut) return 0;
       *(++buff2) = 0xF7;
       // If out ports and no jack in, then generate a "disable" but keep the routing
-      if ( ! (EEPROM_Params.intelliThruJackInMsk & (1 << jackIn) ) ) {
+      if ( ! (EE_Prm.ithruJackInMsk & (1 << jackIn) ) ) {
         memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
         buff2+=sizeof(sysExInternalHeader);
         *buff2 = fnId ;
@@ -895,16 +895,16 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       *(++buff2) = inPort;
 
       if (inPortType == 0 ) {  // Cable
-        cmsk = EEPROM_Params.midiRoutingRulesCable[inPort].cableInTargetsMsk;
-        jmsk = EEPROM_Params.midiRoutingRulesCable[inPort].jackOutTargetsMsk;
+        cmsk = EE_Prm.rtRulesCable[inPort].cbInTgMsk;
+        jmsk = EE_Prm.rtRulesCable[inPort].jkOutTgMsk;
       }
       else if (inPortType == 1 ){  // jack
-        cmsk = EEPROM_Params.midiRoutingRulesJack[inPort].cableInTargetsMsk;
-        jmsk = EEPROM_Params.midiRoutingRulesJack[inPort].jackOutTargetsMsk;
+        cmsk = EE_Prm.rtRulesJack[inPort].cbInTgMsk;
+        jmsk = EE_Prm.rtRulesJack[inPort].jkOutTgMsk;
       }
       else if (inPortType == 2 ) {  // Virtual
-        cmsk = EEPROM_Params.midiRoutingRulesVirtual[inPort].cableInTargetsMsk;
-        jmsk = EEPROM_Params.midiRoutingRulesVirtual[inPort].jackOutTargetsMsk;
+        cmsk = EE_Prm.rtRulesVirtual[inPort].cbInTgMsk;
+        jmsk = EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk;
       } else return 0;
 
       if ( ! (cmsk + jmsk) ) return 0;
@@ -944,7 +944,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   if ( sxAddr == 0x10000000 ) {
 
     *(++buff2) = 0X00; // cmdId : mode
-    *(++buff2) = EEPROM_Params.I2C_BusModeState ; // Mode value
+    *(++buff2) = EE_Prm.I2C_BusModeState ; // Mode value
 
     // Add a new header
     *(++buff2) = 0xF7;
@@ -952,7 +952,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     buff2+=sizeof(sysExInternalHeader);
     *buff2 = fnId;
     *(++buff2) = 0X01; // cmdId : deviceId
-    *(++buff2) = EEPROM_Params.I2C_DeviceId ; // Device Id value
+    *(++buff2) = EE_Prm.I2C_DeviceId ; // Device Id value
 
     *(++buff2) = 0xF7;
     return buff2-buff+1;
@@ -975,10 +975,10 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = 0X02; // Attach port
     *(++buff2) = inPortType;
     *(++buff2) = inPort;
-    if ( inPortType == 0) *(++buff2) = EEPROM_Params.midiRoutingRulesCable[inPort].attachedSlot;
-    else if ( inPortType == 1) *(++buff2) = EEPROM_Params.midiRoutingRulesJack[inPort].attachedSlot;
-    else if ( inPortType == 2) *(++buff2) = EEPROM_Params.midiRoutingRulesVirtual[inPort].attachedSlot;
-    else if ( inPortType == 3) *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[inPort].attachedSlot;
+    if ( inPortType == 0) *(++buff2) = EE_Prm.rtRulesCable[inPort].slot;
+    else if ( inPortType == 1) *(++buff2) = EE_Prm.rtRulesJack[inPort].slot;
+    else if ( inPortType == 2) *(++buff2) = EE_Prm.rtRulesVirtual[inPort].slot;
+    else if ( inPortType == 3) *(++buff2) = EE_Prm.rtRulesIthru[inPort].slot;
     else return 0;
 
     // Don't take unattached ports to reduce sysex size
@@ -998,17 +998,17 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   if ( sxAddr >= 0x11010100 && sxAddr <= 0x11017F7F ) {
     uint8_t slot = ( (sxAddr<<16) >> 24 ) ;
     uint8_t pipeIndex = ( sxAddr & 0x0000000FF );
-    if (slot < 1 || slot > MIDI_TRANS_PIPELINE_SLOT_SIZE ) return 0;
-    if (pipeIndex > MIDI_TRANS_PIPELINE_SIZE ) return 0;
-    if ( EEPROM_Params.midiTransPipelineSlots[--slot].pipeline[pipeIndex].pId == FN_TRANSPIPE_NOPIPE) return 0;
+    if (slot < 1 || slot > TRANS_PIPELINE_SLOT_SIZE ) return 0;
+    if (pipeIndex > TRANS_PIPELINE_SIZE ) return 0;
+    if ( EE_Prm.pipelineSlot[--slot].pipeline[pipeIndex].pId == FN_TRANSPIPE_NOPIPE) return 0;
     *(++buff2) = 0X01; // Pipe operations
     *(++buff2) = 0X00; // Add Pipe
     *(++buff2) = slot+1;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].pId;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].par1;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].par2;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].par3;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].par4;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].pId;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par1;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par2;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par3;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par4;
     // Add a new header to generate the bypass command
     *(++buff2) = 0xF7;
     memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
@@ -1018,7 +1018,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = 0X05; // cmdId : ByPass
     *(++buff2) = slot+1;
     *(++buff2) = pipeIndex;
-    *(++buff2) = EEPROM_Params.midiTransPipelineSlots[slot].pipeline[pipeIndex].byPass;
+    *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].byPass;
 
     *(++buff2) = 0xF7;
     return buff2-buff+1;

@@ -59,7 +59,7 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 
 // EEPROMS parameters
-EEPROM_Params_t EEPROM_Params;
+EEPROM_Prm_t EE_Prm;
 // Timer
 HardwareTimer timer(2);
 // Serial interfaces Array
@@ -107,7 +107,7 @@ uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
 volatile bool intelliThruActive = false;
-unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
+unsigned long intelliThruDelayMillis = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
 
 // Bus Mode globals
 uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
@@ -321,7 +321,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // NB : we use the same routine to route USB and serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
   uint8_t port  = pk->packet[0] >> 4;
-  uint8_t cin         = pk->packet[0] & 0x0F ;
+  uint8_t cin   = pk->packet[0] & 0x0F ;
 
   // ROUTING rules masks
 	uint16_t cbInTargets  = 0;
@@ -341,42 +341,42 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
     // If bus mode active, the local port# must be translated according
 		// to the device Id, before routing
-    if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,port);
+    if (EE_Prm.I2C_BusModeState == B_ENABLED ) {
+			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EE_Prm.I2C_DeviceId,port);
       // Rebuild packet header with source port translated
       pk->packet[0] = cin + ( port << 4) ;
     }
 
     // IntelliThru active ? If so, take the good routing rules
     if ( ithru ) {
-      if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
-      jkOutTargets = EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk;
-      vrOutTargets = EEPROM_Params.midiRoutingRulesIntelliThru[port].virtualOutTargetsMsk;
-      attachedSlot = EEPROM_Params.midiRoutingRulesIntelliThru[port].attachedSlot;
+      if ( ! EE_Prm.ithruJackInMsk ) return; // Double check.
+      jkOutTargets = EE_Prm.rtRulesIthru[port].jkOutTgMsk;
+      vrOutTargets = EE_Prm.rtRulesIthru[port].vrOutTgMsk;
+      attachedSlot = EE_Prm.rtRulesIthru[port].slot;
     }
     // else Standard jack rules
     else {
-      cbInTargets  = EEPROM_Params.midiRoutingRulesJack[port].cableInTargetsMsk;
-      jkOutTargets = EEPROM_Params.midiRoutingRulesJack[port].jackOutTargetsMsk;
-      vrOutTargets = EEPROM_Params.midiRoutingRulesJack[port].virtualOutTargetsMsk;
-      attachedSlot = EEPROM_Params.midiRoutingRulesJack[port].attachedSlot;
+      cbInTargets  = EE_Prm.rtRulesJack[port].cbInTgMsk;
+      jkOutTargets = EE_Prm.rtRulesJack[port].jkOutTgMsk;
+      vrOutTargets = EE_Prm.rtRulesJack[port].vrOutTgMsk;
+      attachedSlot = EE_Prm.rtRulesJack[port].slot;
     }
   }
   // A midi packet from USB cable out ?
   else if ( portType == PORT_TYPE_CABLE ) {
     if ( port >= USBCABLE_INTERFACE_MAX ) return;
-    cbInTargets  = EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
-    jkOutTargets = EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk;
-    vrOutTargets = EEPROM_Params.midiRoutingRulesCable[port].virtualOutTargetsMsk;
-    attachedSlot = EEPROM_Params.midiRoutingRulesCable[port].attachedSlot;
+    cbInTargets  = EE_Prm.rtRulesCable[port].cbInTgMsk;
+    jkOutTargets = EE_Prm.rtRulesCable[port].jkOutTgMsk;
+    vrOutTargets = EE_Prm.rtRulesCable[port].vrOutTgMsk;
+    attachedSlot = EE_Prm.rtRulesCable[port].slot;
   }
   // Virtual port
   else if ( portType == PORT_TYPE_VIRTUAL ) {
     if ( port >= VIRTUAL_INTERFACE_MAX ) return;
-    cbInTargets  = EEPROM_Params.midiRoutingRulesVirtual[port].cableInTargetsMsk;
-    jkOutTargets = EEPROM_Params.midiRoutingRulesVirtual[port].jackOutTargetsMsk;
-    vrOutTargets = EEPROM_Params.midiRoutingRulesVirtual[port].virtualOutTargetsMsk;
-    attachedSlot = EEPROM_Params.midiRoutingRulesVirtual[port].attachedSlot;
+    cbInTargets  = EE_Prm.rtRulesVirtual[port].cbInTgMsk;
+    jkOutTargets = EE_Prm.rtRulesVirtual[port].jkOutTgMsk;
+    vrOutTargets = EE_Prm.rtRulesVirtual[port].vrOutTgMsk;
+    attachedSlot = EE_Prm.rtRulesVirtual[port].slot;
   }
 
 	// Sysex is a particular case when routing or modifying packets.
@@ -410,7 +410,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   while ( jkOutTargets && t != SERIAL_INTERFACE_COUNT ) {
     if ( jkOutTargets & 1 ) {
       // Route via the bus or local serial if bus mode disabled
-      if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) I2C_BusSerialSendMidiPacket(pk, t);
+      if (EE_Prm.I2C_BusModeState == B_ENABLED ) I2C_BusSerialSendMidiPacket(pk, t);
       else SerialMidi_SendPacket(pk,t);
     }
     t++; jkOutTargets >>= 1;
@@ -471,10 +471,10 @@ void ResetMidiRoutingRules(uint8_t mode) {
   if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB || mode == ROUTING_CLEAR_ALL ) {
     // Virtual
     for ( uint8_t i = 0 ; i != VIRTUAL_INTERFACE_MAX ; i++ ) {
-      EEPROM_Params.midiRoutingRulesVirtual[i].attachedSlot = 0;
-      EEPROM_Params.midiRoutingRulesVirtual[i].cableInTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesVirtual[i].jackOutTargetsMsk = 0  ;
-      EEPROM_Params.midiRoutingRulesVirtual[i].virtualOutTargetsMsk = 0  ;
+      EE_Prm.rtRulesVirtual[i].slot = 0;
+      EE_Prm.rtRulesVirtual[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesVirtual[i].jkOutTgMsk = 0  ;
+      EE_Prm.rtRulesVirtual[i].vrOutTgMsk = 0  ;
     }
   }
 
@@ -483,28 +483,28 @@ void ResetMidiRoutingRules(uint8_t mode) {
     for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
 
       // Cables
-      EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
-      EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesCable[i].virtualOutTargetsMsk = 0  ;
+      EE_Prm.rtRulesCable[i].slot = 0;
+      EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesCable[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesCable[i].vrOutTgMsk = 0  ;
 
     }
     // Jack serial
     for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-      EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
-      EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
-      EEPROM_Params.midiRoutingRulesJack[i].virtualOutTargetsMsk = 0  ;
+      EE_Prm.rtRulesJack[i].slot = 0;
+      EE_Prm.rtRulesJack[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrOutTgMsk = 0  ;
     }
 
     // "Intelligent thru" serial mode
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot = 0;
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesIntelliThru[i].virtualOutTargetsMsk = 0  ;
+	    EE_Prm.rtRulesIthru[i].slot = 0;
+	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesIthru[i].vrOutTgMsk = 0  ;
 		}
-		EEPROM_Params.intelliThruJackInMsk = 0;
-	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
+		EE_Prm.ithruJackInMsk = 0;
+	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
 	}
 
 
@@ -512,18 +512,18 @@ void ResetMidiRoutingRules(uint8_t mode) {
 
 	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
 			// Cables
-	    EEPROM_Params.midiRoutingRulesCable[i].attachedSlot = 0;
-	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
-	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
-      EEPROM_Params.midiRoutingRulesCable[i].virtualOutTargetsMsk = 0  ;
+	    EE_Prm.rtRulesCable[i].slot = 0;
+	    EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
+	    EE_Prm.rtRulesCable[i].jkOutTgMsk = 1 << i ;
+      EE_Prm.rtRulesCable[i].vrOutTgMsk = 0  ;
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 			// Jack serial
-	    EEPROM_Params.midiRoutingRulesJack[i].attachedSlot = 0;
-	    EEPROM_Params.midiRoutingRulesJack[i].cableInTargetsMsk = 1 << i ;
-	    EEPROM_Params.midiRoutingRulesJack[i].jackOutTargetsMsk = 0  ;
-      EEPROM_Params.midiRoutingRulesJack[i].virtualOutTargetsMsk = 0  ;
+	    EE_Prm.rtRulesJack[i].slot = 0;
+	    EE_Prm.rtRulesJack[i].cbInTgMsk = 1 << i ;
+	    EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrOutTgMsk = 0  ;
 	  }
 
   }
@@ -531,12 +531,12 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].attachedSlot = 0;
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0 ;
-      EEPROM_Params.midiRoutingRulesIntelliThru[i].virtualOutTargetsMsk = 0  ;
+	    EE_Prm.rtRulesIthru[i].slot = 0;
+	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesIthru[i].vrOutTgMsk = 0  ;
 		}
-		EEPROM_Params.intelliThruJackInMsk = 0;
-	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
+		EE_Prm.ithruJackInMsk = 0;
+	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
 
 	}
 
@@ -570,11 +570,11 @@ void CheckBootMode()
 {
 	// Does the config menu boot mode is active ?
 	// if so, prepare the next boot in MIDI mode and jump to menu
-	if  ( EEPROM_Params.nextBootMode == bootModeConfigMenu ) {
+	if  ( EE_Prm.nextBootMode == bootModeConfigMenu ) {
 
       // Next boot on Midi
-      EEPROM_Params.nextBootMode = bootModeMidi;
-      EEPROM_ParamsSave();
+      EE_Prm.nextBootMode = bootModeMidi;
+      EE_PrmSave();
 
 			#ifdef HAS_MIDITECH_HARDWARE
 				// Assert DISC PIN (PA8 usually for Miditech) to enable USB
@@ -610,8 +610,8 @@ void CheckBootMode()
 ///////////////////////////////////////////////////////////////////////////////
 void USBMidi_Init()
 {
-	usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
-	usb_midi_set_product_string((char *) &EEPROM_Params.productString);
+	usb_midi_set_vid_pid(EE_Prm.vendorID,EE_Prm.productID);
+	usb_midi_set_product_string((char *) &EE_Prm.productString);
 
 	MidiUSB.begin() ;
   delay(4000); // Note : Usually around 4 s to fully detect USB Midi on the host
@@ -654,7 +654,7 @@ void USBMidi_Process()
 		   midiUSBIdle = true;
   }
 
-	if ( midiUSBIdle && !intelliThruActive && EEPROM_Params.intelliThruJackInMsk) {
+	if ( midiUSBIdle && !intelliThruActive && EE_Prm.ithruJackInMsk) {
 			intelliThruActive = true;
 			FlashAllLeds(0); // All leds when Midi intellithru mode active
 	}
@@ -704,10 +704,10 @@ void SerialMidi_Process()
 void setup()
 {
 		// Retrieve EEPROM parameters
-    EEPROM_ParamsInit();
+    EE_PrmInit();
 
     #ifndef DEBUG_MODE
-        EEPROM_Params.debugMode = false;
+        EE_Prm.debugMode = false;
     #endif
 
     // Configure the TIMER2
@@ -727,7 +727,7 @@ void setup()
 
     // MIDI MODE START HERE ==================================================
 
-    intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
+    intelliThruDelayMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
 
     // MIDI SERIAL PORTS set Baud rates and parser inits
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
@@ -746,7 +746,7 @@ void setup()
         midiUSBLaunched = true;
         USBMidi_Init();
         #ifdef DEBUG_MODE
-        if (EEPROM_Params.debugMode ) {
+        if (EE_Prm.debugMode ) {
             DEBUG_SERIAL.end();
             DEBUG_SERIAL.begin(115200);
             DEBUG_SERIAL.flush();

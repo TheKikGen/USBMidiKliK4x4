@@ -87,11 +87,11 @@ FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data) __attribute__((o
 void FLASH_Unlock(void) __attribute__((optimize("-Os")));
 void FLASH_Lock(void) __attribute__((optimize("-Os")));
 
-void EEPROM_ParamsInit(bool factorySettings=false) __attribute__((optimize("-Os")));
+void EE_PrmInit(bool factorySettings=false) __attribute__((optimize("-Os")));
 void EEPROM_Update(uint8_t* ,uint16_t ) __attribute__((optimize("-Os")));
 void EEPROM_Get(uint8_t* ,uint16_t, uint16_t) __attribute__((optimize("-Os")));
-void EEPROM_ParamsLoad() __attribute__((optimize("-Os")));
-void EEPROM_ParamsSave() __attribute__((optimize("-Os")));
+void EE_PrmLoad() __attribute__((optimize("-Os")));
+void EE_PrmSave() __attribute__((optimize("-Os")));
 void EEPROM_Format() __attribute__((optimize("-Os")));
 void EEPROM_FlashMemoryDump(uint8_t , uint8_t ) __attribute__((optimize("-Os")));
 boolean EEPROM_DiffPage(uint8_t , uint8_t) __attribute__((optimize("-Os")));
@@ -264,32 +264,32 @@ void FLASH_Lock(void)
 // Retrieve global parameters from EEPROM, or Initalize it
 // If factorySetting is true, all settings will be forced to factory default
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsInit(bool factorySettings)
+void EE_PrmInit(bool factorySettings)
 {
 
   // Read the EEPROM parameters structure
-  EEPROM_ParamsLoad();
+  EE_PrmLoad();
 
   // If the signature is not found, of not the same version of parameters structure,
   // or new version, or new size then initialize (factory settings)
 
 	// New fimware  uploaded
-	if ( memcmp(EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion)) )
+	if ( memcmp(EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion)) )
 	{
 		// Update timestamp and activate
 
-		if  ( memcmp( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) )
-						|| EEPROM_Params.prmVersion != EE_PRMVER
-						|| ( EEPROM_Params.majorVersion != VERSION_MAJOR && EEPROM_Params.minorVersion != VERSION_MINOR )
-						|| EEPROM_Params.size != sizeof(EEPROM_Params_t)
+		if  ( memcmp( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) )
+						|| EE_Prm.prmVersion != EE_PRMVER
+						|| ( EE_Prm.majorVersion != VERSION_MAJOR && EE_Prm.minorVersion != VERSION_MINOR )
+						|| EE_Prm.size != sizeof(EEPROM_Prm_t)
 				) factorySettings = true;
 		else
 		// New build only. We keep existing settings but reboot in config mode
  		{
-			memcpy( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) );
+			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
 			// Default boot mode when new firmware uploaded
-	    EEPROM_Params.nextBootMode = bootModeConfigMenu;
+	    EE_Prm.nextBootMode = bootModeConfigMenu;
 			return;
 
 		}
@@ -299,37 +299,37 @@ void EEPROM_ParamsInit(bool factorySettings)
 	// Force factory setting
   if (  factorySettings )
 	{
-    memset( &EEPROM_Params,0,sizeof(EEPROM_Params_t) );
-    memcpy( EEPROM_Params.signature,EE_SIGNATURE,sizeof(EEPROM_Params.signature) );
+    memset( &EE_Prm,0,sizeof(EEPROM_Prm_t) );
+    memcpy( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) );
 
-		EEPROM_Params.majorVersion = VERSION_MAJOR;
-		EEPROM_Params.minorVersion = VERSION_MINOR;
+		EE_Prm.majorVersion = VERSION_MAJOR;
+		EE_Prm.minorVersion = VERSION_MINOR;
 
-		EEPROM_Params.prmVersion = EE_PRMVER;
-		EEPROM_Params.size = sizeof(EEPROM_Params_t);
+		EE_Prm.prmVersion = EE_PRMVER;
+		EE_Prm.size = sizeof(EEPROM_Prm_t);
 
-    memcpy( EEPROM_Params.TimestampedVersion,TimestampedVersion,sizeof(EEPROM_Params.TimestampedVersion) );
+    memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
-    EEPROM_Params.debugMode = false;
+    EE_Prm.debugMode = false;
 
 		// Default I2C Device ID and bus mode
-		EEPROM_Params.I2C_DeviceId = B_MASTERID;
-		EEPROM_Params.I2C_BusModeState = B_DISABLED;
+		EE_Prm.I2C_DeviceId = B_MASTERID;
+		EE_Prm.I2C_BusModeState = B_DISABLED;
 
 		ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
-	  EEPROM_Params.vendorID  = USB_MIDI_VENDORID;
-    EEPROM_Params.productID = USB_MIDI_PRODUCTID;
+	  EE_Prm.vendorID  = USB_MIDI_VENDORID;
+    EE_Prm.productID = USB_MIDI_PRODUCTID;
 
-    memcpy(EEPROM_Params.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
+    memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
-		EEPROM_Params.nextBootMode = bootModeMidi;
+		EE_Prm.nextBootMode = bootModeMidi;
 
 		//Write the whole param struct
-    EEPROM_ParamsSave();
+    EE_PrmSave();
 
 		// Default boot mode when new firmware uploaded (not saved as one shot mode)
-		EEPROM_Params.nextBootMode = bootModeConfigMenu;
+		EE_Prm.nextBootMode = bootModeConfigMenu;
 
   }
 
@@ -425,9 +425,9 @@ void EEPROM_Get(uint8_t* bloc,uint16_t sz, uint16_t offset)
 //----------------------------------------------------------------------------
 // High level abstraction parameters read function
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsLoad()
+void EE_PrmLoad()
 {
-	EEPROM_Get((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t),0);
+	EEPROM_Get((uint8*)&EE_Prm,sizeof(EEPROM_Prm_t),0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -435,9 +435,9 @@ void EEPROM_ParamsLoad()
 //----------------------------------------------------------------------------
 // High level abstraction parameters read function
 //////////////////////////////////////////////////////////////////////////////
-void EEPROM_ParamsSave()
+void EE_PrmSave()
 {
-	EEPROM_Update((uint8*)&EEPROM_Params,sizeof(EEPROM_Params_t)) ;
+	EEPROM_Update((uint8*)&EE_Prm,sizeof(EEPROM_Prm_t)) ;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

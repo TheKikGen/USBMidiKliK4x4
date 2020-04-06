@@ -75,13 +75,13 @@ enum nextBootMode {
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
-#define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
+#define DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD 2
 
 // Size of a pipeline (number of pipes)
-#define MIDI_TRANS_PIPELINE_SIZE 8
+#define TRANS_PIPELINE_SIZE 8
 
 // Number of pipelines slots
-#define MIDI_TRANS_PIPELINE_SLOT_SIZE 8
+#define TRANS_PIPELINE_SLOT_SIZE 8
 
 // Number of virtual interface ports
 #define VIRTUAL_INTERFACE_MAX 8
@@ -109,27 +109,27 @@ typedef struct {
     uint8_t par2;
     uint8_t par3;
     uint8_t par4;
-} __packed midiTransPipe_t;
+} __packed transPipe_t;
 
 // Transformation pipeline
 typedef struct {
-    midiTransPipe_t pipeline[MIDI_TRANS_PIPELINE_SIZE];
-} __packed midiTransPipeline_t;
+    transPipe_t pipeline[TRANS_PIPELINE_SIZE];
+} __packed transPipeline_t;
 
 
 // Routing & transformation rules structures
 typedef struct {
-      uint8_t  attachedSlot;
-      uint16_t cableInTargetsMsk;
-      uint16_t jackOutTargetsMsk;
-      uint16_t virtualOutTargetsMsk;
-} __packed midiRoutingRule_t;
+      uint8_t  slot;
+      uint16_t cbInTgMsk;
+      uint16_t jkOutTgMsk;
+      uint16_t vrOutTgMsk;
+} __packed routingRule_t;
 
 typedef struct {
-      uint8_t  attachedSlot;
-      uint16_t jackOutTargetsMsk;
-      uint16_t virtualOutTargetsMsk;
-} __packed midiRoutingRuleJack_t;
+      uint8_t  slot;
+      uint16_t jkOutTgMsk;
+      uint16_t vrOutTgMsk;
+} __packed routingRuleJack_t;
 
 
 // Use this structure to send and receive packet to/from USB /serial/BUS
@@ -207,13 +207,13 @@ uint8_t static const BusCommandRequestSize[]= {
 
 // Bus data types for transfers
 enum BusDataType {
-  B_DTYPE_MIDI_ROUTING_RULES_CABLE,
-  B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
-  B_DTYPE_MIDI_ROUTING_RULES_VIRTUAL,
-  B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
+  B_DTYPE_ROUTING_RULES_CABLE,
+  B_DTYPE_ROUTING_RULES_JACK,
+  B_DTYPE_ROUTING_RULES_VIRTUAL,
+  B_DTYPE_ROUTING_RULES_ITHRU,
   B_DTYPE_MIDI_TRANSPIPE,
-  B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
-  B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
+  B_DTYPE_ROUTING_ITHRU_JACKIN_MSK,
+  B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD,
 };
 
 enum BusDeviceSate {
@@ -254,23 +254,23 @@ typedef struct {
         // Storage space is set to the max i.e. INTERFACE_MAX for all
         // To allow dynamic change of bus mode.
 
-        midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesJack[B_SERIAL_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesVirtual[VIRTUAL_INTERFACE_MAX];
+        routingRule_t rtRulesCable[USBCABLE_INTERFACE_MAX];
+        routingRule_t rtRulesJack[B_SERIAL_INTERFACE_MAX];
+        routingRule_t rtRulesVirtual[VIRTUAL_INTERFACE_MAX];
 
         // IntelliThru routing rules jack only
-        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];
-        uint16_t              intelliThruJackInMsk;
-        uint8_t               intelliThruDelayPeriod; // 1 to 255 periods of 15s.
+        routingRuleJack_t rtRulesIthru[B_SERIAL_INTERFACE_MAX];
+        uint16_t          ithruJackInMsk;
+        uint8_t           ithruUSBIdleTimePeriod; // 1 to 255 periods of 15s.
 
         // Transformation pipelines slots.
-        midiTransPipeline_t midiTransPipelineSlots[MIDI_TRANS_PIPELINE_SLOT_SIZE];
+        transPipeline_t pipelineSlot[TRANS_PIPELINE_SLOT_SIZE];
 
         uint16_t        vendorID;
         uint16_t        productID;
         uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // Unicode string - defined in usb_midi_device.h
 
-} __packed EEPROM_Params_t;
+} __packed EEPROM_Prm_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
@@ -300,8 +300,8 @@ void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
 boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
-boolean TransPacketPipe_AddToSlot(uint8_t , midiTransPipe_t *);
-boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , midiTransPipe_t *,boolean);
+boolean TransPacketPipe_AddToSlot(uint8_t , transPipe_t *);
+boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , transPipe_t *,boolean);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 void ShowPipelineSlot(uint8_t s) ;
