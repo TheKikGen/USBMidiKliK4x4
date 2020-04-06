@@ -414,7 +414,7 @@ boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pi
   // Protect sysex integrity. Don't route a sysex pk 2 times on the same port
   // Cb0 F0 01 02 => Loopback cb0 F0 01 02 = a corrupted pk F0 01 02 F0 01 02
   // but let the packet in the pipeline.
-  if ( cin >= 4 && cin <= 7) {
+  if ( cin <= 7 && cin >= 4 ) {
       if ( pipe->par1 == 0x7F || (pipe->par1 == portType && pipe->par3 == sourcePort) )
           return true;
   }

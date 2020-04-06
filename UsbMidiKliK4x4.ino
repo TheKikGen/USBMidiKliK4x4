@@ -190,7 +190,7 @@ void FlashAllLeds(uint8_t mode)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a midi msg to serial MIDI. 0 is Serial1.
+// Send a midi msg to serial. 0 is Serial1.
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_SendMsg(uint8_t *msg, uint8_t serialNo)
 {
@@ -205,7 +205,7 @@ void SerialMidi_SendMsg(uint8_t *msg, uint8_t serialNo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a USB midi packet to ad-hoc serial MIDI
+// Send a USB midi packet to ad-hoc serial
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 {
@@ -220,7 +220,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Prepare a packet and route it to the right USB midi cable
+// Prepare a pseudo packet from serial midi and route it to the right target
 ///////////////////////////////////////////////////////////////////////////////
  void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
 {
@@ -318,7 +318,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
   if ( portType != PORT_TYPE_CABLE && portType != PORT_TYPE_JACK && portType != PORT_TYPE_VIRTUAL) return;
 
-  // NB : we use the same routine to route USB and serial/ I2C .
+  // NB : we use the same routine to route USB and jack serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
   uint8_t port  = pk->packet[0] >> 4;
   uint8_t cin   = pk->packet[0] & 0x0F ;
@@ -380,12 +380,12 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   }
 
 	// Sysex is a particular case when routing or modifying packets.
-	// Internal sysex must be sent Jack/Cable port 0. These ports 0 must be ALWAYS
+	// Internal sysex must be sent to Jack/Cable port 0. These ports 0 must be ALWAYS
   // available whatever routing is to insure that internal sysex will be always interpreted.
   // Internal sysex packets can't be looped back, because that will corrupt the flow.
   // A slave must not interpret sysex when active on bus to stay  synchronized with the master.
-  if (cin >= 4 && cin <= 7  && port == 0) {
-		if ( !slotLockMsk && !(B_IS_SLAVE) ) {
+  if (port == 0 && portType != PORT_TYPE_VIRTUAL && !(B_IS_SLAVE) && !slotLockMsk) {
+		if ( cin <= 7 && cin >= 4 ) {
       if (SysExInternal_Parse(portType, pk,sysExInternalBuffer))
             SysExInternal_Process(portType,sysExInternalBuffer);
     }
@@ -662,7 +662,7 @@ void USBMidi_Process()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// I2C Loop Process for SERIAL MIDI
+// MIDI SERIAL Loop Process
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_Process()
 {

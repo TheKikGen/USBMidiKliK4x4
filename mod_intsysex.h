@@ -225,16 +225,25 @@ void SysExInternal_SendFnACK(uint8_t portType,uint8_t errorCode) {
 boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 {
     static unsigned sxMsgIdx = 0;
+    static uint8_t  lastPortType = 0xFF;
 		static bool 	  sxHeaderFound = false;
 
-    // Cable 0 only
+    // Check that parsing is done continueously on the same port
+    // If not, reset parser.
+    if ( sxMsgIdx && portType != lastPortType ) {
+        sxMsgIdx = 0;  sxHeaderFound = false;
+    }
+
+    lastPortType = portType;
+
+    // Cable/jack 0 only
     if ( (pk->packet[0] >> 4) > 0) return false;
 
 		uint8_t cin   = pk->packet[0] & 0x0F ;
 
 		// Only SYSEX and concerned packet on cable or serial 1
 
-		if (cin < 4 || cin > 7) return false;
+		if (cin > 7 || cin < 4 ) return false;
 		if (cin == 4 && pk->packet[1] != 0xF0 && sxMsgIdx < 3 ) return false;
 		if (cin > 4  && sxMsgIdx <3 ) return false;
 

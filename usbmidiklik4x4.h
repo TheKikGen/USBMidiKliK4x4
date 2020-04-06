@@ -304,6 +304,6 @@ boolean TransPacketPipe_AddToSlot(uint8_t , transPipe_t *);
 boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , transPipe_t *,boolean);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
-void ShowPipelineSlot(uint8_t s) ;
+void ShowPipelineSlot(uint8_t s) __attribute__((optimize("-Os"))) ;
 
 #endif

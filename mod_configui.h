@@ -60,15 +60,15 @@ void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((opti
 uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Bin(char * ) __attribute__((optimize("-Os")));
-void SerialPrintf(const char *format, ...);
+void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
 uint16_t PowInt(uint8_t ,uint8_t)  __attribute__((optimize("-Os")));
 uint16_t AsknNumber(uint8_t,boolean nl=true) __attribute__((optimize("-Os")));
 char AskDigit() __attribute__((optimize("-Os")));
 char AskChar()  __attribute__((optimize("-Os")));
 uint8_t AsknHexChar(char *, uint8_t ,char,char) __attribute__((optimize("-Os")));
 char AskChoice(const char * , const char *,boolean nl=true) __attribute__((optimize("-Os")));
-void ShowMask16(uint16_t ,uint8_t );
-void ShowPipelineSlotBrowser(boolean mustLoop=true) ;
+void ShowMask16(uint16_t ,uint8_t ) __attribute__((optimize("-Os"))) ;
+void ShowPipelineSlotBrowser(boolean mustLoop=true)  __attribute__((optimize("-Os"))) ;
 void ShowMidiRoutingLine(uint8_t ,uint8_t ) __attribute__((optimize("-Os"))) ;
 void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
 void ShowMidiKliKHeader() __attribute__((optimize("-Os")));
@@ -714,12 +714,12 @@ void AskMidiRouting(uint8_t portType)
       EE_Prm.rtRulesVirtual[port].vrOutTgMsk = vTargets ;
   }
   else if (portType == PORT_TYPE_ITHRU ) {
-        EE_Prm.rtRulesIthru[port].slot = attachedSlot;
-        EE_Prm.rtRulesIthru[port].jkOutTgMsk = jTargets ;
-        EE_Prm.rtRulesIthru[port].vrOutTgMsk = vTargets ;
-        if ( jTargets + vTargets == 0 ) {
+      EE_Prm.rtRulesIthru[port].slot = attachedSlot;
+      EE_Prm.rtRulesIthru[port].jkOutTgMsk = jTargets ;
+      EE_Prm.rtRulesIthru[port].vrOutTgMsk = vTargets ;
+      if ( jTargets + vTargets == 0 ) {
           EE_Prm.ithruJackInMsk &= ~(1 << port); // Disable
-        } else EE_Prm.ithruJackInMsk |= (1 << port); // enable Ithru for this port
+      } else EE_Prm.ithruJackInMsk |= (1 << port); // enable Ithru for this port
   }
 }
 
