@@ -216,7 +216,7 @@ boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, transPipe_t 
 //----------------------------------------------------------------------------
 // 02 CHANMAP ch map:0             source ch:0-F|any ch:7F   dest ch:0-F     00
 //            ch map to port:1     source ch:0-F           midi port:0-F     00
-//            ch offset:2          offset:0-F                00              00
+//            ch rotating offset:2 offset:0-F                00              00
 ///////////////////////////////////////////////////////////////////////////////
 boolean MidiTransFn_ChannelMapper_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 2 ) return false;
