@@ -182,6 +182,7 @@ uint16_t GetInt16FromHex4Bin(char * buff)
 ///////////////////////////////////////////////////////////////////////////////
 // SerialPrintf : a light printf like to Serial.
 // %s : strings
+// %(n)s : print n char form string or char array
 // $n : new line
 // %x : hexa
 // %(n)d %(n)x : 0 left pad fo size n
@@ -196,29 +197,35 @@ void SerialPrintf(const char *format, ...)
     if (*format == '%') {
       format++;
       if (*format == '%') Serial.print(*format);
+      else if (*format == 'c') Serial.print(va_arg(varg, char)); // Char
       else if (*format == 's') Serial.print(va_arg(varg, char*)); // String
       else if (*format == 'd') Serial.print(va_arg(varg, int));  // long int
       else if (*format == 'x') Serial.print(va_arg(varg, int),HEX);  // hexa
       else if (*format >= '0' && *format <= '9' ) {
-            char p;
-            if ( *format == '0') { format++; p = '0';}
-            else p = ' ';
-            if ( *format >='1' & *format <= '9' ) {
-              uint8_t pad = *format - '0';
-              int value = va_arg(varg, int);
-              uint8_t  base = 0;
-              format++;
-              if ( *format == 'd' ) base = 10;
-              else if ( *format =='x' ) base = 16;
-              if (base) {
-                uint32_t pw   = base;
-                while (pad--) {
-                  if ( value < base ) while (pad) { Serial.print(p);pad--; }
-                  else pw *= base;
-                }
-                if (base == 16) Serial.print(value,HEX); else Serial.print(value);
+        char p =' ';
+        if ( *format == '0') { format++; p = '0';}
+        if ( *format >='1' && *format <= '9' ) {
+          uint8_t pad = *format - '0';
+          format++;
+          if ( *format == 's' ) {
+            char * str=va_arg(varg, char*);
+            while (pad--) Serial.print(*(str++));
+          }
+          else {
+            int value = va_arg(varg, int);
+            uint8_t  base = 0;
+            if ( *format == 'd' ) base = 10;
+            else if ( *format =='x' ) base = 16;
+            if (base) {
+              uint32_t pw   = base;
+              while (pad--) {
+                if ( value < base ) while (pad) { Serial.print(p);pad--;}
+                else pw *= base;
               }
-            } else return;
+              if (base == 16) Serial.print(value,HEX); else Serial.print(value);
+            }
+          }
+        } else return;
       }
       else if (*format == 'n') Serial.println(); // new line
       else return;
@@ -494,11 +501,9 @@ void ShowMidiRouting(uint8_t portType)
 ///////////////////////////////////////////////////////////////////////////////
 void ShowMidiKliKHeader()
 {
-  Serial.print("USBMIDIKLIK 4x4 - ");
-	Serial.print(HARDWARE_TYPE);
-	Serial.print(" - V");
-	Serial.print(VERSION_MAJOR);Serial.print(".");Serial.println(VERSION_MINOR);
-	Serial.println("(c) TheKikGen Labs");
+  SerialPrintf("USBMIDIKLIK 4x4 - %s%n",HARDWARE_TYPE);
+  SerialPrintf("V%d.%d - Build %s - (c) TheKikGen Labs%n",VERSION_MAJOR,VERSION_MINOR,(char *)EE_Prm.TimestampedVersion);
+  Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -507,57 +512,27 @@ void ShowMidiKliKHeader()
 void ShowGlobalSettings()
 {
 	uint8_t i;
-	SerialPrintf("GLOBAL %s",str_SETTINGS);
+	SerialPrintf("GLOBAL %s%n%n",str_SETTINGS);
+  SerialPrintf("Hardware type       : %s%n",HARDWARE_TYPE);
+	SerialPrintf("Firmware version    : %d.%d - Build %s%n",EE_Prm.majorVersion, EE_Prm.minorVersion,(char *)EE_Prm.TimestampedVersion);
+	SerialPrintf("Magic number        : %3s%d%n",EE_Prm.signature,EE_Prm.prmVersion);
+	SerialPrintf("Sysex header        : ");
+	for (i=0; i != sizeof(sysExInternalHeader); i++) { SerialPrintf("%02x ",sysExInternalHeader[i]);}
+	  SerialPrintf("%s VID - PID       : %04x - %04x%n",str_USB_M,EE_Prm.vendorID,EE_Prm.productID);
+	SerialPrintf("%s Product string  : ",str_USB_M);
+	Serial.write(EE_Prm.productString, sizeof(EE_Prm.productString));
 	Serial.println();
-	Serial.print("Firmware version    : ");
-	Serial.print(EE_Prm.majorVersion);Serial.print(".");
-	Serial.println(EE_Prm.minorVersion);
-	Serial.print("Magic number        : ");
-	Serial.write(EE_Prm.signature , sizeof(EE_Prm.signature));
-	Serial.println(EE_Prm.prmVersion);
-
-	Serial.print("Build               : ");
-	Serial.println( (char *)EE_Prm.TimestampedVersion);
-
-	Serial.print("Sysex header        : ");
-	for (i=0; i != sizeof(sysExInternalHeader); i++) {
-			Serial.print(sysExInternalHeader[i],HEX);Serial.print(" ");
-	}
-	Serial.println();
-	Serial.print("Next BootMode       : ");
-	Serial.println(EE_Prm.nextBootMode);
-	
-	Serial.print("Hardware type       : ");
-	Serial.println(HARDWARE_TYPE);
-
-	Serial.print("EEPROM param. size  : ");
-	Serial.print(sizeof(EEPROM_Prm_t));
-  Serial.print(" / ");
-  Serial.println(EE_CAPACITY);
-
-	Serial.print("I2C Bus mode        : ");
-  Serial.println(EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED_M:str_ENABLED_M);
-
-	SerialPrintf("I2C %s       : ",str_DEVICE_ID_B);
-	Serial.print(EE_Prm.I2C_DeviceId);
-	if ( EE_Prm.I2C_DeviceId == B_MASTERID )
-			Serial.print(" (master)");
-	else
-			Serial.print(" (slave)");
-	Serial.println();
-
   // Midi USB ports
 	SerialPrintf("%s %s %s    : %d%n",str_MIDI_M,str_USB_M,str_PORTS,USBCABLE_INTERFACE_MAX);
   // Midi jack port(s)
 	SerialPrintf("%s %s %s   : %d%n",str_MIDI_M,str_JACK,str_PORTS,SERIAL_INTERFACE_COUNT);
  // Midi virtual port(s)
   SerialPrintf("%s virtual %s: %d%n",str_MIDI_M,str_PORTS,VIRTUAL_INTERFACE_MAX);
-
-	SerialPrintf("%s VID - PID       : %04x - %04x%n",str_USB_M,EE_Prm.vendorID,EE_Prm.productID);
-
-	SerialPrintf("%s Product string  : ",str_USB_M);
-	Serial.write(EE_Prm.productString, sizeof(EE_Prm.productString));
-	Serial.println();
+	SerialPrintf("I2C Bus mode        : %s%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED_M:str_ENABLED_M);
+  // Device Id
+	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,(EE_Prm.I2C_DeviceId == B_MASTERID) ? "master":"slave");
+	SerialPrintf("%nNext BootMode       : %d%n",EE_Prm.nextBootMode);
+  SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,sizeof(EEPROM_Prm_t)/EE_CAPACITY*100);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
