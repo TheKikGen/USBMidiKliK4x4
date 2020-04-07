@@ -56,6 +56,10 @@ __ __| |           |  /_) |     ___|             |           |
   #define FLASH_LED_OUT(thisLed) LED_TurnOn(&LED_ConnectTick)
 #endif
 
+// Add/Sub constraint used for uint (do not add ; at the end )
+#define CONSTRAINT_ADD(a,b,c) if ( (a + b) < c ) a += b; else a = c
+#define CONSTRAINT_SUB(a,b,c) if ( (a - b) > c ) a -= b; else a = c
+
 // Macro to compute the max serial port in bus mode or not.
 #define SERIAL_INTERFACE_COUNT (EE_Prm.I2C_BusModeState == B_ENABLED ? B_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
 

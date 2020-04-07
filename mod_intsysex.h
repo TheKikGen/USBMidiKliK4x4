@@ -95,6 +95,7 @@ uint8_t sysExInternalCommandACK[] = {SYSEX_INTERNAL_CMD_ACK};
 enum SysExInternal_Error {
   SX_NO_ERROR,
   SX_NO_ACK,
+  SX_NO_REBOOT,
   SX_ERROR_ANY,
   SX_ERROR_BAD_MSG_SIZE,
   SX_ERROR_BAD_PORT,
@@ -611,11 +612,11 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
 // ---------------------------------------------------------------------------
 // 10 00 Enable/disable bus mode
 // F0 77 77 78 10 00 < enable:1 | disable:0 > F7
-// The device will reboot after the command.
+// The device will reboot after the command is bus activated.
 //
 // 10 01 Set device ID
 // F0 77 77 78 10 01 < deviceid:04-08 > F7
-// deviceid must be set to 4 when master. The device will reboot after the command.
+// deviceid must be set to 4 when master. The device will reboot after the command is bus active..
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
@@ -626,8 +627,10 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
 
       if ( sxMsg[3] == 1  && EE_Prm.I2C_BusModeState == B_DISABLED)
               EE_Prm.I2C_BusModeState = B_ENABLED;
-      else if ( sxMsg[3] == 0 && EE_Prm.I2C_BusModeState == B_ENABLED )
+      else if ( sxMsg[3] == 0 && EE_Prm.I2C_BusModeState == B_ENABLED ) {
               EE_Prm.I2C_BusModeState = B_DISABLED;
+              return SX_NO_REBOOT;
+      }
       else return SX_ERROR_ANY;
       return SX_NO_ERROR;
   }
@@ -638,7 +641,8 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
       if ( sxMsg[3] > B_SLAVE_DEVICE_LAST_ADDR || sxMsg[3] < B_SLAVE_DEVICE_BASE_ADDR ) return SX_ERROR_BAD_DEVICEID;
       if ( sxMsg[3] != EE_Prm.I2C_DeviceId ) {
         EE_Prm.I2C_DeviceId = sxMsg[3];
-        return SX_NO_ERROR;
+        if (EE_Prm.I2C_BusModeState = B_ENABLED) return SX_NO_ERROR;
+        return SX_NO_REBOOT;
       }
   }
   return SX_ERROR_ANY;

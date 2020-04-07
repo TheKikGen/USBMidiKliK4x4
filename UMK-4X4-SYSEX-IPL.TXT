@@ -63,7 +63,7 @@ F0 77 77 78 06 01 F7
 06 02 Sysex acknowledgment toggle (on/off)
 F0 77 77 78 06 02 F7
 
-06 03 Sysex acknowledgment (received)
+06 03 Sysex acknowledgment (received/never interpreted)
 F0 77 77 78 06 03 <ack> F7
 -------------------------------------------------------------------------------
 08 Reboot in configuration mode
@@ -150,34 +150,49 @@ F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
 
 11 01 05 pipe bypass index
 F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+
 -------------------------------------------------------------------------------
-
 PipeID     par1                 par2                     par3            par4
-
-00 MSGFLTR 0:high level filter  Filter bits mask 	        00              00
+-------------------------------------------------------------------------------
+00 MSGFLTR 0:high level filter  Filter bits mask          00              00
                                 channel voice:0001 (1)	  00              00
-			                          syst. common :0010 (2)    00              00
-			                          realtime     :0100 (4)    00              00
-			                          sysex        :1000 (8)    00              00
-
+                                syst. common :0010 (2)    00              00
+                                realtime     :0100 (4)    00              00
+                                sysex        :1000 (8)    00              00
+-------------------------------------------------------------------------------
 01 NOTECHG transpose+:0         semitone:00-7F            00              00
            transpose-:1         semitone:00-7F            00              00
-           split:2              split point: 00-7F        midi ch:00-7F   00
-           velocity split:3     velocity threshold:00-7F  midi ch:00-7F   00
-
-02 CHANMAP ch map:01            source ch:0-F|any ch:7F   dest ch:0-F     00
-           ch map to port:02    source ch:0-F             midi port:0-F   00
-
-
+-------------------------------------------------------------------------------
+02 CHANMAP ch map:0             source ch:0-F|any ch:7F   dest ch:0-F     00
+           ch map to port:1     source ch:0-F           midi port:0-F     00
+           ch offset:2          offset:0-F                00              00 
+-------------------------------------------------------------------------------
+03 VELOCHG  half velo:0        00                        00               00
+            full velo:1        00                        00               00
+                range:2     [ value1                value2 ]:00-7F        00
+              exclude:3     ] value1                value2 [:00-7F        00
+               custom:4       add:00                   value:00-7F        00
+                              sub:01                   value:00-7F        00
+                            fixed:02                   value:00-7F        00
+-------------------------------------------------------------------------------
+04 CCCHANG        map:0     source cc:00-7F           dest cc:00-7F       00
+                range:1     [ value1 ,              value2 ]:00-7F        00
+              exclude:2     ] value1 ,              value2 [:00-7F        00
+               invert:3     source cc:00-7F              00               00
+-------------------------------------------------------------------------------
+05 CLKDIVD   ratio:2-16        00                        00               00
+-------------------------------------------------------------------------------
 06 LOOPBCK dest portype dest    filter bits mask          port:0-F        00
-           0:cbl out| 1:jk in|
-           2:virtual|7F:no chg
-
-
-03 VELOCHG
-04 CCCHANG
-05 CLKDIVD
-
-
-
-06 LOOPBCK
+             cbl out:0
+               jk in:1
+             virt.in:2
+              no chg:3
+-------------------------------------------------------------------------------
+07 KBSPLIT split note: 00-7F   midi ch:0-F       transpose+:0     semitone:00-7F
+                                                 transpose-:1     semitone:00-7F
+-------------------------------------------------------------------------------
+08 VLSPLIT split velo: 00-7F   midi ch:0-F       add:0             value:00:7F
+                                                 sub:1             value:00:7F
+                                                 fixed:2           value:00:7F
+                                                 nochg:3                 00
+-------------------------------------------------------------------------------

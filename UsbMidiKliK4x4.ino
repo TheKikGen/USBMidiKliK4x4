@@ -440,7 +440,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   if ( attachedSlot && !TransPacketPipelineExec(portType, attachedSlot, pk) ) return ;
 
   // 2/ Apply virtual port routing if a target match
-  uint16_t t=0;
+  uint8_t t=0;
   while ( vrOutTargets && t != VIRTUAL_INTERFACE_MAX ) {
     if ( vrOutTargets & 1 ) {
       // Do no route to itself to avoid infinite loop
