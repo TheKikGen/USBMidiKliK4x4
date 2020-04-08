@@ -151,48 +151,52 @@ F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
 11 01 05 pipe bypass index
 F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 
--------------------------------------------------------------------------------
-PipeID     par1                 par2                     par3            par4
--------------------------------------------------------------------------------
-00 MSGFLTR 0:high level filter  Filter bits mask          00              00
-                                channel voice:0001 (1)	  00              00
-                                syst. common :0010 (2)    00              00
-                                realtime     :0100 (4)    00              00
-                                sysex        :1000 (8)    00              00
--------------------------------------------------------------------------------
-01 NOTECHG transpose+:0         semitone:00-7F            00              00
-           transpose-:1         semitone:00-7F            00              00
--------------------------------------------------------------------------------
-02 CHANMAP ch map:0             source ch:0-F|any ch:7F   dest ch:0-F     00
-           ch map to port:1     source ch:0-F           midi port:0-F     00
-           ch offset:2          offset:0-F                00              00 
--------------------------------------------------------------------------------
-03 VELOCHG  half velo:0        00                        00               00
-            full velo:1        00                        00               00
-                range:2     [ value1                value2 ]:00-7F        00
-              exclude:3     ] value1                value2 [:00-7F        00
-               custom:4       add:00                   value:00-7F        00
-                              sub:01                   value:00-7F        00
-                            fixed:02                   value:00-7F        00
--------------------------------------------------------------------------------
-04 CCCHANG        map:0     source cc:00-7F           dest cc:00-7F       00
-                range:1     [ value1 ,              value2 ]:00-7F        00
-              exclude:2     ] value1 ,              value2 [:00-7F        00
-               invert:3     source cc:00-7F              00               00
--------------------------------------------------------------------------------
-05 CLKDIVD   ratio:2-16        00                        00               00
--------------------------------------------------------------------------------
-06 LOOPBCK dest portype dest    filter bits mask          port:0-F        00
-             cbl out:0
-               jk in:1
-             virt.in:2
-              no chg:3
--------------------------------------------------------------------------------
-07 KBSPLIT split note: 00-7F   midi ch:0-F       transpose+:0     semitone:00-7F
-                                                 transpose-:1     semitone:00-7F
--------------------------------------------------------------------------------
-08 VLSPLIT split velo: 00-7F   midi ch:0-F       add:0             value:00:7F
-                                                 sub:1             value:00:7F
-                                                 fixed:2           value:00:7F
-                                                 nochg:3                 00
--------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------
+| PipeID  |        par1        |        par2        |        par3        |         par4       |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| MSGFLTR |     inclusive      | bits mask.         |     00 (unused)    |     00 (unused)    |
+|   00    |     filter:0       |  ch voice:0001 (1) |                    |                    |
+|         |                    |  Sys.cmn :0010 (2) |                    |                    |
+|         |                    |  realtime:0100 (4) |                    |                    |
+|         |                    |  sysex   :1000 (8) |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| NOTECHG |    transpose+:0    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+|   01    |    transpose-:1    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CHANMAP |    channel map:0   | srce ch:0-F|any:7F |      dst ch:0-F    |     00 (unused)    |
+|   02    | ch map to port:1   |   source ch:0-F    |   midi port:0-F    |     00 (unused)    |
+|         | ch rotat.offset:2  |   ch offset:0-F    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VELOCHG |     include:0      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+|   03    |     exclude:1      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+|         |       fixed:2      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |         add:3      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |         sub:4      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |        half:5      |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CCCHANG |         map:0      |    src cc :0-7F    |    dest cc:00-7F   |     00 (unused)    |
+|   04    |     include:1      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+|         |     exclude:2      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+|         |      invert:3      |    src cc :0-7F    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CLKDIVD |     ratio:2-10     |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|   05    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| LOOPBCK |   dest port type.  |  inclusive filter  |      port:0-F      |     00 (unused)    |
+|   06    |      cbl out:0     |     bits mask      |                    |                    |
+|         |        jk in:1     |   (see MSGFLTR)    |                    |                    |
+|         |      virt.in:2     |                    |                    |                    |
+|         |       no chg:3     |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| SLOTCHN |     slot:1-8       |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|   07    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| KBSPLIT |  split note: 0-7F  |     midi ch:0-F    |     no change:0    |     00 (unused)    |
+|   08    |                    |                    |    transpose+:1    |   semitone:00-7F   |
+|         |                    |                    |    transpose-:2    |   semitone:00-7F   |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VLSPLIT | split veloc.: 0-7F |     midi ch:0-F    |       nochg:0      |     00 (unused)    |
+|   09    |                    |                    |       fixed:1      |     value:0-7F     |
+|         |                    |                    |         add:2      |     value:0-7F     |
+|         |                    |                    |         sub:3      |     value:0-7F     |
+-----------------------------------------------------------------------------------------------

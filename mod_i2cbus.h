@@ -244,14 +244,7 @@ void I2C_ParseImmediateCmd() {
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveReceiveEvent(int howMany)
 {
-
-  I2C_MasterReadyTimeoutMillis = millis();
-
-  // Update timer to avoid a permanent flash due to polling
-  if ( I2C_MasterReadyTimeoutMillis > I2C_LedTimerMillis ) {
-			I2C_LedTimerMillis =  I2C_MasterReadyTimeoutMillis  + I2C_LED_TIMER_MILLIS;
-			LED_TurnOn(&LED_ConnectTick);
-	}
+	I2C_MasterIsActive = true;
 
   // Is it a DATA SYNC ?
   if ( I2C_SlaveSyncStarted ) {
@@ -307,12 +300,7 @@ void I2C_SlaveReceiveEvent(int howMany)
 //////////////////////////////////////////////////////////////////////////////
 void I2C_SlaveRequestEvent ()
 {
-  // Update timer to avoid a permanent flash due to polling
-  if ( millis() > I2C_LedTimerMillis ) {
-			I2C_LedTimerMillis =  millis()  + I2C_LED_TIMER_MILLIS;
-			LED_TurnOn(&LED_ConnectTick);
-	}
-
+	I2C_MasterIsActive = true;
 
   switch (I2C_Command) {
 
@@ -565,10 +553,17 @@ void I2C_ProcessMaster ()
 ///////////////////////////////////////////////////////////////////////////////
 void I2C_ProcessSlave ()
 {
+	static unsigned long I2C_LedTimerMillis = 0;
 
-	// Reboot if master not ready
-	I2C_MasterReady = ( millis() < (I2C_MasterReadyTimeoutMillis + B_MASTER_READY_TIMEOUT) );
-	//if ( ! I2C_MasterReady ) { Wire.end(); delay(10) ; nvic_sys_reset(); }
+	// Update timer to avoid a permanent flash due to polling
+	// millis() can't be used in ISR
+	if ( I2C_MasterIsActive ) {
+			I2C_MasterIsActive = false;
+			if ( millis() > I2C_LedTimerMillis ) {
+					I2C_LedTimerMillis = millis() + I2C_LED_TIMER_MILLIS;
+					LED_Flash(&LED_ConnectTick);
+			}
+	}
 
 	// Routing midi sync from master
 	if ( I2C_SlaveSyncDoUpdate ) {

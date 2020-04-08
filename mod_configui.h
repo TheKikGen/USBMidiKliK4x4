@@ -122,6 +122,8 @@ const char* str_DEVICE_ID_B  = "Device ID";
 const char* str_SETTINGS     = "settings";
 const char* str_SETTINGS_M   = "SETTINGS";
 const char* str_DONE_B       = "Done";
+const char* str_MASTER       = "master";
+const char* str_SLAVE        = "slave";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Serial print a formated hex value
@@ -200,6 +202,7 @@ void SerialPrintf(const char *format, ...)
       else if (*format == 'c') Serial.print(va_arg(varg, char)); // Char
       else if (*format == 's') Serial.print(va_arg(varg, char*)); // String
       else if (*format == 'd') Serial.print(va_arg(varg, int));  // long int
+      else if (*format == 'u') Serial.print(va_arg(varg, unsigned int));  // u long int
       else if (*format == 'x') Serial.print(va_arg(varg, int),HEX);  // hexa
       else if (*format >= '0' && *format <= '9' ) {
         char p =' ';
@@ -512,27 +515,24 @@ void ShowMidiKliKHeader()
 void ShowGlobalSettings()
 {
 	uint8_t i;
-	SerialPrintf("GLOBAL %s%n%n",str_SETTINGS);
+	SerialPrintf("GLOBAL %s%n%n",str_SETTINGS_M);
   SerialPrintf("Hardware type       : %s%n",HARDWARE_TYPE);
 	SerialPrintf("Firmware version    : %d.%d - Build %s%n",EE_Prm.majorVersion, EE_Prm.minorVersion,(char *)EE_Prm.TimestampedVersion);
 	SerialPrintf("Magic number        : %3s%d%n",EE_Prm.signature,EE_Prm.prmVersion);
 	SerialPrintf("Sysex header        : ");
 	for (i=0; i != sizeof(sysExInternalHeader); i++) { SerialPrintf("%02x ",sysExInternalHeader[i]);}
-	  SerialPrintf("%s VID - PID       : %04x - %04x%n",str_USB_M,EE_Prm.vendorID,EE_Prm.productID);
+	  SerialPrintf("%n%s VID - PID       : %04x - %04x%n",str_USB_M,EE_Prm.vendorID,EE_Prm.productID);
 	SerialPrintf("%s Product string  : ",str_USB_M);
 	Serial.write(EE_Prm.productString, sizeof(EE_Prm.productString));
 	Serial.println();
-  // Midi USB ports
-	SerialPrintf("%s %s %s    : %d%n",str_MIDI_M,str_USB_M,str_PORTS,USBCABLE_INTERFACE_MAX);
-  // Midi jack port(s)
-	SerialPrintf("%s %s %s   : %d%n",str_MIDI_M,str_JACK,str_PORTS,SERIAL_INTERFACE_COUNT);
- // Midi virtual port(s)
-  SerialPrintf("%s virtual %s: %d%n",str_MIDI_M,str_PORTS,VIRTUAL_INTERFACE_MAX);
-	SerialPrintf("I2C Bus mode        : %s%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED_M:str_ENABLED_M);
-  // Device Id
-	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,(EE_Prm.I2C_DeviceId == B_MASTERID) ? "master":"slave");
-	SerialPrintf("%nNext BootMode       : %d%n",EE_Prm.nextBootMode);
-  SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,sizeof(EEPROM_Prm_t)/EE_CAPACITY*100);
+  // Midi ports
+  SerialPrintf("%s %s number : %s:%d - %s:%d - %s:%d%n",str_MIDI_M,str_PORTS,str_CABLE_B,USBCABLE_INTERFACE_MAX,str_JACK_B,SERIAL_INTERFACE_COUNT,str_VIRTUAL_B,VIRTUAL_INTERFACE_MAX);
+  // Bus Mode
+  SerialPrintf("%nI2C Bus mode        : %s%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED_M:str_ENABLED_M);
+	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,(EE_Prm.I2C_DeviceId == B_MASTERID) ? str_MASTER:str_SLAVE);
+
+  SerialPrintf("%nNext BootMode       : %d%n",EE_Prm.nextBootMode);
+  SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,((int)sizeof(EEPROM_Prm_t)*100) / ((int)EE_CAPACITY));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

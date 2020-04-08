@@ -499,7 +499,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
       *msk = newMsk;
 
       // reset globals for a real time update
-      intelliThruDelayMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
+      ithruUSBIdlelMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
       return SX_NO_ERROR;
   }
   return SX_ERROR_ANY;

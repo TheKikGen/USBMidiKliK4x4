@@ -145,17 +145,15 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 ///////////////////////////////////////////////////////////////////////////////
 // PIPES.
 ///////////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                     par3            par4
-//----------------------------------------------------------------------------
-// 00 MSGFLTR 0:high level filter  Filter bits mask 	       00              00
-//                                 channel voice:0001 (1)	   00              00
-// 			                          syst. common :0010 (2)     00              00
-// 			                          realtime     :0100 (4)     00              00
-// 			                          sysex        :1000 (8)     00              00
-// The mask must match with xParser definition.
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | MSGFLTR |     inclusive      | bits mask.         |     00 (unused)    |     00 (unused)    |
+// |   00    |     filter:0       |  ch voice:0001 (1) |                    |                    |
+// |         |                    |  Sys.cmn :0010 (2) |                    |                    |
+// |         |                    |  realtime:0100 (4) |                    |                    |
+// |         |                    |  sysex   :1000 (8) |                    |                    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 0 ) return false;
   if ( pipe->par2 == 0 || pipe->par2 > 0B1111 ) return false;
@@ -164,21 +162,17 @@ boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe) {
 }
 
 boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
-
-	// Apply high level midi filters before pipeline
+	// Apply inclusive filter. Drop if not matching.
   if ( pipe->par1 == 0 && (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2)  )
           return true;
-
   return false;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                     par3            par4
-//----------------------------------------------------------------------------
-//                par1                  par2                par3            par4
-// 01 NOTECHG transpose+:0         semitone:00-7F            00              00
-//            transpose-:1         semitone:00-7F            00              00
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | NOTECHG |    transpose+:0    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+// |   01    |    transpose-:1    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_NoteChanger_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 1 ) return false;
   if ( pipe->par2 == 0 || pipe->par2 == 0x7F ) return false;
@@ -211,13 +205,13 @@ boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, transPipe_t 
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                     par3            par4
-//----------------------------------------------------------------------------
-// 02 CHANMAP ch map:0             source ch:0-F|any ch:7F   dest ch:0-F     00
-//            ch map to port:1     source ch:0-F           midi port:0-F     00
-//            ch rotating offset:2 offset:0-F                00              00
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | CHANMAP |    channel map:0   | srce ch:0-F|any:7F |      dst ch:0-F    |     00 (unused)    |
+// |   02    | ch map to port:1   |   source ch:0-F    |   midi port:0-F    |     00 (unused)    |
+// |         | ch rotat.offset:2  |   ch offset:0-F    |     00 (unused)    |     00 (unused)    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_ChannelMapper_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 2 ) return false;
   if ( pipe->par1 == 0 && pipe->par2 > 0x0F && pipe->par2 != 0x7F ) return false;
@@ -254,23 +248,20 @@ boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, transPipe_
 
   return true;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 03 VELOCHG  half velo:0        00                        00               00
-//             full velo:1        00                        00               00
-//                 range:2     [ value1 ,              value2 ]:00-7F        00
-//               exclude:3     ] value1 ,              value2 [:00-7F        00
-//                custom:4       add:00                   value:00-7F        00
-//                               sub:01                   value:00-7F        00
-//                             fixed:02                   value:00-7F        00
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | VELOCHG |     include:0      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+// |   03    |     exclude:1      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+// |         |       fixed:2      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+// |         |         add:3      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+// |         |         sub:4      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+// |         |        half:5      |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_VeloChanger_CheckParms(transPipe_t *pipe) {
-  if ( pipe->par1 > 4 ) return false;
-  if ( (pipe->par1 == 2 || pipe->par1 == 3) && pipe->par2 > pipe->par3 ) return false;
-  if ( pipe->par1 == 4 && pipe->par2 > 2) return false;
-  if ( pipe->par1 == 4 && ( pipe->par2 == 0 || pipe->par2 == 0x7F) ) return false;
+  if ( pipe->par1 > 5 ) return false;
+  if ( (pipe->par1 == 0 || pipe->par1 == 1) && pipe->par2 > pipe->par3 ) return false;
+  if ( ( pipe->par1 == 3 || pipe->par1 == 4) && pipe->par2 == 0) return false;
   return true;
 }
 
@@ -281,48 +272,44 @@ boolean MidiTransFn_VeloChanger(uint8_t portType, midiPacket_t *pk, transPipe_t 
   // Only notes ON
   if ( midiStatus != midiXparser::noteOnStatus) return true;
 
-  // Half velocity
-  if ( pipe->par1 == 0x00 ) {
-    pk->packet[3] = 0x40;
-  }
-  else
-  // Full velocity
-  if ( pipe->par1 == 0x01 ) {
-    pk->packet[3] = 127;
-  }
-  else
   // Include range
-  if ( pipe->par1 == 0x02 ) {
+  if ( pipe->par1 == 0x00 ) {
     if ( pk->packet[3] < pipe->par2 || pk->packet[3] > pipe->par3 )
         return false; // drop packet
   }
   else
   // Exclude range
-  if ( pipe->par1 == 0x03 ) {
+  if ( pipe->par1 == 0x01 ) {
     if ( pk->packet[3] >= pipe->par2 || pk->packet[3] <= pipe->par3 )
         return false; // drop packet
   }
   else
-  // Custom
-  if (pipe->par1 == 0x04 ) {
-      if ( pipe->par2 == 00 ) { CONSTRAINT_ADD(pk->packet[3],pipe->par4,127); } // Add
-      else if ( pipe->par2 == 01 ) { CONSTRAINT_SUB(pk->packet[3],pipe->par4,0); } // Sub
-      else if ( pipe->par3 == 02 ) pk->packet[3] = pipe->par4; // Fixed
-      else return false;
+  // Fixed value
+  if ( pipe->par1 == 0x02 ) pk->packet[3] = pipe->par2;
+  else
+  // Add value
+  if ( pipe->par1 == 0x03 ) { CONSTRAINT_ADD(pk->packet[3],pipe->par2,127); }
+  else
+  // Sub value
+  if ( pipe->par1 == 0x04 ) { CONSTRAINT_SUB(pk->packet[3],pipe->par2,127); }
+  else
+  // Half velocity
+  if ( pipe->par1 == 0x05 ) {
+    pk->packet[3] /= 2;
   }
   else return false; // Error
 
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 04 CCCHANG        map:0     source cc:00-7F           dest cc:00-7F       00
-//                 range:1     [ value1 ,              value2 ]:00-7F        00
-//               exclude:2     ] value1 ,              value2 [:00-7F        00
-//                invert:3     source cc:00-7F              00               00
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | CCCHANG |         map:0      |    src cc :0-7F    |    dest cc:00-7F   |     00 (unused)    |
+// |   04    |     include:1      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+// |         |     exclude:2      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+// |         |      invert:3      |    src cc :0-7F    |     00 (unused)    |     00 (unused)    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_CCChanger_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 3 ) return false;
   if ( (pipe->par1 == 1 || pipe->par1 == 2 ) && ( pipe->par2 > pipe->par3 ) ) return false;
@@ -364,14 +351,16 @@ boolean MidiTransFn_CCChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *p
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 05 CLKDIVD   ratio:2-16        00                        00               00
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | CLKDIVD |     ratio:2-10     |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+// |   05    |                    |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
 // Example for a div 2 : 1---(2)---3---(4)---5---(6)---7---(8)
 // Example for a div 3 : 1---2---(3)---4---5---(6)---7---8---(9)
 // (x) means clock sent
-///////////////////////////////////////////////////////////////////////////////
+
 boolean MidiTransFn_ClockDivider_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 < 2 || pipe->par1 >16 ) return false;
   return true;
@@ -391,15 +380,15 @@ boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pk, transPipe_t
   return false;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 06 LOOPBCK dest portype dest    filter bits mask       port:0-F        00
-//              cbl out:0
-//                jk in:1
-//              virt.in:2
-//               no chg:3
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | LOOPBCK |   dest port type.  |  inclusive filter  |      port:0-F      |     00 (unused)    |
+// |   06    |      cbl out:0     |     bits mask      |                    |                    |
+// |         |        jk in:1     |   (see MSGFLTR)    |                    |                    |
+// |         |      virt.in:2     |                    |                    |                    |
+// |         |       no chg:3     |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_LoopBack_CheckParms(transPipe_t *pipe) {
   if ( pipe->par1 > 3 ) return false;
   if ( pipe->par1 == 0 && pipe->par3 > USBCABLE_INTERFACE_MAX ) return false;
@@ -438,11 +427,13 @@ boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pi
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 07 SLOTCHN slot:1-8
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | SLOTCHN |     slot:1-8       |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+// |   07    |                    |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
+
 boolean MidiTransFn_SlotChain_CheckParms(transPipe_t *pipe) {
   if (pipe->par1 < 1 || pipe->par1 > TRANS_PIPELINE_SLOT_SIZE ) return false;
   return true;
@@ -452,13 +443,13 @@ boolean MidiTransFn_SlotChain(uint8_t portType, midiPacket_t *pk, transPipe_t *p
   return TransPacketPipelineExec(portType, pipe->par1,  pk) ;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// PipeID     par1                 par2                    par3            par4
-//----------------------------------------------------------------------------
-// 07 KBSPLIT split note: 00-7F   midi ch:0-F       transpose+:0     semitone:00-7F
-//                                                  transpose-:1     semitone:00-7F
-//                                                  no chg    :2
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | KBSPLIT |  split note: 0-7F  |     midi ch:0-F    |     no change:0    |     00 (unused)    |
+// |   08    |                    |                    |    transpose+:1    |   semitone:00-7F   |
+// |         |                    |                    |    transpose-:2    |   semitone:00-7F   |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_KbSplit_CheckParms(transPipe_t *pipe) {
   if (pipe->par2 > 0x0F || pipe->par3 > 2) return false;
   return true;
@@ -473,25 +464,22 @@ boolean MidiTransFn_KbSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pip
 
   if ( pk->packet[2] >= pipe->par1  ) {
     pk->packet[1] = midiStatus + pipe->par2; // Channel
-    if ( pipe->par3 < 2 ) {
-        // Transpose
-        transPipe_t p =  { FN_TRANSPIPE_NOTE_CHANGER,0,pipe->par3,pipe->par4,0,0 };
+    if ( pipe->par3 == 1 || pipe->par3 == 2  ) {
+        // Transpose+
+        transPipe_t p =  { FN_TRANSPIPE_NOTE_CHANGER,(pipe->par3 == 1?0:1),pipe->par4,0,0 };
         return MidiTransFn_NoteChanger(portType, pk, &p);
     }
   }
   return true;
 }
-
-
-///////////////////////////////////////////////////////////////////////////////
-// VeloSplit : Velocity split to midi channel .
-//----------------------------------------------------------------------------
-//                   par1               par2         par3            par4
-// 09 VLSPLIT split velo: 00-7F   midi ch:0-F       add:0          value:00:7F
-//                                                  sub:1          value:00:7F
-//                                                  fixed:2        value:00:7F
-//                                                  nochg:3            00
-///////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | VLSPLIT | split veloc.: 0-7F |     midi ch:0-F    |       nochg:0      |     00 (unused)    |
+// |   09    |                    |                    |       fixed:1      |     value:0-7F     |
+// |         |                    |                    |         add:2      |     value:0-7F     |
+// |         |                    |                    |         sub:3      |     value:0-7F     |
+// -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_VeloSplit_CheckParms(transPipe_t *pipe) {
   if (pipe->par2 > 0x0F || pipe->par3 > 3) return false;
   return true;
@@ -511,14 +499,14 @@ boolean MidiTransFn_VeloSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *p
       midiPacket_t pk2 = { .i = pk->i };
       pk2.packet[1] = midiStatus + pipe->par2; // Change Channel
       RoutePacketToTarget(portType, &pk2);
-      return true;
   }
+  else
   // Note On
   if ( pk->packet[3] >= pipe->par1  ) {
     pk->packet[1] = midiStatus + pipe->par2; // Channel
-    if ( pipe->par3 == 0 ) { CONSTRAINT_ADD(pk->packet[3],pipe->par4,127); }
-    else if ( pipe->par3 == 1 ) { CONSTRAINT_SUB(pk->packet[3],pipe->par4,0); }
-    else if ( pipe->par3 == 2 ) pk->packet[3] = pipe->par4; // Fixed
+    if ( pipe->par3 == 1 ) pk->packet[3] = pipe->par4; // Fixed
+    else if ( pipe->par3 == 2 ) { CONSTRAINT_ADD(pk->packet[3],pipe->par4,127); }
+    else if ( pipe->par3 == 3 ) { CONSTRAINT_SUB(pk->packet[3],pipe->par4,0); }
   }
   return true;
 }

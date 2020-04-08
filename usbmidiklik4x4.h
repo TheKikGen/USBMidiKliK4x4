@@ -52,6 +52,10 @@ __ __| |           |  /_) |     ___|             |           |
 
 // Timer for attachCompare1Interrupt
 #define TIMER2_RATE_MICROS 1000
+// LED ON duration in loop count. NB : 255 tick max * TIMER2_RATE_MICROS
+#define LED_TICK_COUNT 5
+// LED ON recovery time in msec when no dedicated LED for CONNECT USB
+#define LED_CONNECT_USB_RECOVER_TIME_MILLIS 500
 
 // Sysex internal buffer size
 #define SYSEX_INTERNAL_BUFF_SIZE 64
@@ -61,14 +65,15 @@ enum nextBootMode {
     bootModeMidi   = 0,
     bootModeConfigMenu = 2,
 };
-// LED ON recovery time in msec when no dedicated LED for CONNECT USB
-#define LED_CONNECT_USB_RECOVER_TIME_MILLIS 500
 
 // LED Tick
 typedef struct {
     uint8_t pin;
-    uint16_t tick;
+    uint8_t tick;
 } __packed LEDTick_t;
+
+// Process functions vector
+typedef void(*procVectorFn_t)();
 
 ///////////////////////////////////////////////////////////////////////////////
 // ROUTING RULES & TRANSFORMATION PIPELINES
@@ -152,7 +157,7 @@ typedef union {
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
 ///////////////////////////////////////////////////////////////////////////////
-#define I2C_LED_TIMER_MILLIS 500*1000
+#define I2C_LED_TIMER_MILLIS 500
 
 #define PIN_SDA PB7
 #define PIN_SCL PB6
@@ -169,7 +174,6 @@ typedef union {
 #define B_DISABLED 0
 #define B_ENABLED 1
 #define B_FREQ 400000
-#define B_MASTER_READY_TIMEOUT 10000
 
 // Bus commands
 enum BusCommand {
@@ -229,7 +233,7 @@ enum BusDeviceSate {
 // Changing the version will cause a new initialization in CheckEEPROM();.
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
-#define EE_SIGNATURE "MDK"
+#define EE_SIGNATURE "UMK"
 #define EE_PRMVER 25
 
 typedef struct {
@@ -273,7 +277,9 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-boolean LED_TurnOn(volatile LEDTick_t *);
+boolean LED_Flash(volatile LEDTick_t *);
+void    LED_TurnOn(volatile LEDTick_t *);
+void    LED_TurnOff(volatile LEDTick_t *);
 void    LED_Update();
 int     memcmpcpy ( void * , void * , size_t );
 void    Timer2Handler(void);

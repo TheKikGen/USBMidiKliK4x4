@@ -49,11 +49,11 @@ __ __| |           |  /_) |     ___|             |           |
 
 // Macro to flash LEDS IN
 #ifdef LED_MIDI_SIZE
-  #define FLASH_LED_IN(thisLed) LED_TurnOn(&LED_MidiInTick[thisLed])
-  #define FLASH_LED_OUT(thisLed) LED_TurnOn(&LED_MidiOutTick[thisLed])
+  #define FLASH_LED_IN(thisLed) LED_Flash(&LED_MidiInTick[thisLed])
+  #define FLASH_LED_OUT(thisLed) LED_Flash(&LED_MidiOutTick[thisLed])
 #else
-  #define FLASH_LED_IN(thisLed) LED_TurnOn(&LED_ConnectTick)
-  #define FLASH_LED_OUT(thisLed) LED_TurnOn(&LED_ConnectTick)
+  #define FLASH_LED_IN(thisLed) LED_Flash(&LED_ConnectTick)
+  #define FLASH_LED_OUT(thisLed) LED_Flash(&LED_ConnectTick)
 #endif
 
 // Add/Sub constraint used for uint (do not add ; at the end )

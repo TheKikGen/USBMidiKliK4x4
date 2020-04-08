@@ -65,8 +65,6 @@ HardwareTimer timer(2);
 HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
 // LED Management
-#define LED_TICK_COUNT 3000
-
 volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
 
 // LEDs ticks for Connect, MIDIN and MIDIOUT
@@ -88,9 +86,9 @@ volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
 USBMidi MidiUSB;
 volatile bool					midiUSBCx      = false;
 volatile bool         midiUSBIdle    = false;
-bool                  midiUSBLaunched= false;
+//bool                  midiUSBLaunched= false;
 bool 					        isSerialBusy   = false ;
-unsigned long         midiUSBLastPacketMillis    = 0;
+
 // MIDI Parsers for serial 1 to n
 midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
@@ -99,18 +97,16 @@ uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
 volatile bool intelliThruActive = false;
-unsigned long intelliThruDelayMillis = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
+unsigned long ithruUSBIdlelMillis = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
 
 // Bus Mode globals
 
-// Timer used to signal I2C events every 500 ms
-unsigned long I2C_LedTimerMillis=0;
+// True if events received from Master when slave
+volatile boolean I2C_MasterIsActive = false;
 
 uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
 uint8_t I2C_DeviceActiveCount=0;
 
-boolean I2C_MasterReady = false;
-volatile unsigned long I2C_MasterReadyTimeoutMillis = 0;
 volatile uint8_t I2C_Command = B_CMD_NONE;
 
 // Master to slave synchonization globals
@@ -121,6 +117,11 @@ volatile boolean I2C_SlaveSyncDoUpdate = false;
 // Volatile by default and RESERVED TO SLAVE
 RingBuffer<uint8_t,B_RING_BUFFER_PACKET_SIZE> I2C_QPacketsFromMaster;
 RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
+
+// Vector for process run in main Loop to avoid testing flags in a pure loop
+// approahc. All function pointer are added when they are only necessary in Setup.
+uint8_t procVectorFnCount = 0;
+procVectorFn_t procVectorFn[4] ;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CODE MODULES
@@ -159,16 +160,16 @@ int memcmpcpy ( void * pDest, void * pSrc, size_t sz ) {
 ///////////////////////////////////////////////////////////////////////////////
 void Timer2Handler(void)
 {
-
+  LED_Update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// LED MANAGEMENT
+// LED MANAGEMENT - Init PINS
 ///////////////////////////////////////////////////////////////////////////////
 boolean LED_Init() {
   // LED connect
   gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
-  LED_TurnOn(&LED_ConnectTick);
+  LED_Flash(&LED_ConnectTick);
 
 #ifdef LED_MIDI_SIZE
   for (uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
@@ -179,8 +180,21 @@ boolean LED_Init() {
   }
 #endif
 }
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - Turn ON / OFF A LED (Faster with GPIO functions)
+///////////////////////////////////////////////////////////////////////////////
+void LED_TurnOn(volatile LEDTick_t *ledTick) {
+  gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
+}
 
-boolean LED_TurnOn(volatile LEDTick_t *ledTick) {
+void LED_TurnOff(volatile LEDTick_t *ledTick) {
+  gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, HIGH);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - FLASH A LED DURING LED_TICK_COUNT*TIMER2_RATE_MICROS
+///////////////////////////////////////////////////////////////////////////////
+boolean LED_Flash(volatile LEDTick_t *ledTick) {
     if ( ! ledTick->tick ) {
       gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
       ledTick->tick = LED_TICK_COUNT;
@@ -190,6 +204,9 @@ boolean LED_TurnOn(volatile LEDTick_t *ledTick) {
     return false;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - CHECK TO SWITCH OFF FLASHED LEDS AT TIMER2_RATE_MICROS RATE
+///////////////////////////////////////////////////////////////////////////////
 void LED_Update() {
     // LED connect
     if ( LED_ConnectTick.tick ) {
@@ -639,9 +656,9 @@ void CheckBootMode()
 			// 3 short flash
 
 			while (!Serial) {
-          LED_TurnOn(&LED_ConnectTick);delay(300);
-          LED_TurnOn(&LED_ConnectTick);delay(300);
-          LED_TurnOn(&LED_ConnectTick);delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
 				}
 			digitalWrite(LED_CONNECT, LOW);
 
@@ -669,21 +686,24 @@ void USBMidi_Process()
 {
   // Try to connect/reconnect USB if we detect a high level on USBDM
 	// This is to manage the case of a powered device without USB active or suspend mode for ex.
+  static unsigned long ledCxMillis = 0;
+  static unsigned long lastPacketMillis = 0;
+
 	if ( MidiUSB.isConnected() ) {
+
     unsigned long lastPollMillis = millis();
 
-    #ifndef LED_MIDI_SIZE
-      if (lastPollMillis > midiUSBLastPacketMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS)
-        LED_TurnOn(&LED_ConnectTick);
-    #else
-        LED_TurnOn(&LED_ConnectTick); // Turn on permanently when dedicated led
-    #endif
+    if (lastPollMillis > ledCxMillis ) {
+      LED_TurnOn(&LED_ConnectTick);
+      ledCxMillis = lastPollMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS;
+    }
 
     midiUSBCx = true;
 
 		// Do we have a MIDI USB packet available ?
 		if ( MidiUSB.available() ) {
-			midiUSBLastPacketMillis = lastPollMillis  ;
+			lastPacketMillis = lastPollMillis  ;
+      ledCxMillis = lastPollMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS;
 			midiUSBIdle = false;
 			intelliThruActive = false;
 
@@ -695,13 +715,14 @@ void USBMidi_Process()
 			} else {
 					isSerialBusy = false ;
 			}
-		} else
-		if (!midiUSBIdle && lastPollMillis > ( midiUSBLastPacketMillis + intelliThruDelayMillis ) )
+		}
+    else
+		if (!midiUSBIdle && lastPollMillis > ( lastPacketMillis + ithruUSBIdlelMillis ) )
 				midiUSBIdle = true;
 	}
 	// Are we physically connected to USB
 	else {
-       //if (midiUSBCx) digitalWrite(LED_CONNECT, HIGH);
+       if (midiUSBCx) LED_TurnOff(&LED_ConnectTick);
        midiUSBCx = false;
 		   midiUSBIdle = true;
   }
@@ -755,7 +776,6 @@ void SerialMidi_Process()
 ///////////////////////////////////////////////////////////////////////////////
 void setup()
 {
-
     LED_Init();
 
     // Retrieve EEPROM parameters
@@ -775,7 +795,7 @@ void setup()
 
     // MIDI MODE START HERE ==================================================
 
-    intelliThruDelayMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
+    ithruUSBIdlelMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
 
     // MIDI SERIAL PORTS set Baud rates and parser inits
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
@@ -789,14 +809,22 @@ void setup()
 		// I2C bus checks that could disable the bus mode
   	I2C_BusChecks();
 
+    // Add Serial to process fn vector
+    procVectorFn[procVectorFnCount++] = &SerialMidi_Process;
+
     // Midi USB only if master when bus is enabled or master/slave
+    // if so, add USB to process fn vector & init USB
     if ( ! B_IS_SLAVE  ) {
-        midiUSBLaunched = true;
+        procVectorFn[procVectorFnCount++] = &USBMidi_Process;
         USBMidi_Init();
   	}
 
-		I2C_BusStartWire();		// Start Wire if bus mode enabled. AFTER MIDI !
+    // Add add-hoc I2C BUS process vector fn
+    if ( B_IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
+		else if ( B_IS_MASTER ) procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
 
+    // Start Wire if bus mode enabled. AFTER MIDI !
+    I2C_BusStartWire();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -804,13 +832,7 @@ void setup()
 ///////////////////////////////////////////////////////////////////////////////
 void loop()
 {
-		if ( midiUSBLaunched ) USBMidi_Process();
-
-		SerialMidi_Process();
-
-		// I2C BUS MIDI PACKET PROCESS
-		if ( B_IS_SLAVE ) I2C_ProcessSlave();
-		else if ( B_IS_MASTER ) I2C_ProcessMaster();
-
-    LED_Update();
+    // Pure loop of functions in vector
+    uint8_t p = procVectorFnCount;
+    do {  procVectorFn[--p](); } while (p);
 }
