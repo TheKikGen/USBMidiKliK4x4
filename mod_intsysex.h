@@ -55,9 +55,9 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 boolean SysExInternal_Process(uint8_t, uint8_t *);
 boolean SysExInternal_Parse(uint8_t, midiPacket_t *);
-uint8_t SysexInternal_DumpConf(uint32_t , uint8_t *);
-void    SysexInternal_DumpSendConfToStream(uint32_t sxAddr,uint8_t dest);
-void    SysexInternal_DumpFullConfToStream(uint8_t dest);
+uint8_t SysexInternal_DumpAddrToBuff(uint32_t , uint8_t *);
+void    SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest);
+void    SysexInternal_DumpConfToStream(uint8_t dest);
 void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *);
@@ -152,7 +152,7 @@ typedef struct {
 #define FN_SX_VECTOR_SIZE 11
 
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
-  { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig,          false,false,false,false },
+  { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig,          true,false,false,false },
   { FN_SX_GEN_INFO          ,&SysExInternal_fnIdentityRequest,     true,false,false,false },
   { FN_SX_CONFIG_MODE       ,&SysExInternal_fnConfigMode,          false,true ,false,true  },
   { FN_SX_HARD_RESET        ,&SysExInternal_fnHardReset,           false,false,false,true  },
@@ -189,8 +189,8 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
           if ( sysExFunctionAckToggle && r != SX_NO_ACK && SysExInternalFnVector[i].needACK )
               SysExInternal_SendFnACK(portType,r);
           if ( r == SX_NO_ERROR ) {
-            if ( SysExInternalFnVector[i].needStoreIfSucceed) EE_PrmSave();
-            if ( SysExInternalFnVector[i].needBusSyncIfSucceed && (B_IS_MASTER) ) I2C_SlavesRoutingSyncFromMaster();
+            if ( SysExInternalFnVector[i].needStoreIfSucceed   && !(B_IS_SLAVE) ) EE_PrmSave(); // No save if slave on Bus
+            if ( SysExInternalFnVector[i].needBusSyncIfSucceed && !(B_IS_SLAVE) ) I2C_SlavesRoutingSyncFromMaster();
             if ( SysExInternalFnVector[i].needResetIfSucceed) nvic_sys_reset();
             return true;
           }
@@ -208,7 +208,7 @@ void SysExInternal_SendFnACK(uint8_t portType,uint8_t errorCode) {
   sysExInternalCommandACK[6] = errorCode;
   if (portType == PORT_TYPE_CABLE && midiUSBCx) {
       // send to USB , cable 0
-      USBMidi_SendSysExPacket(sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
+      USBMidi_SendSysExPacket(0,sysExInternalCommandACK,sizeof(sysExInternalCommandACK));
   } else
   if (portType == PORT_TYPE_JACK ) {
       // Send to serial port 0 being the only possible for sysex
@@ -286,38 +286,39 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
     return false;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // SYSEX VECTOR FUNCTIONS
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
 // 05 Configuration sysex dump
-// F0 77 77 78 05 <fnId> <command id | 00 > <sub id1 |00 ><sub id2 | 00 > F7
-// F0 77 77 78 05 E0 00 00 00
+// F0 77 77 78 05 <dump address:nn nn nn nn> F7
+//
+// -------------------------------------------------------------
+// | Dump data           | Dump address
+// -------------------------------------------------------------
+// | All                 | 7F 00 00 00
+// | USB product strings | 0B 00 00 00
+// | USB PID-VID         | 0C 00 00 00
+// | USB Idle            | 0E 02 00 00
+// | IThru routing       | 0E 03 <Jack In> 00
+// | Midi routing        | 0F 01 <in port type:0-2> <in port>
+// | Trans. Pipelines    | 11 00 <in port type:0-3> <in port>
+// -------------------------------------------------------------
+// in port: 0-F
+// port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
 
-  if (sxMsg[0] != 5) SX_ERROR_BAD_MSG_SIZE;
+  if (sxMsg[0] != 5) return SX_ERROR_BAD_MSG_SIZE;
 
   // Make a pseudo 32 bits value to address sysex functions
-  // In Little Endian: the value 0x 01 02 03 04 is stored as  0x 04 03 02 01
-  uint32_t sxAddr =  sxMsg[2] + (sxMsg[3] << 8) + (sxMsg[4] << 16) + (sxMsg[5] << 24);
-  uint8_t l = SysexInternal_DumpConf(sxAddr,sysExInternalBuffer) ;
-  if (!l) return SX_ERROR_ANY;
+  uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
 
-  if (portType == PORT_TYPE_CABLE && midiUSBCx) {
-    // send to USB , cable 0
-    USBMidi_SendSysExPacket(sysExInternalBuffer,l);
-    return SX_NO_ERROR;
+  if ( sxAddr == 0x7F000000 ) SysexInternal_DumpConfToStream(portType);
+  else SysexInternal_DumpAddrToStream(sxAddr,portType);
 
-  } else
-  if (portType == PORT_TYPE_JACK ) {
-    // Send to serial port 0 being the only possible for sysex
-    serialHw[0]->write(sysExInternalBuffer,l);
-    return SX_NO_ERROR;
-  }
-  return SX_ERROR_ANY;
+  return SX_NO_ACK;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -335,7 +336,7 @@ uint8_t SysExInternal_fnIdentityRequest(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
       if (portType == PORT_TYPE_CABLE && midiUSBCx) {
         // send to USB , cable 0
-        USBMidi_SendSysExPacket(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
+        USBMidi_SendSysExPacket(0,sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_NO_ACK; // Force no ACK in that case
       } else
       if (portType == PORT_TYPE_JACK ) {
@@ -751,14 +752,14 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
 // 1 : Jack port 0
 // 2 : HexDump to serial 0
 ///////////////////////////////////////////////////////////////////////////////
-void SysexInternal_DumpSendConfToStream(uint32_t sxAddr,uint8_t dest) {
+void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest) {
 
   uint16_t l;
   // Build a stream according to the address
-  l = SysexInternal_DumpConf(sxAddr, sysExInternalBuffer);
+  l = SysexInternal_DumpAddrToBuff(sxAddr, sysExInternalBuffer);
   if ( l && dest == 2 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
   else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-  else if ( l && dest == 0 ) USBMidi_SendSysExPacket(sysExInternalBuffer,l);
+  else if ( l && dest == 0 && midiUSBCx ) USBMidi_SendSysExPacket(0,sysExInternalBuffer,l);
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Generate a full sysex config dump to the appropriate destination stream
@@ -766,71 +767,77 @@ void SysexInternal_DumpSendConfToStream(uint32_t sxAddr,uint8_t dest) {
 // 1 : Jack port 0
 // 2 : HexDump to serial 0
 ///////////////////////////////////////////////////////////////////////////////
-void SysexInternal_DumpFullConfToStream(uint8_t dest) {
+void SysexInternal_DumpConfToStream(uint8_t dest) {
 
   // Usb string , PID, VID
-  SysexInternal_DumpSendConfToStream(0x0B000000,dest);
-  SysexInternal_DumpSendConfToStream(0x0C000000,dest);
-  // Ithru USB Idle, routing,
-  SysexInternal_DumpSendConfToStream(0x0E020000,dest);
-  for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x0E030000 + (i << 8 ), dest);
+  SysexInternal_DumpAddrToStream(0x0B000000,dest);
+  SysexInternal_DumpAddrToStream(0x0C000000,dest);
 
-  // Cable out Routing
-  for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x0F010000 + i , dest);
+  // Ithru USB Idle, routing,
+  SysexInternal_DumpAddrToStream(0x0E020000,dest);
+  for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
+        SysexInternal_DumpAddrToStream(0x0E030000 + (i << 8 ), dest);
+
+  // In port Cable out Routing
+  for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++) {
+    SysexInternal_DumpAddrToStream(0x0F010000 + i , dest);
+  }
 
   // jack In Routing,
-  for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x0F010100 + i , dest);
+  for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++) {
+    SysexInternal_DumpAddrToStream(0x0F010100 + i , dest);
+  }
 
   // Virtual In Routing,
   for (  uint32_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x0F010200 + i , dest);
+        SysexInternal_DumpAddrToStream(0x0F010200 + i , dest);
 
   // Cable out attached slot
   for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x11000000 + i , dest);
+        SysexInternal_DumpAddrToStream(0x11000000 + i , dest);
 
   // Jack In attached slot
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x11000100 + i , dest);
+        SysexInternal_DumpAddrToStream(0x11000100 + i , dest);
 
   // Virtual In attached slot
   for (  uint32_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x11000200 + i , dest);
+        SysexInternal_DumpAddrToStream(0x11000200 + i , dest);
 
   // Ithru attached slot
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
-        SysexInternal_DumpSendConfToStream(0x11000300 + i , dest);
+        SysexInternal_DumpAddrToStream(0x11000300 + i , dest);
 
   // PIPES Dump : 11 01 <slot> < pipe index>
   for (  uint32_t s=1; s <= TRANS_PIPELINE_SLOT_SIZE ; s++) {
     for (  uint32_t p=0; p != TRANS_PIPELINE_SIZE ; p++)
-      SysexInternal_DumpSendConfToStream(0x11010000 + (s << 8) + p, dest);
+      SysexInternal_DumpAddrToStream(0x11010000 + (s << 8) + p, dest);
   }
 
   // Bus settings. Commented because reset the board.
-  //SysexInternal_DumpSendConfToStream(0x10000000, dest);
+  //SysexInternal_DumpAddrToStream(0x10000000, dest);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Return current configuration as a SYSEX buffer
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
+uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
 
   uint8_t *buff2 = buff;
 
   // Copy header
   memcpy(buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
   buff2+=sizeof(sysExInternalHeader);
-  // Copy FnId - Little endian
+  // Copy FnId -
   uint8_t fnId = (sxAddr>>24) ; // fn000000 => 000000fn little endian
 
   *buff2 = fnId ;
 
+  // Can't do All in the sysex buffer.
+  if ( sxAddr == 0x7F000000 ) return 0;
+
   // 0B Set USB product string
-  // Dump : 0B
+  // Dump addr : 0B 00 00 00
   // Generate F0 77 77 78 0B <usb product string:nn...nn> F7
   if ( sxAddr == 0x0B000000 ) {
     strcpy((char*)++buff2,(char*)EE_Prm.productString);
@@ -857,7 +864,7 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
 
   // 0E Intelligent thru - 02 Set USB idle
   // Dump : 0E 02
-  // Generate F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
+  // Generate : F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
   if ( sxAddr == 0x0E020000 ) {
       *(++buff2) = 0X02;
       *(++buff2) = EE_Prm.ithruUSBIdleTimePeriod;
@@ -867,22 +874,39 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
 
   // 0E Intelligent thru - 03 Set jack routing
   // Dump 0E 03 <Jack In>
-  // Generate F0 77 77 78 0E 03 <JackIn port: 0-F> [jk out ports list: nn...nn] F7
+  // Generate : F0 77 77 78 0E 03 <JackIn port > [<out port type><out ports list: nn...nn>] F7
+  // Generate eventually F0 77 77 78 0E 03 <JackIn port > to disable IThru
   if ( sxAddr >= 0x0E030000 && sxAddr <= 0x0E030F00 ) {
       *(++buff2) = 0X03;
       uint8_t jackIn = ( (sxAddr<<16) >> 24 ) ;
       *(++buff2) = jackIn;
-      uint8_t jackOut=0;
+      *(++buff2) = PORT_TYPE_JACK;
+      uint8_t out=0;
+      // Jack
       for (  uint8_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++) {
       	     if ( EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk & ( 1 << i) ) {
               *(++buff2) = i;
-              jackOut++;
+              out++;
            }
       }
-      if (!jackOut) return 0;
       *(++buff2) = 0xF7;
-      // If out ports and no jack in, then generate a "disable" but keep the routing
-      if ( ! (EE_Prm.ithruJackInMsk & (1 << jackIn) ) ) {
+      // Virtual
+      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+      buff2+=sizeof(sysExInternalHeader);
+      *buff2 = fnId ;
+      *(++buff2) = 0X03; // cmdId
+      *(++buff2) = jackIn;
+      *(++buff2) = PORT_TYPE_VIRTUAL;
+      for (  uint8_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++) {
+      	     if ( EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk & ( 1 << i) ) {
+              *(++buff2) = i;
+              out++;
+           }
+      }
+      *(++buff2) = 0xF7;
+
+      // If out ports then generate a "disable" if necessary
+      if ( out && !(EE_Prm.ithruJackInMsk & (1 << jackIn) ) ) {
         memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
         buff2+=sizeof(sysExInternalHeader);
         *buff2 = fnId ;
@@ -894,14 +918,17 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       return buff2-buff+1;
   }
 
+  //
   // 0F Midi routing - 01 Set midi port routing
-  // Dump : 0F 01 <inport type> <inport>
-  // Generate F0 77 77 78 0F 01 <inport type> <inport> <outport type>[outports list: nn...nn] F7
+  // Dump : 0F 01 <inport type> <in port>
+  // Generate F0 77 77 78 0F 01 <inport type> <in port> <out port type>[outports list: nn...nn] F7
   if ( sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F ) {
       uint8_t inPortType = ( (sxAddr<<16) >> 24 );
       uint8_t inPort = ( sxAddr & 0x0000000FF );
       uint16_t cmsk = 0;
       uint16_t jmsk = 0;
+      uint16_t vmsk = 0;
+
 
       *(++buff2) = 0X01; // cmdId
       *(++buff2) = inPortType;
@@ -910,41 +937,58 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
       if (inPortType == 0 ) {  // Cable
         cmsk = EE_Prm.rtRulesCable[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesCable[inPort].jkOutTgMsk;
+        vmsk = EE_Prm.rtRulesCable[inPort].vrOutTgMsk;
       }
       else if (inPortType == 1 ){  // jack
         cmsk = EE_Prm.rtRulesJack[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesJack[inPort].jkOutTgMsk;
+        vmsk = EE_Prm.rtRulesJack[inPort].vrOutTgMsk;
       }
       else if (inPortType == 2 ) {  // Virtual
         cmsk = EE_Prm.rtRulesVirtual[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk;
+        vmsk = EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk;
       } else return 0;
 
-      if ( ! (cmsk + jmsk) ) return 0;
-
+      uint8_t  i = 0;
       // Cable targets
-      if ( cmsk) {
-        *(++buff2) = 0 ; // outport Type cable
-        for ( uint8_t  i = 0 ; i != USBCABLE_INTERFACE_MAX  ; i++)
-            if ( cmsk & ( 1 << i) ) *(++buff2) = i;
-        if (jmsk) {
-          // Add a new header for jack out targets
-          *(++buff2) = 0xF7;
-          memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
-          buff2+=sizeof(sysExInternalHeader);
-          *buff2 = fnId ;
-          *(++buff2) = 0X01; // cmdId
-          *(++buff2) = inPortType;
-          *(++buff2) = inPort;
-        }
+      *(++buff2) = 0 ; // outport Type cable
+      while ( cmsk && i != USBCABLE_INTERFACE_MAX) {
+        if (cmsk & 1  ) *(++buff2) = i;
+        cmsk >>= 1; i++;
       }
-      if (jmsk) {
-        *(++buff2) = 1 ; // outport Type jack
-        for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX  ; i++)
-            if ( jmsk & ( 1 << i) )  *(++buff2) = i;
-      }
-
       *(++buff2) = 0xF7;
+
+      // Jack targets. New sysex.
+      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+      buff2+=sizeof(sysExInternalHeader);
+      *buff2 = fnId ;
+      *(++buff2) = 0X01; // cmdId
+      *(++buff2) = inPortType;
+      *(++buff2) = inPort;
+      *(++buff2) = 1 ; // outport Type jack
+      i = 0;
+      while ( jmsk && i != B_SERIAL_INTERFACE_MAX) {
+        if (jmsk & 1  ) *(++buff2) = i;
+        jmsk >>= 1; i++;
+      }
+      *(++buff2) = 0xF7;
+
+      // Virtual targets
+      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+      buff2+=sizeof(sysExInternalHeader);
+      *buff2 = fnId ;
+      *(++buff2) = 0X01; // cmdId
+      *(++buff2) = inPortType;
+      *(++buff2) = inPort;
+      *(++buff2) = 2 ; // outport Type virtual
+      i = 0;
+      while ( vmsk && i != B_SERIAL_INTERFACE_MAX) {
+        if (vmsk & 1  ) *(++buff2) = i;
+        vmsk >>= 1; i++;
+      }
+      *(++buff2) = 0xF7;
+
       return buff2-buff+1;
   }
 
@@ -994,9 +1038,6 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     else if ( inPortType == 3) *(++buff2) = EE_Prm.rtRulesIthru[inPort].slot;
     else return 0;
 
-    // Don't take unattached ports to reduce sysex size
-    if (*buff2 == 0) return 0;
-
     *(++buff2) = 0xF7;
     return buff2-buff+1;
   }
@@ -1005,25 +1046,30 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
   // 11 01 Pipe operation - 00 add pipe
   // Dump : 11 01 <slot> < pipe index>
   // Generates
-  // F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
-  // F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+  //
+  // insert pipe at : F0 77 77 78 11 01 01 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
+  // byPass : F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+
 
   if ( sxAddr >= 0x11010100 && sxAddr <= 0x11017F7F ) {
+
     uint8_t slot = ( (sxAddr<<16) >> 24 ) ;
     uint8_t pipeIndex = ( sxAddr & 0x0000000FF );
     if (slot < 1 || slot > TRANS_PIPELINE_SLOT_SIZE ) return 0;
     if (pipeIndex > TRANS_PIPELINE_SIZE ) return 0;
-    if ( EE_Prm.pipelineSlot[--slot].pipeline[pipeIndex].pId == FN_TRANSPIPE_NOPIPE) return 0;
+    // Clear Slot
     *(++buff2) = 0X01; // Pipe operations
-    *(++buff2) = 0X00; // Add Pipe
-    *(++buff2) = slot+1;
+    *(++buff2) = 0X01; // Insert Pipe at
+    *(++buff2) = slot--;
+    *(++buff2) = pipeIndex;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].pId;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par1;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par2;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par3;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].par4;
-    // Add a new header to generate the bypass command
     *(++buff2) = 0xF7;
+
+    // Add a new header to generate the bypass command
     memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
     buff2+=sizeof(sysExInternalHeader);
     *buff2 = fnId;
@@ -1032,8 +1078,8 @@ uint8_t SysexInternal_DumpConf(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = slot+1;
     *(++buff2) = pipeIndex;
     *(++buff2) = EE_Prm.pipelineSlot[slot].pipeline[pipeIndex].byPass;
-
     *(++buff2) = 0xF7;
+
     return buff2-buff+1;
   }
 

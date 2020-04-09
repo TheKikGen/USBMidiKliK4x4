@@ -53,7 +53,22 @@ SYSEX MESSAGES
 
 -------------------------------------------------------------------------------
 05 Configuration sysex dump
-F0 77 77 78 05 F7
+F0 77 77 78 05 <dump address:nn nn nn nn> F7
+
+-------------------------------------------------------------
+| Dump data           | Dump address
+-------------------------------------------------------------
+| All                 | 7F 00 00 00
+| USB product strings | 0B 00 00 00
+| USB PID-VID         | 0C 00 00 00
+| USB Idle            | 0E 02 00 00
+| IThru routing       | 0E 03 <Jack In> 00
+| Midi routing        | 0F 01 <in port type:0-2> <in port>
+| Slot attached port  | 11 00 <in port type:0-3> <in port>
+| Pipes in slot       | 11 01 <slot> <pipe index>
+-------------------------------------------------------------
+in port: 0-F
+port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 -------------------------------------------------------------------------------
 06 General Information
 
@@ -136,7 +151,7 @@ When slot = 0, the port is considered as detached from any slot.
 11 01 00 add pipe
 F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
 
-11 01 01 insert pipe before
+11 01 01 insert pipe at
 F0 77 77 78 11 01 01 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
 
 11 01 02 replace pipe
