@@ -92,8 +92,8 @@ typedef void(*procVectorFn_t)();
 // Number of virtual interface ports
 #define VIRTUAL_INTERFACE_MAX 8
 
-// Empty pipe
-#define FN_TRANSPIPE_NOPIPE 0xFF
+// Empty pipe (nb : below 0x80 - 7 bits value)
+#define FN_TRANSPIPE_NOPIPE 0x7F
 
 // Port types
 #define PORT_TYPE_CABLE 0
@@ -290,7 +290,7 @@ void    SerialMidi_RouteMsg( uint8_t, midiXparser*  );
 void    SerialMidi_RouteSysEx( uint8_t , midiXparser* );
 void    RoutePacketToTarget(uint8_t , midiPacket_t *);
 void    ResetMidiRoutingRules(uint8_t);
-void    USBMidi_SendSysExPacket(const uint8_t *,uint16_t );
+boolean USBMidi_SendSysExPacket(uint8_t,const uint8_t *,uint16_t );
 void    CheckBootMode();
 void    USBMidi_Init();
 void    USBMidi_Process();
@@ -311,5 +311,6 @@ boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , transPipe_t *,boolean);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
 void ShowPipelineSlot(uint8_t s) __attribute__((optimize("-Os"))) ;
+void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
 
 #endif
