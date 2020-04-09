@@ -446,7 +446,9 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // available whatever routing is to insure that internal sysex will be always interpreted.
   // Internal sysex packets can't be looped back, because that will corrupt the flow.
   // A slave must not interpret sysex when active on bus to stay  synchronized with the master.
-  if (port == 0 && portType != PORT_TYPE_VIRTUAL && !(B_IS_SLAVE) && !slotLockMsk) {
+  // The port#0 is mandatory a port of the master or a port of a slave without bus.
+  // Only virtual port can be 0 when bus mode active.
+  if (port == 0 && portType != PORT_TYPE_VIRTUAL && !slotLockMsk) {
 		if ( cin <= 7 && cin >= 4 ) {
       if (SysExInternal_Parse(portType, pk,sysExInternalBuffer))
             SysExInternal_Process(portType,sysExInternalBuffer);
@@ -493,7 +495,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
         pk2.packet[0] = ( t << 4 ) + cin;
         // Only the master has USB midi privilege in bus MODE
         // Everybody else if an usb connection is active
-        if (! B_IS_SLAVE ) {
+        if ( !(IS_SLAVE && IS_BUS_E) ) {
             MidiUSB.writePacket(&pk2.i);
         } else
         // A slave in bus mode ?
@@ -592,11 +594,17 @@ void ResetMidiRoutingRules(uint8_t mode) {
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
+
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EE_Prm.rtRulesIthru[i].slot = 0;
 	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
       EE_Prm.rtRulesIthru[i].vrOutTgMsk = 0  ;
 		}
+    // Default IN 1 -> OUT 1,2 (split) , IN 2,3 -> OUT 3 (merge)
+    EE_Prm.rtRulesIthru[0].jkOutTgMsk = B0011 ;
+    EE_Prm.rtRulesIthru[1].jkOutTgMsk = B0100 ;
+    EE_Prm.rtRulesIthru[2].jkOutTgMsk = B0100 ;
+
 		EE_Prm.ithruJackInMsk = 0;
 	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
 
@@ -828,14 +836,14 @@ void setup()
 
     // Midi USB only if master when bus is enabled or master/slave
     // if so, add USB to process fn vector & init USB
-    if ( ! B_IS_SLAVE  ) {
+    if ( !(IS_SLAVE && IS_BUS_E)  ) {
         procVectorFn[procVectorFnCount++] = &USBMidi_Process;
         USBMidi_Init();
   	}
 
     // Add add-hoc I2C BUS process vector fn
-    if ( B_IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
-		else if ( B_IS_MASTER ) procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
+    if ( IS_BUS_E && IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
+		else if ( IS_BUS_E && IS_MASTER ) procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
 
     // Start Wire if bus mode enabled. AFTER MIDI !
     I2C_BusStartWire();

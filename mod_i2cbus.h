@@ -93,7 +93,7 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 	// If we are a slave, we can't talk directly to the bus.
 	// So, store the "to transmit" packet, waiting for a RequestFrom.
   // Master packet have  a "dest" byte before the midi packet.
-  if ( EE_Prm.I2C_DeviceId != B_MASTERID ) {
+  if ( IS_SLAVE ) {
     masterMidiPacket_t mpk;
     mpk.mpk.dest = PORT_TYPE_JACK;
     mpk.mpk.pk.i = pk2.i;// Copy the midi packet &  queue it

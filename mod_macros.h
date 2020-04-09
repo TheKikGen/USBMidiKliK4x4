@@ -63,9 +63,10 @@ __ __| |           |  /_) |     ___|             |           |
 // Macro to compute the max serial port in bus mode or not.
 #define SERIAL_INTERFACE_COUNT (EE_Prm.I2C_BusModeState == B_ENABLED ? B_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
 
-// Macro to compute if Master/Slave On Bus
-#define B_IS_MASTER (EE_Prm.I2C_BusModeState == B_ENABLED && EE_Prm.I2C_DeviceId == B_MASTERID)
-#define B_IS_SLAVE (EE_Prm.I2C_BusModeState == B_ENABLED && EE_Prm.I2C_DeviceId != B_MASTERID)
+// Macro to compute if Master/Slave On Bus or not
+#define IS_MASTER (EE_Prm.I2C_DeviceId == B_MASTERID)
+#define IS_SLAVE (EE_Prm.I2C_DeviceId != B_MASTERID)
+#define IS_BUS_E (EE_Prm.I2C_BusModeState == B_ENABLED)
 
 // Macro to compute a device Id from a serial ports
 #define GET_DEVICEID_FROM_SERIALNO(s) ((s) / SERIAL_INTERFACE_MAX + B_MASTERID)

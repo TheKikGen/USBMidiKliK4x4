@@ -122,7 +122,9 @@ const char* str_DEVICE_ID_B  = "Device ID";
 const char* str_SETTINGS     = "settings";
 const char* str_SETTINGS_M   = "SETTINGS";
 const char* str_DONE_B       = "Done";
+const char* str_MASTER_M     = "MASTER";
 const char* str_MASTER       = "master";
+const char* str_SLAVE_M      = "SLAVE";
 const char* str_SLAVE        = "slave";
 
 
@@ -186,6 +188,7 @@ uint16_t GetInt16FromHex4Bin(char * buff)
 // %(nn)d/x/b : pad space left until size n
 // %(0n)d/x/b : pad 0 left untile size n (nb for b : n=32 bits max).
 ///////////////////////////////////////////////////////////////////////////////
+#define _PRINT_OUT Serial.print
 void SerialPrintf(const char *format, ...)
 {
   va_list varg;
@@ -194,13 +197,13 @@ void SerialPrintf(const char *format, ...)
   while ( *format != 0 ) {
     if (*format == '%') {
       format++;
-      if (*format == '%') Serial.print(*format);
-      else if (*format == 'b') Serial.print(va_arg(varg, long),BIN); // Binary
-      else if (*format == 'c') Serial.print(va_arg(varg, char)); // Char
-      else if (*format == 's') Serial.print(va_arg(varg, char*)); // String
-      else if (*format == 'd') Serial.print(va_arg(varg, long ));  // long int
-      else if (*format == 'u') Serial.print(va_arg(varg, unsigned long));  // u long int
-      else if (*format == 'x') Serial.print(va_arg(varg, long),HEX);  // hexa
+      if (*format == '%') _PRINT_OUT(*format);
+      else if (*format == 'b') _PRINT_OUT(va_arg(varg, long),BIN); // Binary
+      else if (*format == 'c') _PRINT_OUT((char)va_arg(varg, int)); // Char (must be casted to int)
+      else if (*format == 's') _PRINT_OUT(va_arg(varg, char*)); // String
+      else if (*format == 'd') _PRINT_OUT(va_arg(varg, long ));  // long int
+      else if (*format == 'u') _PRINT_OUT(va_arg(varg, unsigned long));  // u long int
+      else if (*format == 'x') _PRINT_OUT(va_arg(varg, long),HEX);  // hexa
       else if (*format >= '0' && *format <= '9' ) {
         char p =' ';
         if ( *format == '0') { format++; p = '0';}
@@ -208,12 +211,15 @@ void SerialPrintf(const char *format, ...)
           uint8_t pad = *format - '0';
           format++;
           if ( *format >='0' && *format <= '9' ) pad = pad*10 + *(format++) - '0';
-          if ( *format == 's' ) {
+					if ( *format == 'c' ) {
+						while (--pad) _PRINT_OUT(p);
+						_PRINT_OUT((char)va_arg(varg, int));
+					}
+          else if ( *format == 's' ) {
             char * str=va_arg(varg, char*);
-            while (pad--) Serial.print(*(str++));
+						while (pad--) _PRINT_OUT(*(str++));
           }
           else {
-            int value = va_arg(varg, long);
             uint8_t  base = 0;
             if ( *format == 'd' ) base = 10;
             else if ( *format =='x' ) base = 16;
@@ -222,14 +228,15 @@ void SerialPrintf(const char *format, ...)
                 if ( pad > 32 ) pad = 8; // 32 bits max
             }
             if (base) {
+							int value = va_arg(varg, long);
               uint32_t pw   = base;
               while (pad--) {
-                if ( value < pw ) while (pad) { Serial.print(p);pad--;}
+                if ( value < pw ) while (pad) { _PRINT_OUT(p);pad--;}
                 else pw *= base;
               }
-              if (base == 16) Serial.print(value,HEX);
-              else if (base == 2) Serial.print(value,BIN);
-              else Serial.print(value);
+              if (base == 16) _PRINT_OUT(value,HEX);
+              else if (base == 2) _PRINT_OUT(value,BIN);
+              else _PRINT_OUT(value);
             }
           }
         } else return;
@@ -508,8 +515,10 @@ void ShowMidiRouting(uint8_t portType)
 ///////////////////////////////////////////////////////////////////////////////
 void ShowMidiKliKHeader()
 {
-  SerialPrintf("USBMIDIKLIK 4x4 - %s%n",HARDWARE_TYPE);
-  SerialPrintf("V%d.%d - Build %s - (c) TheKikGen Labs%n",VERSION_MAJOR,VERSION_MINOR,(char *)EE_Prm.TimestampedVersion);
+  SerialPrintf("USBMIDIKLIK 4x4 - %s",HARDWARE_TYPE);
+	if ( IS_BUS_E && IS_MASTER  ) SerialPrintf(" (%s ON BUS)",str_MASTER_M );
+	else if ( IS_BUS_E && IS_SLAVE ) SerialPrintf(" (%s %d ON BUS)",str_SLAVE_M,EE_Prm.I2C_DeviceId );
+  SerialPrintf("%nV%d.%d - Build %s - (c) TheKikGen Labs%n",VERSION_MAJOR,VERSION_MINOR,(char *)EE_Prm.TimestampedVersion);
   Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
 
@@ -533,7 +542,7 @@ void ShowGlobalSettings()
   SerialPrintf("%s %s number : %s:%d - %s:%d - %s:%d%n",str_MIDI_M,str_PORTS,str_CABLE_B,USBCABLE_INTERFACE_MAX,str_JACK_B,SERIAL_INTERFACE_COUNT,str_VIRTUAL_B,VIRTUAL_INTERFACE_MAX);
   // Bus Mode
   SerialPrintf("%nI2C Bus mode        : %s%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED_M:str_ENABLED_M);
-	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,(EE_Prm.I2C_DeviceId == B_MASTERID) ? str_MASTER:str_SLAVE);
+	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,IS_MASTER ? str_MASTER:str_SLAVE);
 
   SerialPrintf("%nNext BootMode       : %d%n",EE_Prm.nextBootMode);
   SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,((int)sizeof(EEPROM_Prm_t)*100) / ((int)EE_CAPACITY));
@@ -879,10 +888,9 @@ void ShowConfigMenu()
 			case '8':
         SerialPrintf("%s bus mode",(EE_Prm.I2C_BusModeState == B_ENABLED)?str_DISABLE_B:str_ENABLE_B);
         if (AskChoice("","") == 'y' ) {
-					EE_Prm.I2C_BusModeState = B_ENABLED;
+					EE_Prm.I2C_BusModeState = (EE_Prm.I2C_BusModeState == B_ENABLED)? B_DISABLED:B_ENABLED ;
           SerialPrintf("%s !%n",str_DONE_B);
 				}
-        else EE_Prm.I2C_BusModeState = B_DISABLED;
 			  showMenu = false;
 				break;
 

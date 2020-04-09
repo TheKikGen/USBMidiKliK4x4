@@ -397,72 +397,58 @@ void ShowPipelineSlot(uint8_t s) {
   transPipe_t *pipeline = EE_Prm.pipelineSlot[s-1].pipeline ;
 
   Serial.println();
-  Serial.print("PIPELINE SLOT ");Serial.print(s);Serial.print(" :");
+  SerialPrintf("PIPELINE SLOT %d :%n",s);
 
   if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) {
       Serial.println(" EMPTY");
   } else {
     Serial.println();Serial.println();
-    Serial.println("|Idx| Pipe id    ( p1, p2, p3, p4 ) |Bypass|");
+    Serial.println("| Idx | Pipe id    ( p1, p2, p3, p4 ) | Bypass |");
 
     for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
-        Serial.print("| ");Serial.print(i);
-        Serial.print(" | ");
-        if ( pipeline->pId <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeline->pId,HEX);
-        Serial.print(" ");
-        Serial.print(MidiTransFnVector[pipeline->pId].shortName);
-        Serial.print(" ( ");
-        if ( pipeline->par1 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeline->par1,HEX);Serial.print(", ");
-        if ( pipeline->par2 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeline->par2,HEX);Serial.print(", ");
-        if ( pipeline->par3 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeline->par3,HEX);Serial.print(", ");
-        if ( pipeline->par4 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeline->par4,HEX);Serial.print(" ) |   ");
-        Serial.print( pipeline->byPass ? "X":" ");
-        Serial.println("  |");
+        SerialPrintf("|  %2d | %02x %s (",i,pipeline->pId,MidiTransFnVector[pipeline->pId].shortName);
+        SerialPrintf(" %02x, %02x, %02x, %02x ) |",pipeline->par1,pipeline->par2,pipeline->par3,pipeline->par4);
+        SerialPrintf("   %c    |%n",pipeline->byPass ? 'X':' ');
         pipeline++;
         if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) break;
     }
   }
   Serial.println();
-  Serial.println("| Attached ports        |          1111111 |");
-  Serial.println("|                       | 1234567890123456 |");
-    Serial.print("| Cables                | ");
+  Serial.println("| Attached ports            |          1111111 |");
+  Serial.println("|                           | 1234567890123456 |");
+    Serial.print("| Cables out                | ");
 
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > USBCABLE_INTERFACE_MAX) Serial.print(" ");
     else if ( EE_Prm.rtRulesCable[j].slot == s)
-        Serial.print ("x");
+        Serial.print ("X");
     else Serial.print(".");
   }
 
   Serial.println(" |");
-  Serial.print("| Jacks                 | ");
+  Serial.print("| Jacks in                  | ");
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesJack[j].slot == s)
-        Serial.print ("x");
+        Serial.print ("X");
     else Serial.print(".");
   }
 
   Serial.println(" |");
-  Serial.print("| Jacks Ithru           | ");
+  Serial.print("| Jacks in Ithru            | ");
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesIthru[j].slot == s)
-        Serial.print ("x");
+        Serial.print ("X");
     else Serial.print(".");
   }
 
   Serial.println(" |");
-  Serial.print("| Virtual               | ");
+  Serial.print("| Virtual in                | ");
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > VIRTUAL_INTERFACE_MAX) Serial.print(" ");
     else if ( EE_Prm.rtRulesVirtual[j].slot == s)
-        Serial.print ("x");
+        Serial.print ("X");
     else Serial.print(".");
   }
 

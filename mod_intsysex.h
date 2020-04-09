@@ -61,11 +61,8 @@ void    SysexInternal_DumpConfToStream(uint8_t dest);
 void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnIdentityRequest(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnConfigMode(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnHardReset(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnSetUsbProductString(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnSetUsbPidVid(uint8_t ,uint8_t *);
+uint8_t SysExInternal_fnGlobalFunctions(uint8_t ,uint8_t *);
+uint8_t SysExInternal_fnSetUsbSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *);
 uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *);
@@ -94,8 +91,12 @@ uint8_t sysExInternalCommandACK[] = {SYSEX_INTERNAL_CMD_ACK};
 
 enum SysExInternal_Error {
   SX_NO_ERROR,
+  SX_NO_SAVE,
   SX_NO_ACK,
   SX_NO_REBOOT,
+  SX_DO_REBOOT,
+  SX_DO_SYNC,
+  SX_ERROR_ENUM, // Not a real error code but give the first error enum
   SX_ERROR_ANY,
   SX_ERROR_BAD_MSG_SIZE,
   SX_ERROR_BAD_PORT,
@@ -125,11 +126,8 @@ boolean sysExFunctionAckToggle = false;
 ///////////////////////////////////////////////////////////////////////////////
 enum SysExInternal_FnId {
   FN_SX_DUMP              = 0X05,
-  FN_SX_GEN_INFO          = 0X06,
-  FN_SX_CONFIG_MODE       = 0x08,
-  FN_SX_HARD_RESET        = 0X0A,
-  FN_SX_USB_PR_STR_SET    = 0X0B,
-  FN_SX_USB_VID_PID_SET   = 0X0C,
+  FN_SX_GLOBAL_FN         = 0X06,
+  FN_SX_USB_SET           = 0X0B,
   FN_SX_ITHRU_SET         = 0X0E,
   FN_SX_MIDI_ROUTING_SET  = 0X0F,
   FN_SX_BUS_SET           = 0X10,
@@ -153,11 +151,8 @@ typedef struct {
 
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
   { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig,          true,false,false,false },
-  { FN_SX_GEN_INFO          ,&SysExInternal_fnIdentityRequest,     true,false,false,false },
-  { FN_SX_CONFIG_MODE       ,&SysExInternal_fnConfigMode,          false,true ,false,true  },
-  { FN_SX_HARD_RESET        ,&SysExInternal_fnHardReset,           false,false,false,true  },
-  { FN_SX_USB_PR_STR_SET    ,&SysExInternal_fnSetUsbProductString, true ,true ,false,false },
-  { FN_SX_USB_VID_PID_SET   ,&SysExInternal_fnSetUsbPidVid,        true ,true ,false,false },
+  { FN_SX_GLOBAL_FN         ,&SysExInternal_fnGlobalFunctions,     true,false,false,false },
+  { FN_SX_USB_SET           ,&SysExInternal_fnSetUsbSettings,      true ,true ,false,false },
   { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings,       true ,true ,true ,false },
   { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings, true ,true ,true ,false },
   { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings,     false,true ,false,true  },
@@ -185,13 +180,25 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
   if ( sxMsg[0] < 1 ) return false;
   for (uint8_t i=0 ; i < FN_SX_VECTOR_SIZE ; i++ ) {
       if ( SysExInternalFnVector[i].fnId == sxMsg[1] ) {
+
+          // Call the ad-hoc sysex decoding function
           uint8_t r =  SysExInternalFnVector[i].fn(portType,sxMsg);
-          if ( sysExFunctionAckToggle && r != SX_NO_ACK && SysExInternalFnVector[i].needACK )
-              SysExInternal_SendFnACK(portType,r);
-          if ( r == SX_NO_ERROR ) {
-            if ( SysExInternalFnVector[i].needStoreIfSucceed   && !(B_IS_SLAVE) ) EE_PrmSave(); // No save if slave on Bus
-            if ( SysExInternalFnVector[i].needBusSyncIfSucceed && !(B_IS_SLAVE) ) I2C_SlavesRoutingSyncFromMaster();
-            if ( SysExInternalFnVector[i].needResetIfSucceed) nvic_sys_reset();
+
+          // Only master or a slave not on the bus can ack (a slave on bus has no usb midi),
+          if ( r != SX_NO_ACK && !(IS_SLAVE && IS_BUS_E)  && sysExFunctionAckToggle && SysExInternalFnVector[i].needACK )
+                    SysExInternal_SendFnACK(portType,r);
+
+          if ( r < SX_ERROR_ENUM ) {
+            // Only master or a slave not on the bus can  save and reset
+            if ( !(IS_SLAVE && IS_BUS_E) ) {
+                if ( r != SX_DO_SYNC   && SysExInternalFnVector[i].needStoreIfSucceed  ) EE_PrmSave();
+                if ( r != SX_NO_REBOOT && (r == SX_DO_REBOOT || SysExInternalFnVector[i].needResetIfSucceed ) ) nvic_sys_reset();
+            }
+            // Only a master on bus can sync. Always after reset test above
+            // in case of sysex necessiting reboot, as bus mode on/off..
+            // SX_DO_SYNC is used when we need to force synch when not done by the default
+            if ( IS_BUS_E && IS_MASTER && (r == SX_DO_SYNC || SysExInternalFnVector[i].needBusSyncIfSucceed )) I2C_SlavesRoutingSyncFromMaster();
+
             return true;
           }
       }
@@ -298,8 +305,7 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // | Dump data           | Dump address
 // -------------------------------------------------------------
 // | All                 | 7F 00 00 00
-// | USB product strings | 0B 00 00 00
-// | USB PID-VID         | 0C 00 00 00
+// | USB device settings | 0B 00 00 00
 // | USB Idle            | 0E 02 00 00
 // | IThru routing       | 0E 03 <Jack In> 00
 // | Midi routing        | 0F 01 <in port type:0-2> <in port>
@@ -322,7 +328,8 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 06 General Information
+// 06 Global functions
+//
 // 06 01 Identity request
 // F0 77 77 78 06 01 F7
 //
@@ -331,8 +338,20 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
 //
 // 06 03 Sysex acknowledgment (received)
 // F0 77 77 78 06 03 <ack> F7
+//
+// 06 04 Factory settings
+// F0 77 77 78 06 04 F7
+//
+// 06 05 Clear all (midi, Ithru routing rules and pipelines..)
+// F0 77 77 78 06 05 F7
+//
+// 06 08 Reboot in configuration mode
+// F0 77 77 78 06 08 F7
+//
+// 06 0A Hardware reset
+// F0 77 77 78 06 0A F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnIdentityRequest(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg) {
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
       if (portType == PORT_TYPE_CABLE && midiUSBCx) {
         // send to USB , cable 0
@@ -350,66 +369,69 @@ uint8_t SysExInternal_fnIdentityRequest(uint8_t portType,uint8_t *sxMsg) {
     sysExFunctionAckToggle = ! sysExFunctionAckToggle;
     return SX_NO_ERROR;
   }
+  // Factory settings
+  if ( sxMsg[2] == 0x04 && sxMsg[0] == 2 ) {
+    EE_PrmInit(true);
+    return SX_DO_SYNC; // Sync slaves
+  }
+  // Clear all
+  if ( sxMsg[2] == 0x05 && sxMsg[0] == 2 ) {
+      ResetMidiRoutingRules(ROUTING_CLEAR_ALL);
+      return SX_DO_SYNC; // Sync slaves
+  }
+
+  // Reboot in configuration mode
+  if ( sxMsg[2] == 0x08 && sxMsg[0] == 2 ) {
+    EE_Prm.nextBootMode = bootModeConfigMenu;
+    return SX_DO_REBOOT;
+  }
+
+  // Hardware reset
+  if ( sxMsg[2] == 0x0A && sxMsg[0] == 2 ) return SX_DO_REBOOT;
 
   return SX_ERROR_ANY;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 08 Reboot in configuration mode
-// F0 77 77 78 08 F7
-///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnConfigMode(uint8_t portType,uint8_t *sxMsg) {
-  // Set serial boot mode & Write the whole param struct
-  if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
-  EE_Prm.nextBootMode = bootModeConfigMenu;
-  return SX_NO_ERROR;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// 0A Hardware reset
-// F0 77 77 78 0A F7
-///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnHardReset(uint8_t portType,uint8_t *sxMsg) {
-  if ( sxMsg[0] != 1 ) return SX_ERROR_BAD_MSG_SIZE;
-  return SX_NO_ERROR;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// 0B Set USB product string
-// F0 77 77 78 0B <usb product string not accentuated> F7
-// ---------------------------------------------------------------------------
+// 0B USB device settings
+//
+// 0B 00 Set USB product string
+// F0 77 77 78 0B 01 <usb product string not accentuated> F7
+//
 // Copy the received string to the USB Product String Descriptor
 // For MIDI protocol compatibility, and avoid a sysex encoding,
 // accentuated ASCII characters, below 128 are non supported.
 // Size without null termination is defined by USB_MIDI_PRODUCT_STRING_SIZE
-///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbProductString(uint8_t portType,uint8_t *sxMsg) {
 
-  if ( sxMsg[0] < 2 || (sxMsg[0]-1) > USB_MIDI_PRODUCT_STRING_SIZE )  return SX_ERROR_BAD_MSG_SIZE;
-
-  // Store the new string in EEPROM
-  memset(&EE_Prm.productString,0, sizeof(EE_Prm.productString));
-  memcpy(&EE_Prm.productString,&sxMsg[2],sxMsg[0]-1);
-  return SX_NO_ERROR;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// 0C Set USB vendor ID and product ID
-// F0 77 77 78 0C <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
-// ---------------------------------------------------------------------------
+// 0B 01 0C Set USB vendor ID and product ID
+// F0 77 77 78 0B 02 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
+//
 // To respect a simple encoding of 7 bits bytes, each hex digit must be
 // transmitted separately in a serialized way.
 // The following example will set  VID to 0X8F12 and PID to 0X9067 :
-// F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
+// F0 77 77 78 0B 02 08 0F 01 02 09 00 06 07 F7
 //                8  F  1  2  9  0  6  7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbPidVid(uint8_t portType,uint8_t *sxMsg) {
-  if ( sxMsg[0] != 9 ) return SX_ERROR_BAD_MSG_SIZE;
-  EE_Prm.vendorID = (sxMsg[2] << 12) + (sxMsg[3] << 8) +
-                                 (sxMsg[4] << 4) + sxMsg[5] ;
-  EE_Prm.productID= (sxMsg[6] << 12) + (sxMsg[7] << 8) +
-                                 (sxMsg[8] << 4) + sxMsg[9] ;
-  return SX_NO_ERROR;
+uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg) {
+  // Product string
+  if ( sxMsg[2] == 0x00 ) {
+    if ( sxMsg[0] < 3 || (sxMsg[0]-2) > USB_MIDI_PRODUCT_STRING_SIZE )  return SX_ERROR_BAD_MSG_SIZE;
+    // Store the new string in EEPROM
+    memset(&EE_Prm.productString,0, sizeof(EE_Prm.productString));
+    memcpy(&EE_Prm.productString,&sxMsg[3],sxMsg[0]-2);
+    return SX_NO_ERROR;
+  }
+  // PID, VID
+  if ( sxMsg[2] == 0x01 ) {
+    if ( sxMsg[0] != 10 ) return SX_ERROR_BAD_MSG_SIZE;
+    EE_Prm.vendorID = (sxMsg[3] << 12) + (sxMsg[4] << 8) +
+                                 (sxMsg[5] << 4) + sxMsg[6] ;
+    EE_Prm.productID= (sxMsg[7] << 12) + (sxMsg[8] << 8) +
+                                 (sxMsg[9] << 4) + sxMsg[10] ;
+    return SX_NO_ERROR;
+  }
+
+  return SX_ERROR_ANY;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -597,14 +619,7 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
           else                                    EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
           return SX_NO_ERROR;
     }
-  } else
-
-  // Clear all Routing rules, Ithru and pipelines
-  if (cmdId == 0x02  && msgLen == 2) {
-      ResetMidiRoutingRules(ROUTING_CLEAR_ALL);
-      return SX_NO_ERROR;
   }
-
   return SX_ERROR_ANY;
 }
 
@@ -613,7 +628,7 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
 // ---------------------------------------------------------------------------
 // 10 00 Enable/disable bus mode
 // F0 77 77 78 10 00 < enable:1 | disable:0 > F7
-// The device will reboot after the command is bus activated.
+// The device will reboot after the command if bus effectively dis/activated.
 //
 // 10 01 Set device ID
 // F0 77 77 78 10 01 < deviceid:04-08 > F7
@@ -623,16 +638,17 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
-  // Toogle Bus mode
+  // Enable/disable Bus mode
   if (cmdId == 0x00 && msgLen == 3 )  {
 
-      if ( sxMsg[3] == 1  && EE_Prm.I2C_BusModeState == B_DISABLED)
-              EE_Prm.I2C_BusModeState = B_ENABLED;
-      else if ( sxMsg[3] == 0 && EE_Prm.I2C_BusModeState == B_ENABLED ) {
-              EE_Prm.I2C_BusModeState = B_DISABLED;
-              return SX_NO_REBOOT;
-      }
-      else return SX_ERROR_ANY;
+      boolean busState;
+      if ( sxMsg[3] == 1 ) busState = B_ENABLED;
+      else if ( sxMsg[3] == 0)  busState = B_DISABLED ;
+      else SX_ERROR_ANY;
+
+      if ( EE_Prm.I2C_BusModeState != busState ) EE_Prm.I2C_BusModeState = busState;
+      else return SX_NO_REBOOT;
+
       return SX_NO_ERROR;
   }
   else
@@ -769,9 +785,8 @@ void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest) {
 ///////////////////////////////////////////////////////////////////////////////
 void SysexInternal_DumpConfToStream(uint8_t dest) {
 
-  // Usb string , PID, VID
+  // Usb settings : product string , PID, VID
   SysexInternal_DumpAddrToStream(0x0B000000,dest);
-  SysexInternal_DumpAddrToStream(0x0C000000,dest);
 
   // Ithru USB Idle, routing,
   SysexInternal_DumpAddrToStream(0x0E020000,dest);
@@ -836,30 +851,30 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
   // Can't do All in the sysex buffer.
   if ( sxAddr == 0x7F000000 ) return 0;
 
-  // 0B Set USB product string
+  // 0B USB Settings
   // Dump addr : 0B 00 00 00
-  // Generate F0 77 77 78 0B <usb product string:nn...nn> F7
+  // Generate F0 77 77 78 0B 00 <usb product string:nn...nn> F7
+  // Generate F0 77 77 78 0B 01 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
   if ( sxAddr == 0x0B000000 ) {
+    *(++buff2) = 0X00; // product string
     strcpy((char*)++buff2,(char*)EE_Prm.productString);
     buff2+=strlen((char*)EE_Prm.productString)-1;
     *(++buff2) = 0xF7;
+    // new header for PID/VID
+    memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+    buff2+=sizeof(sysExInternalHeader);
+    *buff2 = fnId ;
+    *(++buff2) = 0X01; // PID/VID
+    *(++buff2) = EE_Prm.vendorID >> 12;
+    *(++buff2) = (EE_Prm.vendorID & 0x0F00) >> 8;
+    *(++buff2) = (EE_Prm.vendorID & 0x00F0) >> 4;
+    *(++buff2) = (EE_Prm.vendorID & 0x000F) ;
+    *(++buff2) = EE_Prm.productID >> 12;
+    *(++buff2) = (EE_Prm.productID & 0x0F00) >> 8;
+    *(++buff2) = (EE_Prm.productID & 0x00F0) >> 4;
+    *(++buff2) = (EE_Prm.productID & 0x000F) ;
+    *(++buff2) = 0xF7;
     return buff2-buff+1;
-  }
-
-  // 0C Set USB vendor ID and product ID
-  // Dump : 0C
-  // Generate F0 77 77 78 0C <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
-  if ( sxAddr == 0x0C000000 ) {
-      *(++buff2) = EE_Prm.vendorID >> 12;
-      *(++buff2) = (EE_Prm.vendorID & 0x0F00) >> 8;
-      *(++buff2) = (EE_Prm.vendorID & 0x00F0) >> 4;
-      *(++buff2) = (EE_Prm.vendorID & 0x000F) ;
-      *(++buff2) = EE_Prm.productID >> 12;
-      *(++buff2) = (EE_Prm.productID & 0x0F00) >> 8;
-      *(++buff2) = (EE_Prm.productID & 0x00F0) >> 4;
-      *(++buff2) = (EE_Prm.productID & 0x000F) ;
-      *(++buff2) = 0xF7;
-      return buff2-buff+1;
   }
 
   // 0E Intelligent thru - 02 Set USB idle
