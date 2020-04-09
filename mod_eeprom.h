@@ -475,21 +475,15 @@ void EEPROM_FlashMemoryDump(uint8_t startPage, uint8_t nbPage) {
   uint8_t c=0;
 
   for (uint16_t idx = 0 ; idx < (EE_PAGE_SIZE * nbPage); idx++) {
-      if ( idx % EE_PAGE_SIZE == 0 ) {
-          Serial.print("Page ");Serial.print(startPage++);
-          Serial.print(" - EE_PAGE_SIZE = 0x");Serial.println(EE_PAGE_SIZE,HEX);
-      }
-      if (c == 0 ) {
-          Serial.print(addressRead,HEX);Serial.print(" : ");
-      }
+      if ( idx % EE_PAGE_SIZE == 0 ) SerialPrintf("Page %4d - EE_PAGE_SIZE = 0x%04x%n", startPage++,EE_PAGE_SIZE);
+      if (c == 0 ) SerialPrintf("%08x : ",addressRead);
       b = (*(__IO uint8*)addressRead++);
-      if (b <= 0x0F ) Serial.print("0");
-      Serial.print(b,HEX);Serial.print(" ");
+			SerialPrintf("%02x ",b);
       asciiBuff[c++] = ( b >= 0x20 && b< 127? b : '.' ) ;
       if ( c == 16 ) {
         asciiBuff[c] = 0;
         c = 0;
-        Serial.print(" | ");Serial.println(&asciiBuff[0]);
+        SerialPrintf(" | %s%n", &asciiBuff[0]);
       }
   }
 }

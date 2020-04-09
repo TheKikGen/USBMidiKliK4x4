@@ -53,13 +53,13 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-void PrintCleanHEX(uint8_t) __attribute__((optimize("-Os")));
 //Shared. See usbmidiKlik4x4.h
 //void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
 uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
 uint16_t GetInt16FromHex4Bin(char * ) __attribute__((optimize("-Os")));
-void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
+//Shared. See usbmidiKlik4x4.h
+//void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
 uint16_t PowInt(uint8_t ,uint8_t)  __attribute__((optimize("-Os")));
 uint16_t AsknNumber(uint8_t,boolean nl=true) __attribute__((optimize("-Os")));
 char AskDigit() __attribute__((optimize("-Os")));
@@ -125,14 +125,6 @@ const char* str_DONE_B       = "Done";
 const char* str_MASTER       = "master";
 const char* str_SLAVE        = "slave";
 
-///////////////////////////////////////////////////////////////////////////////
-// Serial print a formated hex value
-//////////////////////////////////////////////////////////////////////////////
-void PrintCleanHEX(uint8_t hexVal)
-{
-          if ( hexVal < 0x10 ) Serial.print("0");
-          Serial.print(hexVal,HEX);
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // DUMP a byte buffer to screen
@@ -142,7 +134,7 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 	uint8_t j=0;
 	uint8_t * pp = bloc;
 	for (uint16_t i=0; i != sz; i++) {
-				PrintCleanHEX(*pp);
+				SerialPrintf("%02x",*pp);
 				Serial.print(" ");
 				if (nl && (++j > nl) ) { Serial.println(); j=0; }
 				pp++;
@@ -183,12 +175,16 @@ uint16_t GetInt16FromHex4Bin(char * buff)
 
 ///////////////////////////////////////////////////////////////////////////////
 // SerialPrintf : a light printf like to Serial.
-// %s : strings
-// %(n)s : print n char form string or char array
-// $n : new line
-// %x : hexa
-// %(n)d %(n)x : 0 left pad fo size n
 // %% : %
+// %n : new line
+// %s : strings
+// %c : character
+// %x : hexa
+// %d : integer
+// %b : binary
+// %(n)s : print n char from string or char array
+// %(nn)d/x/b : pad space left until size n
+// %(0n)d/x/b : pad 0 left untile size n (nb for b : n=32 bits max).
 ///////////////////////////////////////////////////////////////////////////////
 void SerialPrintf(const char *format, ...)
 {
@@ -199,33 +195,41 @@ void SerialPrintf(const char *format, ...)
     if (*format == '%') {
       format++;
       if (*format == '%') Serial.print(*format);
+      else if (*format == 'b') Serial.print(va_arg(varg, long),BIN); // Binary
       else if (*format == 'c') Serial.print(va_arg(varg, char)); // Char
       else if (*format == 's') Serial.print(va_arg(varg, char*)); // String
-      else if (*format == 'd') Serial.print(va_arg(varg, int));  // long int
-      else if (*format == 'u') Serial.print(va_arg(varg, unsigned int));  // u long int
-      else if (*format == 'x') Serial.print(va_arg(varg, int),HEX);  // hexa
+      else if (*format == 'd') Serial.print(va_arg(varg, long ));  // long int
+      else if (*format == 'u') Serial.print(va_arg(varg, unsigned long));  // u long int
+      else if (*format == 'x') Serial.print(va_arg(varg, long),HEX);  // hexa
       else if (*format >= '0' && *format <= '9' ) {
         char p =' ';
         if ( *format == '0') { format++; p = '0';}
         if ( *format >='1' && *format <= '9' ) {
           uint8_t pad = *format - '0';
           format++;
+          if ( *format >='0' && *format <= '9' ) pad = pad*10 + *(format++) - '0';
           if ( *format == 's' ) {
             char * str=va_arg(varg, char*);
             while (pad--) Serial.print(*(str++));
           }
           else {
-            int value = va_arg(varg, int);
+            int value = va_arg(varg, long);
             uint8_t  base = 0;
             if ( *format == 'd' ) base = 10;
             else if ( *format =='x' ) base = 16;
+            else if ( *format =='b' ) {
+                base = 2;
+                if ( pad > 32 ) pad = 8; // 32 bits max
+            }
             if (base) {
               uint32_t pw   = base;
               while (pad--) {
-                if ( value < base ) while (pad) { Serial.print(p);pad--;}
+                if ( value < pw ) while (pad) { Serial.print(p);pad--;}
                 else pw *= base;
               }
-              if (base == 16) Serial.print(value,HEX); else Serial.print(value);
+              if (base == 16) Serial.print(value,HEX);
+              else if (base == 2) Serial.print(value,BIN);
+              else Serial.print(value);
             }
           }
         } else return;
@@ -909,7 +913,7 @@ void ShowConfigMenu()
 
       // Sysex config dump
 			case 'd':
-          SysexInternal_DumpFullConfToStream(2);
+          SysexInternal_DumpConfToStream(2);
           Serial.println();
         break;
 
