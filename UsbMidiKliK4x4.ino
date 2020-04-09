@@ -607,21 +607,35 @@ void ResetMidiRoutingRules(uint8_t mode) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send a SYSEX midi message to USB Cable 0
 ///////////////////////////////////////////////////////////////////////////////
-void USBMidi_SendSysExPacket( const uint8_t buff[],uint16_t sz) {
+boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t sz) {
   midiPacket_t pk { .i = 0};
   uint8_t b=0;
-  bool endPk;
+  bool startSx=false;
+  bool endSx=false;
+
+  if (cable > 0x0F) return false;
+  if ( sxBuff[0] != 0xF0 || sxBuff[sz-1] != 0xF7) return false;
+
   // Build sysex packets
+  // Multiple Sysyex messages can be embedded in the buffer :
+  // F0 nn ... nn F7 F0 nn ... nn F7 so we have to care about that.
+
   for ( uint16_t i = 0; i != sz ; i ++ ) {
-    pk.packet[++b] = buff[i];
-    endPk = ( i+2 > sz );
-    if (b == 3 ||  endPk ) {
-        pk.packet[0]  = endPk ?  b + 4 : 4 ;
-        MidiUSB.writePacket(&pk.i);
-        FLASH_LED_OUT(0);
-        b=0; pk.i = 0;
-    }
+      // Check integrity
+      if ( sxBuff[i] == 0xF0) startSx = true;
+      if ( sxBuff[i] == 0xF7) endSx = true;
+      if (startSx) {
+        pk.packet[++b] = sxBuff[i];
+        if ( b == 3 || endSx ) {
+          pk.packet[0]  = (endSx ?  b + 4 : 4 ) + (cable << 4);
+          MidiUSB.writePacket(&pk.i);
+          FLASH_LED_OUT(0);
+          if (endSx) startSx = endSx = false;
+          b=0; pk.i = 0;
+        }
+      }
   }
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
