@@ -227,16 +227,16 @@ boolean TransPacketPipe_AddToSlot(uint8_t pipelineSlot, transPipe_t *pipe) {
   if ( !MidiTransFnVector[pipe->pId].checkFn(pipe) ) return false;
 
   // Get a pointer of the 1st pipe in the attached pipeline
-  transPipe_t *pipeLine = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
+  transPipe_t *pipeline = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
 
   // Find a location for the pipe in the pipeline.
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
-      if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) {
+      if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) {
         // Copy the pipe at this free location
-        *pipeLine = *pipe;
+        *pipeline = *pipe;
         return true;
       }
-      pipeLine++;
+      pipeline++;
   }
   return false;
 }
@@ -255,11 +255,11 @@ boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, transP
   pipelineSlot--; // Adjust for C array
 
   // Get a pointer of the 1st/last pipes in the attached pipeline
-  transPipe_t *pipeLine  = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[0] ;
-  transPipe_t *pipeLine2 = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[TRANS_PIPELINE_SIZE-1] ;
+  transPipe_t *pipeline  = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[0] ;
+  transPipe_t *pipeline2 = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[TRANS_PIPELINE_SIZE-1] ;
 
   // Slot full ? can't insert .
-  if ( !replace && pipeLine2->pId == FN_TRANSPIPE_NOPIPE ) return false;
+  if ( !replace && pipeline2->pId != FN_TRANSPIPE_NOPIPE ) return false;
 
   // Check the pipe parameters
   if ( pipe->pId >= FN_TRANSPIPE_VECTOR_SIZE ) return false;
@@ -267,17 +267,17 @@ boolean TransPacketPipe_InsertToSlot(uint8_t pipelineSlot, uint8_t index, transP
 
   // Find the location where to insert the pipe in the pipeline.
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
-      if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE && i < index ) return false;
+      if ( pipeline->pId == FN_TRANSPIPE_NOPIPE && i < index ) return false;
       if ( i == index) {
         if (! replace) {
           // Move pipes down from the next index.
-          while ( pipeLine2-- > pipeLine ) *(pipeLine2+1) = *pipeLine2;
+          while ( pipeline2-- > pipeline ) *(pipeline2+1) = *pipeline2;
           // Copy the pipe at this now free location
         }
-        *pipeLine = *pipe;
+        *pipeline = *pipe;
         return true;
       }
-      pipeLine++;
+      pipeline++;
   }
   return false;
 }
@@ -298,26 +298,26 @@ boolean TransPacketPipe_ClearSlotIndexPid(uint8_t pipelineSlot, boolean isIndex,
   pipelineSlot--; // Adjust for C array
 
   // Get a pointer of the 1st/last pipes in the attached pipeline
-  transPipe_t *pipeLine = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
-  transPipe_t *pipeLine2 = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[TRANS_PIPELINE_SIZE-1] ;
+  transPipe_t *pipeline = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
+  transPipe_t *pipeline2 = &EE_Prm.pipelineSlot[pipelineSlot].pipeline[TRANS_PIPELINE_SIZE-1] ;
 
   // Find the index/pId for the pipe in the pipeline.
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
 
       // Nothing to do if pipe is empty
-      if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) return false;
-      if ( (isIndex && i == value) || (!isIndex && pipeLine->pId == value) ) {
+      if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) return false;
+      if ( (isIndex && i == value) || (!isIndex && pipeline->pId == value) ) {
         // // move other pipes up at the current index
-        while ( pipeLine < pipeLine2) {
-          *pipeLine = *(pipeLine+1);
-          pipeLine++;
+        while ( pipeline < pipeline2) {
+          *pipeline = *(pipeline+1);
+          pipeline++;
         }
         // Clear the last pipe
-        TransPacketPipe_Clear(pipeLine2);
+        TransPacketPipe_Clear(pipeline2);
 
         return true;
       }
-      pipeLine++;
+      pipeline++;
   }
   return false;
 }
@@ -336,17 +336,17 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
   pipelineSlot--; // Adjust for C array
 
   // Get a pointer of the 1st pipe in the attached pipeline
-  transPipe_t *pipeLine = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
+  transPipe_t *pipeline = EE_Prm.pipelineSlot[pipelineSlot].pipeline ;
 
   // Find the index for the pipe in the pipeline.
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
     // Nothing to do if pipe is empty
-    if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) return false;
+    if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) return false;
     if ( i == index ) {
-      pipeLine->byPass = byPass;
+      pipeline->byPass = byPass;
       return true;
     }
-    pipeLine++;
+    pipeline++;
   }
   return false;
 }
@@ -369,16 +369,18 @@ boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk
 
   slotLockMsk |= (1 << slot); // Lock slot
 
-  transPipe_t *pipeLine = EE_Prm.pipelineSlot[slot].pipeline;
+  transPipe_t *pipeline = EE_Prm.pipelineSlot[slot].pipeline;
 
   boolean r = true ;
   // Apply transformation function pipes
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
       // Apply active pipes only
-      if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) break;
-      if ( pipeLine->byPass ) continue; // ByPass
-      if (! (r = MidiTransFnVector[pipeLine->pId].pipeFn(source, pk , pipeLine++)) )
-          break;
+      if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) break;
+      if ( ! pipeline->byPass ) {
+         r = MidiTransFnVector[pipeline->pId].pipeFn(source, pk , pipeline);
+         if (! r )  break;
+      }
+      pipeline++;
   }
 
   slotLockMsk &= ~(1 << slot);  // Unlock slot
@@ -392,12 +394,12 @@ void ShowPipelineSlot(uint8_t s) {
   if (s < 1 || s > TRANS_PIPELINE_SLOT_SIZE ) return ;
 
   // Get a pointer of the 1st pipe in the attached pipeline
-  transPipe_t *pipeLine = EE_Prm.pipelineSlot[s-1].pipeline ;
+  transPipe_t *pipeline = EE_Prm.pipelineSlot[s-1].pipeline ;
 
   Serial.println();
   Serial.print("PIPELINE SLOT ");Serial.print(s);Serial.print(" :");
 
-  if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) {
+  if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) {
       Serial.println(" EMPTY");
   } else {
     Serial.println();Serial.println();
@@ -406,23 +408,23 @@ void ShowPipelineSlot(uint8_t s) {
     for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
         Serial.print("| ");Serial.print(i);
         Serial.print(" | ");
-        if ( pipeLine->pId <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeLine->pId,HEX);
+        if ( pipeline->pId <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeline->pId,HEX);
         Serial.print(" ");
-        Serial.print(MidiTransFnVector[pipeLine->pId].shortName);
+        Serial.print(MidiTransFnVector[pipeline->pId].shortName);
         Serial.print(" ( ");
-        if ( pipeLine->par1 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeLine->par1,HEX);Serial.print(", ");
-        if ( pipeLine->par2 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeLine->par2,HEX);Serial.print(", ");
-        if ( pipeLine->par3 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeLine->par3,HEX);Serial.print(", ");
-        if ( pipeLine->par4 <= 0x0F ) Serial.print( "0");
-        Serial.print(pipeLine->par4,HEX);Serial.print(" ) |   ");
-        Serial.print( pipeLine->byPass ? "X":" ");
+        if ( pipeline->par1 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeline->par1,HEX);Serial.print(", ");
+        if ( pipeline->par2 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeline->par2,HEX);Serial.print(", ");
+        if ( pipeline->par3 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeline->par3,HEX);Serial.print(", ");
+        if ( pipeline->par4 <= 0x0F ) Serial.print( "0");
+        Serial.print(pipeline->par4,HEX);Serial.print(" ) |   ");
+        Serial.print( pipeline->byPass ? "X":" ");
         Serial.println("  |");
-        pipeLine++;
-        if ( pipeLine->pId == FN_TRANSPIPE_NOPIPE ) break;
+        pipeline++;
+        if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) break;
     }
   }
   Serial.println();
