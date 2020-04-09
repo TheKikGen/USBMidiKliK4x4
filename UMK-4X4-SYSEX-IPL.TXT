@@ -56,16 +56,16 @@ SYSEX MESSAGES
 F0 77 77 78 05 <dump address:nn nn nn nn> F7
 
 -------------------------------------------------------------
-| Dump data           | Dump address
+| Dump data             | Dump address
 -------------------------------------------------------------
-| All                 | 7F 00 00 00
-| USB product strings | 0B 00 00 00
-| USB PID-VID         | 0C 00 00 00
-| USB Idle            | 0E 02 00 00
-| IThru routing       | 0E 03 <Jack In> 00
-| Midi routing        | 0F 01 <in port type:0-2> <in port>
-| Slot attached port  | 11 00 <in port type:0-3> <in port>
-| Pipes in slot       | 11 01 <slot> <pipe index>
+| All                   | 7F 00 00 00
+| USB product strings   | 0B 00 00 00
+| USB PID-VID           | 0C 00 00 00
+| USB Idle              | 0E 02 00 00
+| IThru routing         | 0E 03 <Jack In> 00
+| In port midi routing  | 0F 01 <in port type:0-2> <in port>
+| In port attached slot | 11 00 <in port type:0-3> <in port>
+| Pipes in slot         | 11 01 <slot> <pipe index>
 -------------------------------------------------------------
 in port: 0-F
 port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
@@ -164,7 +164,7 @@ F0 77 77 78 11 01 03 <slot:1-8> <pipe idx:nn> F7
 F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
 
 11 01 05 pipe bypass index
-F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
+F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass:0 | bypass:1> F7
 
 -----------------------------------------------------------------------------------------------
 | PipeID  |        par1        |        par2        |        par3        |         par4       |
