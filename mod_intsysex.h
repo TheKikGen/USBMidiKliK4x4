@@ -60,13 +60,13 @@ void    SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest);
 void    SysexInternal_DumpConfToStream(uint8_t dest);
 void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 
-uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnGlobalFunctions(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnSetUsbSettings(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *);
-uint8_t SysExInternal_fnPipelinesSettings(uint8_t ,uint8_t *);
+uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnGlobalFunctions(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnSetUsbSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnPipelinesSettings(uint8_t ,uint8_t *,uint8_t *);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -91,12 +91,6 @@ uint8_t sysExInternalCommandACK[] = {SYSEX_INTERNAL_CMD_ACK};
 
 enum SysExInternal_Error {
   SX_NO_ERROR,
-  SX_NO_SAVE,
-  SX_NO_ACK,
-  SX_NO_REBOOT,
-  SX_DO_REBOOT,
-  SX_DO_SYNC,
-  SX_ERROR_ENUM, // Not a real error code but give the first error enum
   SX_ERROR_ANY,
   SX_ERROR_BAD_MSG_SIZE,
   SX_ERROR_BAD_PORT,
@@ -104,6 +98,7 @@ enum SysExInternal_Error {
   SX_ERROR_BAD_SLOT,
   SX_ERROR_BAD_VALUE,
   SX_ERROR_BAD_DEVICEID,
+  SX_ERROR_BAD_ADDR
 } ;
 
 boolean sysExFunctionAckToggle = false;
@@ -136,30 +131,28 @@ enum SysExInternal_FnId {
 
 // Sysex function vector
 
-typedef uint8_t (*SysExInternalFnP_t) (uint8_t portType,uint8_t *sxMsg) ;
+typedef uint8_t (*SysExInternalFnP_t) (uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) ;
 
 typedef struct {
     uint8_t             fnId;
     SysExInternalFnP_t  fn;
-    boolean             needACK;
-    boolean             needStoreIfSucceed;
-    boolean             needBusSyncIfSucceed;
-    boolean             needResetIfSucceed;
 } __packed SysExInternalFnVector_t;
 
-#define FN_SX_VECTOR_SIZE 11
+#define SX_DO_ACK_MSK      B00000001
+#define SX_DO_SAVE_MSK     B00000100
+#define SX_DO_SYNC_MSK     B00001000
+#define SX_DO_REBOOT_MSK   B00010000
 
+#define FN_SX_VECTOR_SIZE 7
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
-  { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig,          true,false,false,false },
-  { FN_SX_GLOBAL_FN         ,&SysExInternal_fnGlobalFunctions,     true,false,false,false },
-  { FN_SX_USB_SET           ,&SysExInternal_fnSetUsbSettings,      true ,true ,false,false },
-  { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings,       true ,true ,true ,false },
-  { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings, true ,true ,true ,false },
-  { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings,     false,true ,false,true  },
-  { FN_SX_PIPELINE_SET      ,&SysExInternal_fnPipelinesSettings,   true ,true ,true ,false },
+  { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig          },
+  { FN_SX_GLOBAL_FN         ,&SysExInternal_fnGlobalFunctions     },
+  { FN_SX_USB_SET           ,&SysExInternal_fnSetUsbSettings      },
+  { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings       },
+  { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings },
+  { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings     },
+  { FN_SX_PIPELINE_SET      ,&SysExInternal_fnPipelinesSettings   },
 };
-
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Process internal USBMidiKlik SYSEX
@@ -180,24 +173,23 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
   if ( sxMsg[0] < 1 ) return false;
   for (uint8_t i=0 ; i < FN_SX_VECTOR_SIZE ; i++ ) {
       if ( SysExInternalFnVector[i].fnId == sxMsg[1] ) {
-
+          uint8_t doMask = 0;
           // Call the ad-hoc sysex decoding function
-          uint8_t r =  SysExInternalFnVector[i].fn(portType,sxMsg);
-
+          uint8_t r =  SysExInternalFnVector[i].fn(portType,sxMsg,&doMask);
           // Only master or a slave not on the bus can ack (a slave on bus has no usb midi),
-          if ( r != SX_NO_ACK && !(IS_SLAVE && IS_BUS_E)  && sysExFunctionAckToggle && SysExInternalFnVector[i].needACK )
-                    SysExInternal_SendFnACK(portType,r);
+          if (sysExFunctionAckToggle && !(IS_SLAVE && IS_BUS_E) && (doMask & SX_DO_ACK_MSK) )
+                SysExInternal_SendFnACK(portType,r);
 
-          if ( r < SX_ERROR_ENUM ) {
+          if ( r == SX_NO_ERROR ) {
             // Only master or a slave not on the bus can  save and reset
             if ( !(IS_SLAVE && IS_BUS_E) ) {
-                if ( r != SX_DO_SYNC   && SysExInternalFnVector[i].needStoreIfSucceed  ) EE_PrmSave();
-                if ( r != SX_NO_REBOOT && (r == SX_DO_REBOOT || SysExInternalFnVector[i].needResetIfSucceed ) ) nvic_sys_reset();
+              if ( doMask & SX_DO_SAVE_MSK ) EE_PrmSave();
+              if ( doMask & SX_DO_REBOOT_MSK ) nvic_sys_reset();
             }
             // Only a master on bus can sync. Always after reset test above
             // in case of sysex necessiting reboot, as bus mode on/off..
-            // SX_DO_SYNC is used when we need to force synch when not done by the default
-            if ( IS_BUS_E && IS_MASTER && (r == SX_DO_SYNC || SysExInternalFnVector[i].needBusSyncIfSucceed )) I2C_SlavesRoutingSyncFromMaster();
+            if ( IS_BUS_E && IS_MASTER && (doMask & SX_DO_SYNC_MSK))
+                I2C_SlavesRoutingSyncFromMaster();
 
             return true;
           }
@@ -307,24 +299,34 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // | All                 | 7F 00 00 00
 // | USB device settings | 0B 00 00 00
 // | USB Idle            | 0E 02 00 00
-// | IThru routing       | 0E 03 <Jack In> 00
+// | IThru routing       | 0E 03 <Jack In port> 00
 // | Midi routing        | 0F 01 <in port type:0-2> <in port>
 // | Trans. Pipelines    | 11 00 <in port type:0-3> <in port>
 // -------------------------------------------------------------
 // in port: 0-F
 // port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
 
+  *doMask = SX_DO_ACK_MSK;
   if (sxMsg[0] != 5) return SX_ERROR_BAD_MSG_SIZE;
 
   // Make a pseudo 32 bits value to address sysex functions
   uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
+  if ( ! ( (sxAddr == 0x7F000000 )
+          || (sxAddr == 0x0B000000 )
+          || (sxAddr == 0x0E020000 )
+          || (sxAddr >= 0x0E030000 && sxAddr <= 0x0E030F00)
+          || (sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F)
+          || (sxAddr >= 0x11000000 && sxAddr <= 0x1100030F)
+         )
+     ) return SX_ERROR_BAD_ADDR;
 
-  if ( sxAddr == 0x7F000000 ) SysexInternal_DumpConfToStream(portType);
+  if ( sxAddr == 0x7F000000 )
   else SysexInternal_DumpAddrToStream(sxAddr,portType);
 
-  return SX_NO_ACK;
+  *doMask = 0; // No ack in that case.
+  return SX_NO_ERROR;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -351,17 +353,23 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg) {
 // 06 0A Hardware reset
 // F0 77 77 78 06 0A F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+
+  *doMask = SX_DO_ACK_MSK;
+  // Identity request
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
+
+      *doMask = 0; // No ack here
+
       if (portType == PORT_TYPE_CABLE && midiUSBCx) {
         // send to USB , cable 0
         USBMidi_SendSysExPacket(0,sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
-        return SX_NO_ACK; // Force no ACK in that case
+        return SX_NO_ERROR;
       } else
       if (portType == PORT_TYPE_JACK ) {
         // Send to serial port 0 being the only possible for sysex
         serialHw[0]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
-        return SX_NO_ACK; // Force no ACK in that case
+        return SX_NO_ERROR;
       }
   } else
   // Sysex acknowledgment toggle (on/off)
@@ -371,23 +379,28 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg) {
   }
   // Factory settings
   if ( sxMsg[2] == 0x04 && sxMsg[0] == 2 ) {
-    EE_PrmInit(true);
-    return SX_DO_SYNC; // Sync slaves
+    EE_PrmInit(true); // This writes to EEPROM
+    *doMask |= SX_DO_SYNC_MSK; // Sync slaves
+    return SX_NO_ERROR;
   }
   // Clear all
   if ( sxMsg[2] == 0x05 && sxMsg[0] == 2 ) {
-      ResetMidiRoutingRules(ROUTING_CLEAR_ALL);
-      return SX_DO_SYNC; // Sync slaves
+    ResetMidiRoutingRules(ROUTING_CLEAR_ALL);
+    *doMask |= (SX_DO_SAVE_MSK | SX_DO_SYNC_MSK); // Sync slaves
+    return SX_NO_ERROR;
   }
-
   // Reboot in configuration mode
   if ( sxMsg[2] == 0x08 && sxMsg[0] == 2 ) {
     EE_Prm.nextBootMode = bootModeConfigMenu;
-    return SX_DO_REBOOT;
+    *doMask = SX_DO_SAVE_MSK | SX_DO_REBOOT_MSK;
+    return SX_NO_ERROR;
   }
 
   // Hardware reset
-  if ( sxMsg[2] == 0x0A && sxMsg[0] == 2 ) return SX_DO_REBOOT;
+  if ( sxMsg[2] == 0x0A && sxMsg[0] == 2 ) {
+    *doMask = SX_DO_REBOOT_MSK;
+    return SX_NO_ERROR;
+  }
 
   return SX_ERROR_ANY;
 }
@@ -412,13 +425,17 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg) {
 // F0 77 77 78 0B 02 08 0F 01 02 09 00 06 07 F7
 //                8  F  1  2  9  0  6  7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+
+  *doMask = SX_DO_ACK_MSK;
+
   // Product string
   if ( sxMsg[2] == 0x00 ) {
     if ( sxMsg[0] < 3 || (sxMsg[0]-2) > USB_MIDI_PRODUCT_STRING_SIZE )  return SX_ERROR_BAD_MSG_SIZE;
     // Store the new string in EEPROM
     memset(&EE_Prm.productString,0, sizeof(EE_Prm.productString));
     memcpy(&EE_Prm.productString,&sxMsg[3],sxMsg[0]-2);
+    *doMask |= SX_DO_SAVE_MSK;
     return SX_NO_ERROR;
   }
   // PID, VID
@@ -428,6 +445,7 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg) {
                                  (sxMsg[5] << 4) + sxMsg[6] ;
     EE_Prm.productID= (sxMsg[7] << 12) + (sxMsg[8] << 8) +
                                  (sxMsg[9] << 4) + sxMsg[10] ;
+    *doMask |= SX_DO_SAVE_MSK;
     return SX_NO_ERROR;
   }
 
@@ -451,20 +469,24 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg) {
 // Allowed port type : jack=1 | virtual=2   port : 0-F   outportype/out ports list are optional.
 // If only jackin is passed, this toggle on/off IThru if outpout ports exists.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
 
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
+  *doMask = SX_DO_ACK_MSK;
+
   // reset to default midi thru routing
   if (cmdId == 0x00  && msgLen == 2) {
        ResetMidiRoutingRules(ROUTING_RESET_INTELLITHRU);
+       *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
        return SX_NO_ERROR;
   } else
 
   // Disable all jackin ports = Off
   if (cmdId == 0x01  && msgLen == 2) {
        EE_Prm.ithruJackInMsk = 0;
+       *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
        return SX_NO_ERROR;
   } else
 
@@ -472,6 +494,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
   if (cmdId == 0x02  && msgLen == 3) {
       if ( sxMsg[3] < 1 || sxMsg[3] > 0X7F ) return SX_ERROR_BAD_VALUE;
       EE_Prm.ithruUSBIdleTimePeriod = sxMsg[3];
+      *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
       return SX_NO_ERROR;
   }
   else
@@ -480,6 +503,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
   // F0 77 77 78 0E 03 <JackIn port > <out port type>[out ports list: nn...nn] F7
   //     (len) (id)(cmd)    01          01           0 1 2 3 4 5 6 7 8 9 A B C D E
   if (cmdId == 0x03 && msgLen >= 3  ) {
+
       uint8_t jackIn = sxMsg[3];
 
       if ( jackIn >= SERIAL_INTERFACE_COUNT) return SX_ERROR_BAD_PORT;
@@ -490,6 +514,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
              ( EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk & (1 << jackIn) ) )
             EE_Prm.ithruJackInMsk ^= (1 << jackIn);  // Toggle
         else EE_Prm.ithruJackInMsk &= ~(1 << jackIn); // Off if no out ports
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
         return SX_NO_ERROR;
       }
 
@@ -523,6 +548,8 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 
       // reset globals for a real time update
       ithruUSBIdlelMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
+
+      *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
       return SX_NO_ERROR;
   }
   return SX_ERROR_ANY;
@@ -542,13 +569,16 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg) {
 // F0 77 77 78 0F 03 <JackIn port: 0-F > [jk out ports list: nn nn ... nn] F7
 // port type : cable = 0 |jack=1 | virtual=2    port : 0-F    out ports list is optional.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
+
+  *doMask = SX_DO_ACK_MSK;
 
   // reset to default routing
   if (cmdId == 0x00  && msgLen == 2) {
       ResetMidiRoutingRules(ROUTING_RESET_MIDIUSB);
+      *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
       return SX_NO_ERROR;
   }
   else
@@ -603,6 +633,8 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
           if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesCable[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesCable[inPort].jkOutTgMsk = msk;
           else                                    EE_Prm.rtRulesCable[inPort].vrOutTgMsk = msk;
+
+          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
           return SX_NO_ERROR;
     }
     // Jack
@@ -610,6 +642,8 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
           if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesJack[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesJack[inPort].jkOutTgMsk = msk;
           else                                    EE_Prm.rtRulesJack[inPort].vrOutTgMsk = msk;
+
+          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
           return SX_NO_ERROR;
     }
     // Virtual
@@ -617,6 +651,8 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
           if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesVirtual[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk = msk;
           else                                    EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
+
+          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
           return SX_NO_ERROR;
     }
   }
@@ -634,9 +670,11 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg) {
 // F0 77 77 78 10 01 < deviceid:04-08 > F7
 // deviceid must be set to 4 when master. The device will reboot after the command is bus active..
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
+
+  *doMask = SX_DO_ACK_MSK;
 
   // Enable/disable Bus mode
   if (cmdId == 0x00 && msgLen == 3 )  {
@@ -647,8 +685,8 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
       else SX_ERROR_ANY;
 
       if ( EE_Prm.I2C_BusModeState != busState ) EE_Prm.I2C_BusModeState = busState;
-      else return SX_NO_REBOOT;
-
+      else return SX_NO_ERROR;
+      *doMask |= (SX_DO_SAVE_MSK | SX_DO_REBOOT_MSK);
       return SX_NO_ERROR;
   }
   else
@@ -658,9 +696,10 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
       if ( sxMsg[3] > B_SLAVE_DEVICE_LAST_ADDR || sxMsg[3] < B_SLAVE_DEVICE_BASE_ADDR ) return SX_ERROR_BAD_DEVICEID;
       if ( sxMsg[3] != EE_Prm.I2C_DeviceId ) {
         EE_Prm.I2C_DeviceId = sxMsg[3];
-        if (EE_Prm.I2C_BusModeState = B_ENABLED) return SX_NO_ERROR;
-        return SX_NO_REBOOT;
+        if (EE_Prm.I2C_BusModeState = B_ENABLED) *doMask |= SX_DO_REBOOT_MSK;
+        *doMask |= SX_DO_SAVE_MSK;
       }
+      return SX_NO_ERROR;
   }
   return SX_ERROR_ANY;
 }
@@ -697,22 +736,33 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg) {
 // 11 01 Pipe operation - 05 pipe bypass index
 // F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
+uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   uint8_t msgLen    = sxMsg[0];
   uint8_t cmdId     = sxMsg[2];
   uint8_t cmdSubId  = sxMsg[3];
 
+  *doMask = SX_DO_ACK_MSK;
+
   // SLOTS OPERATIONS
   if (cmdId == 0x00 ) {
     // Copy slot
-    if (cmdSubId == 0x00  && msgLen == 5)
-      return TransPacketPipeline_CopySlot(sxMsg[4],sxMsg[5]) ? SX_NO_ERROR : SX_ERROR_ANY ;
-    else    // Clear slot <Slot number 1-8> <0x7F = ALL SLOTS>
-    if (cmdSubId == 0x01  && msgLen == 4)
-      return TransPacketPipeline_ClearSlot(sxMsg[4]) ? SX_NO_ERROR : SX_ERROR_ANY;
-    else  // Attach/Detach port to slot
-    if (cmdSubId == 0x02  && msgLen == 6)
-      return TransPacketPipeline_AttachPort(sxMsg[4],sxMsg[5],sxMsg[6]) ? SX_NO_ERROR : SX_ERROR_ANY;
+    if (cmdSubId == 0x00  && msgLen == 5 && TransPacketPipeline_CopySlot(sxMsg[4],sxMsg[5]) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+    }
+
+    // Clear slot <Slot number 1-8> <0x7F = ALL SLOTS>
+    else if (cmdSubId == 0x01  && msgLen == 4 & TransPacketPipeline_ClearSlot(sxMsg[4]) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+    }
+
+    // Attach/Detach port to slot
+    else if (cmdSubId == 0x02  && msgLen == 6 && TransPacketPipeline_AttachPort(sxMsg[4],sxMsg[5],sxMsg[6]) ) {
+      *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+      return SX_NO_ERROR ;
+    }
+
     else return SX_ERROR_ANY;
   }
   else
@@ -725,7 +775,10 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
         p.pId = sxMsg[5];  p.byPass = 0;
         p.par1 = sxMsg[6]; p.par2 = sxMsg[7];
         p.par3 = sxMsg[8]; p.par4 = sxMsg[9];
-        return TransPacketPipe_AddToSlot(sxMsg[4],&p) ? SX_NO_ERROR : SX_ERROR_ANY;
+        if ( TransPacketPipe_AddToSlot(sxMsg[4],&p) ) {
+          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+          return SX_NO_ERROR ;
+        }
     }
     else
     // 11 01 <01 = Insert before>  <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
@@ -734,7 +787,10 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
       p.pId = sxMsg[6];  p.byPass = 0;
       p.par1 = sxMsg[7]; p.par2 = sxMsg[8];
       p.par3 = sxMsg[9]; p.par4 = sxMsg[10];
-      return TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p,false)  ? SX_NO_ERROR : SX_ERROR_ANY;
+      if ( TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p,false) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+      }
     }
     else
     // 11 01 <02 = Replace> <slot number> <pipe index 0-n> <FN id> <par1> <par2> <par3> <par4>
@@ -743,20 +799,29 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg) {
       p.pId = sxMsg[6];  p.byPass = 0;
       p.par1 = sxMsg[7]; p.par2 = sxMsg[8];
       p.par3 = sxMsg[9]; p.par4 = sxMsg[10];
-      return TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p,true)  ? SX_NO_ERROR : SX_ERROR_ANY;
+      if ( TransPacketPipe_InsertToSlot(sxMsg[4],sxMsg[5],&p,true) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+      }
     }
     else
     // Clear pipe by index
-    if (cmdSubId == 0x03  && msgLen == 5 )
-      return TransPacketPipe_ClearSlotIndexPid(sxMsg[4],true,sxMsg[5])  ? SX_NO_ERROR : SX_ERROR_ANY;
+    if ( cmdSubId == 0x03  && msgLen == 5 && TransPacketPipe_ClearSlotIndexPid(sxMsg[4],true,sxMsg[5]) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+    }
     else
     // Clear pipe first pId
-    if (cmdSubId == 0x04  && msgLen == 5 )
-      return TransPacketPipe_ClearSlotIndexPid(sxMsg[4],false,sxMsg[5])  ? SX_NO_ERROR : SX_ERROR_ANY;
+    if (cmdSubId == 0x04  && msgLen == 5 && TransPacketPipe_ClearSlotIndexPid(sxMsg[4],false,sxMsg[5]) ) {
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR ;
+    }
     else
     // ByPass pipe by index
-    if (cmdSubId == 0x05  && msgLen == 6 )
-      return TransPacketPipe_ByPass(sxMsg[4],sxMsg[5],sxMsg[6]) ? SX_NO_ERROR : SX_ERROR_ANY;
+    if (cmdSubId == 0x05  && msgLen == 6 & TransPacketPipe_ByPass(sxMsg[4],sxMsg[5],sxMsg[6]) ) {
+      *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+      return SX_NO_ERROR ;
+    }
   }
 
   return SX_ERROR_ANY;
