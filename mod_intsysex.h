@@ -616,73 +616,61 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
     uint8_t inPortType  = sxMsg[3];
     uint8_t inPort      = sxMsg[4];
     uint8_t outPortType = sxMsg[5];
+    uint8_t maxInPort = 0;
+    uint8_t maxOutPort = 0;
 
-    if (inPortType == PORT_TYPE_CABLE ) {
-      if ( inPort >= USBCABLE_INTERFACE_MAX ) return SX_ERROR_BAD_PORT;
-    }
-    else
-    if (inPortType == PORT_TYPE_JACK ) {
-      if ( inPort >= SERIAL_INTERFACE_COUNT ) return SX_ERROR_BAD_PORT;
-    }
-    else
-    if (inPortType == PORT_TYPE_VIRTUAL ) {
-      if ( inPort >= VIRTUAL_INTERFACE_MAX ) return SX_ERROR_BAD_PORT;
-    }
+    if (inPortType == PORT_TYPE_CABLE ) maxInPort = USBCABLE_INTERFACE_MAX;
+    else if (inPortType == PORT_TYPE_JACK ) maxInPort = SERIAL_INTERFACE_COUNT;
+    else if (inPortType == PORT_TYPE_VIRTUAL ) maxInPort = VIRTUAL_INTERFACE_MAX ;
     else return SX_ERROR_BAD_PORT_TYPE;
 
-    if (outPortType == PORT_TYPE_CABLE ) {
-      if (msgLen > (USBCABLE_INTERFACE_MAX + 5) ) return SX_ERROR_BAD_MSG_SIZE;
-    }
-    else
-    if (outPortType == PORT_TYPE_JACK  ) {
-      if ( msgLen > (SERIAL_INTERFACE_COUNT + 5) ) return SX_ERROR_BAD_MSG_SIZE;
-    }
-    else
-    if (outPortType == PORT_TYPE_VIRTUAL ) {
-      if ( msgLen > (VIRTUAL_INTERFACE_MAX + 5) ) return SX_ERROR_BAD_MSG_SIZE;
-    }
+    if (outPortType == PORT_TYPE_CABLE ) maxOutPort = USBCABLE_INTERFACE_MAX;
+    else if (outPortType == PORT_TYPE_JACK  )  maxOutPort = SERIAL_INTERFACE_COUNT;
+    else  if (outPortType == PORT_TYPE_VIRTUAL ) maxOutPort = VIRTUAL_INTERFACE_MAX;
     else return SX_ERROR_BAD_PORT_TYPE;
+
+    if ( inPort >= maxInPort ) return SX_ERROR_BAD_PORT;
+    if ( msgLen > (maxOutPort + 5) ) return SX_ERROR_BAD_MSG_SIZE;
+
+    boolean checkVirtualLoop = ( inPortType == PORT_TYPE_VIRTUAL && inPortType == outPortType);
 
     uint16_t msk = 0;
-    // If port list, Compute mask else no target
+    // If out port list, Compute mask else no target
     if ( msgLen > 5 ) {
       for ( uint8_t i = 6 ; i <= msgLen  ; i++) {
-          if ( (outPortType == PORT_TYPE_CABLE    && sxMsg[i] < USBCABLE_INTERFACE_MAX) ||
-               (outPortType == PORT_TYPE_JACK     && sxMsg[i] < SERIAL_INTERFACE_COUNT) ||
-               (outPortType == PORT_TYPE_VIRTUAL  && sxMsg[i] < VIRTUAL_INTERFACE_MAX) ) {
-                 msk |= 	1 << sxMsg[i] ;
-          }
-      }// for
+          if ( sxMsg[i] >= maxOutPort ) return SX_ERROR_BAD_PORT;
+          if ( checkVirtualLoop &&  inPort == sxMsg[i] ) continue;
+          // Forbid virtual on it self
+          msk |= 	1 << sxMsg[i] ;
+      } // for
     }
 
     // Set masks Cable
     if (inPortType == PORT_TYPE_CABLE ) {
-          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesCable[inPort].cbInTgMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesCable[inPort].jkOutTgMsk = msk;
-          else                                    EE_Prm.rtRulesCable[inPort].vrOutTgMsk = msk;
-
-          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
-          return SX_NO_ERROR;
+          if (outPortType == PORT_TYPE_CABLE)         EE_Prm.rtRulesCable[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK)     EE_Prm.rtRulesCable[inPort].jkOutTgMsk = msk;
+          else if (outPortType == PORT_TYPE_VIRTUAL)  EE_Prm.rtRulesCable[inPort].vrOutTgMsk = msk;
+          else return SX_ERROR_BAD_PORT_TYPE;
     }
     // Jack
     else if (inPortType == PORT_TYPE_JACK ) {
-          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesJack[inPort].cbInTgMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesJack[inPort].jkOutTgMsk = msk;
-          else                                    EE_Prm.rtRulesJack[inPort].vrOutTgMsk = msk;
-
-          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
-          return SX_NO_ERROR;
+          if (outPortType == PORT_TYPE_CABLE)         EE_Prm.rtRulesJack[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK)     EE_Prm.rtRulesJack[inPort].jkOutTgMsk = msk;
+          else  if (outPortType == PORT_TYPE_VIRTUAL) EE_Prm.rtRulesJack[inPort].vrOutTgMsk = msk;
+          else return SX_ERROR_BAD_PORT_TYPE;
     }
     // Virtual
     else if (inPortType == PORT_TYPE_VIRTUAL ) {
-          if (outPortType == PORT_TYPE_CABLE)     EE_Prm.rtRulesVirtual[inPort].cbInTgMsk = msk;
-          else if (outPortType == PORT_TYPE_JACK) EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk = msk;
-          else                                    EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
-
-          *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
-          return SX_NO_ERROR;
+          if (outPortType == PORT_TYPE_CABLE)        EE_Prm.rtRulesVirtual[inPort].cbInTgMsk = msk;
+          else if (outPortType == PORT_TYPE_JACK)    EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk = msk;
+          else if (outPortType == PORT_TYPE_VIRTUAL) EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
+          else return SX_ERROR_BAD_PORT_TYPE;
     }
+    *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+    return SX_NO_ERROR;
   }
+
+
   return SX_ERROR_ANY;
 }
 

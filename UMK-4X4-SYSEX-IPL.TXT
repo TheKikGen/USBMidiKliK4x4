@@ -131,7 +131,8 @@ F0 77 77 78 0F 00 F7
 
 0F 01 Set midi port routing
 F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
-port type : cable = 0 |jack=1 | virtual=2 (in only) port : 0-F out ports list is optional
+port type : cable = 0 |jack=1 | virtual=2   port : 0-F out ports list is optional
+A virtual port can't be routed on itself.
 
 -------------------------------------------------------------------------------
 10 Bus mode
