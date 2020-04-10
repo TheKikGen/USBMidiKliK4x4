@@ -288,7 +288,7 @@ void EE_PrmInit(bool factorySettings)
  		{
 			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
-			// Default boot mode when new firmware uploaded
+			// Default boot mode when new firmware uploaded only for this session.
 	    EE_Prm.nextBootMode = bootModeConfigMenu;
 			return;
 

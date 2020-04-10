@@ -586,10 +586,14 @@ void I2C_ProcessSlave ()
       char key = Serial.read();
 			Serial.println();
 			ShowMidiKliKHeader();Serial.println();
-
-			SerialPrintf("Slave %02d ready and listening.%n", EE_Prm.I2C_DeviceId);
+			SerialPrintf("Slave %02d ready and listening.", EE_Prm.I2C_DeviceId);
+			if (I2C_MasterIsActive)  Serial.print(" (MASTER READY)");
+			else                     Serial.print(" (NO MASTER)");
+			if (midiUSBIdle)  Serial.print(" (USB IDLE)");
+			if (intelliThruActive) Serial.print(" (ITHRU MODE)");
+			Serial.println();Serial.println();
 			Serial.println("(r)outing rules - (1-8) pipeline slots - e(X)it to configuration menu :");
-
+			Serial.println();
       if ( key == 'X') {
         Wire.flush();
         Wire.end();

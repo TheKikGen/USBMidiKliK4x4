@@ -637,12 +637,13 @@ boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t 
         if ( b == 3 || endSx ) {
           pk.packet[0]  = (endSx ?  b + 4 : 4 ) + (cable << 4);
           MidiUSB.writePacket(&pk.i);
-          FLASH_LED_OUT(0);
           if (endSx) startSx = endSx = false;
           b=0; pk.i = 0;
         }
       }
   }
+
+  FLASH_LED_OUT(0);
   return true;
 }
 

@@ -139,9 +139,9 @@ typedef struct {
 } __packed SysExInternalFnVector_t;
 
 #define SX_DO_ACK_MSK      B00000001
-#define SX_DO_SAVE_MSK     B00000100
-#define SX_DO_SYNC_MSK     B00001000
-#define SX_DO_REBOOT_MSK   B00010000
+#define SX_DO_SAVE_MSK     B00000010
+#define SX_DO_SYNC_MSK     B00000100
+#define SX_DO_REBOOT_MSK   B00001000
 
 #define FN_SX_VECTOR_SIZE 7
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
@@ -187,7 +187,6 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
               if ( doMask & SX_DO_REBOOT_MSK ) nvic_sys_reset();
             }
             // Only a master on bus can sync. Always after reset test above
-            // in case of sysex necessiting reboot, as bus mode on/off..
             if ( IS_BUS_E && IS_MASTER && (doMask & SX_DO_SYNC_MSK))
                 I2C_SlavesRoutingSyncFromMaster();
 
@@ -294,14 +293,16 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // F0 77 77 78 05 <dump address:nn nn nn nn> F7
 //
 // -------------------------------------------------------------
-// | Dump data           | Dump address
+// | Dump data             | Dump address
 // -------------------------------------------------------------
-// | All                 | 7F 00 00 00
-// | USB device settings | 0B 00 00 00
-// | USB Idle            | 0E 02 00 00
-// | IThru routing       | 0E 03 <Jack In port> 00
-// | Midi routing        | 0F 01 <in port type:0-2> <in port>
-// | Trans. Pipelines    | 11 00 <in port type:0-3> <in port>
+// | All                   | 7F 00 00 00
+// | USB device settings   | 0B 00 00 00
+// | USB Idle              | 0E 02 00 00
+// | IThru routing         | 0E 03 <Jack In> 00
+// | In port midi routing  | 0F 01 <in port type:0-2> <in port>
+// | Bus mode settings     | 10 00 00 00
+// | In port attached slot | 11 00 <in port type:0-3> <in port>
+// | Pipes in slot         | 11 01 <slot> <pipe index>
 // -------------------------------------------------------------
 // in port: 0-F
 // port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
@@ -311,6 +312,12 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
   *doMask = SX_DO_ACK_MSK;
   if (sxMsg[0] != 5) return SX_ERROR_BAD_MSG_SIZE;
 
+  uint8_t dest = 0X7F; // dummy value
+
+  if (portType == PORT_TYPE_CABLE && midiUSBCx) dest = 0;
+  else if (portType == PORT_TYPE_JACK ) dest = 1;
+  else return SX_ERROR_BAD_PORT;
+
   // Make a pseudo 32 bits value to address sysex functions
   uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
   if ( ! ( (sxAddr == 0x7F000000 )
@@ -318,12 +325,14 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
           || (sxAddr == 0x0E020000 )
           || (sxAddr >= 0x0E030000 && sxAddr <= 0x0E030F00)
           || (sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F)
+          || (sxAddr == 0x10000000 )
           || (sxAddr >= 0x11000000 && sxAddr <= 0x1100030F)
+          || (sxAddr >= 0x11010100 && sxAddr <= 0x11011010)
          )
      ) return SX_ERROR_BAD_ADDR;
 
-  if ( sxAddr == 0x7F000000 )
-  else SysexInternal_DumpAddrToStream(sxAddr,portType);
+  if ( sxAddr == 0x7F000000 ) SysexInternal_DumpConfToStream(dest);
+  else SysexInternal_DumpAddrToStream(sxAddr,dest);
 
   *doMask = 0; // No ack in that case.
   return SX_NO_ERROR;
@@ -358,31 +367,35 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
   *doMask = SX_DO_ACK_MSK;
   // Identity request
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
-
-      *doMask = 0; // No ack here
-
       if (portType == PORT_TYPE_CABLE && midiUSBCx) {
         // send to USB , cable 0
+        *doMask = 0; // No ack here
         USBMidi_SendSysExPacket(0,sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_NO_ERROR;
       } else
       if (portType == PORT_TYPE_JACK ) {
         // Send to serial port 0 being the only possible for sysex
+        *doMask = 0; // No ack here
         serialHw[0]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
         return SX_NO_ERROR;
       }
-  } else
+      return SX_ERROR_BAD_PORT;
+  }
+
   // Sysex acknowledgment toggle (on/off)
   if ( sxMsg[2] == 0x02 && sxMsg[0] == 2 ) {
     sysExFunctionAckToggle = ! sysExFunctionAckToggle;
     return SX_NO_ERROR;
   }
+
   // Factory settings
   if ( sxMsg[2] == 0x04 && sxMsg[0] == 2 ) {
-    EE_PrmInit(true); // This writes to EEPROM
-    *doMask |= SX_DO_SYNC_MSK; // Sync slaves
+    // Will reboot as this is factory settings !
+    EE_PrmInit(true); // This writes all defaults to EEPROM
+    *doMask = SX_DO_REBOOT_MSK;
     return SX_NO_ERROR;
   }
+
   // Clear all
   if ( sxMsg[2] == 0x05 && sxMsg[0] == 2 ) {
     ResetMidiRoutingRules(ROUTING_CLEAR_ALL);
@@ -895,7 +908,7 @@ void SysexInternal_DumpConfToStream(uint8_t dest) {
   }
 
   // Bus settings. Commented because reset the board.
-  //SysexInternal_DumpAddrToStream(0x10000000, dest);
+  SysexInternal_DumpAddrToStream(0x10000000, dest);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -31,7 +31,7 @@ FN Description / sub command
     02 set USB idle
     03 Set jack routing
 0F Midi routing settings
-    00 Reset to factory default
+    00 Reset to default
     01 set midi port routing
 10 Bus mode settings
     00 Enable bus mode
@@ -40,9 +40,9 @@ FN Description / sub command
    Slot operations
     00 00 Copy slot
     00 01 Clear slot
-    00 02 Attach/detach port
+    00 02 Attach/detach port to slot
    Pipe operations
-    01 00 Add pipe to slot
+    01 00 Add pipe
     01 01 Insert pipe
     01 02 Replace pipe
     01 03 Clear pipe by index
@@ -64,11 +64,13 @@ F0 77 77 78 05 <dump address:nn nn nn nn> F7
 | USB Idle              | 0E 02 00 00
 | IThru routing         | 0E 03 <Jack In> 00
 | In port midi routing  | 0F 01 <in port type:0-2> <in port>
+| Bus mode settings     | 10 00 00 00
 | In port attached slot | 11 00 <in port type:0-3> <in port>
 | Pipes in slot         | 11 01 <slot> <pipe index>
 -------------------------------------------------------------
 in port: 0-F
 port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
+
 -------------------------------------------------------------------------------
 06 Global functions
 
@@ -83,6 +85,7 @@ F0 77 77 78 06 03 <ack> F7
 
 06 04 Factory settings
 F0 77 77 78 06 04 F7
+The device will reboot after the command.
 
 06 05 Clear all (midi, Ithru routing rules and pipelines..)
 F0 77 77 78 06 05 F7
@@ -101,6 +104,7 @@ F0 77 77 78 0B 01 <usb product string not accentuated> F7
 
 0B 01 0C Set USB vendor ID and product ID
 F0 77 77 78 0B 02 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
+
 -------------------------------------------------------------------------------
 0E Intelligent thru
 
@@ -117,10 +121,11 @@ F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
 F0 77 77 78 0E 03 <JackIn port > [<out port type><out ports list: nn...nn>] F7
 Allowed port type : jack=1 | virtual=2   port:0-F  out por type/ports list are optional.
 If only jackin is passed, this toggle on/off IThru if output ports exist.
+
 -------------------------------------------------------------------------------
 0F Midi routing
 
-0F 00 Reset to factory default
+0F 00 Reset to default
 F0 77 77 78 0F 00 F7
 
 0F 01 Set midi port routing
@@ -132,11 +137,13 @@ port type : cable = 0 |jack=1 | virtual=2 (in only) port : 0-F out ports list is
 
 10 00 Enable/disable bus mode
 F0 77 77 78 10 00 < enable:1 | disable:0 > F7
-The device will reboot after the command.
+The device will reboot after the command if bus state changed.
 
 10 01 Set device ID
 F0 77 77 78 10 01 < deviceid:04-08 > F7
-deviceid must be set to 4 when master. The device will reboot after the command.
+deviceid must be set to 4 when master.
+The device will reboot after the command if id changed.
+
 -------------------------------------------------------------------------------
 11 Transformation pipelines
 
@@ -148,7 +155,7 @@ F0 77 77 78 11 00 00 < src slot:01-08 > < dest slot: 01-08 > F7
 11 00 01 clear slot
 F0 77 77 78 11 00 01 < slot: 01-08 | All slot:7F > F7
 
-11 00 02 slot attach port
+11 00 02 Attach/detach port to slot
 F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
 port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 When slot = 0, the port is considered as detached from any slot.
