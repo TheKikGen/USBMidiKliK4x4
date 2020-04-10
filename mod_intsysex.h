@@ -334,7 +334,6 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
   if ( sxAddr == 0x7F000000 ) SysexInternal_DumpConfToStream(dest);
   else SysexInternal_DumpAddrToStream(sxAddr,dest);
 
-  *doMask = 0; // No ack in that case.
   return SX_NO_ERROR;
 }
 
@@ -478,9 +477,10 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 // F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
 //
 // 0E 03 Set jack routing
-// F0 77 77 78 0E 03 <JackIn port > [<out port type><out ports list: nn...nn>] F7
+// F0 77 77 78 0E 03 <JackIn port > [<out port type> [<out ports list: nn...nn>] ] F7
 // Allowed port type : jack=1 | virtual=2   port : 0-F   outportype/out ports list are optional.
 // If only jackin is passed, this toggle on/off IThru if outpout ports exists.
+// If no out ports list passed, the entire out type will be cleared.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
 
@@ -531,29 +531,43 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *d
         return SX_NO_ERROR;
       }
 
-      if (msgLen < 5 ) return SX_ERROR_BAD_MSG_SIZE;
-
       uint16_t *msk;
+      uint16_t *jmsk = &EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk;
+      uint16_t *vmsk = &EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk;
       uint8_t outPortType = sxMsg[4];
+      uint8_t outPortMax = 0;
 
       if (outPortType == PORT_TYPE_JACK  ) {
-        if ( msgLen > (SERIAL_INTERFACE_COUNT + 4) ) return SX_ERROR_BAD_MSG_SIZE;
-        msk = &EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk;
+        outPortMax = SERIAL_INTERFACE_COUNT ;
+        msk = jmsk;
       }
       else
       if (outPortType == PORT_TYPE_VIRTUAL ) {
-        if ( msgLen > (VIRTUAL_INTERFACE_MAX + 4) ) return SX_ERROR_BAD_MSG_SIZE;
-        msk = &EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk;
+        outPortMax = VIRTUAL_INTERFACE_MAX ;
+        msk = vmsk;
       }
       else return SX_ERROR_BAD_PORT_TYPE;
+
+      if ( msgLen > (outPortMax + 4) ) return SX_ERROR_BAD_MSG_SIZE;
+
+      // disable output ports for this port type as no list provided.
+      if (msgLen == 4 ) {
+        *msk = 0;
+        // Disable Ithru if no more output ports
+        if ( ! (*jmsk + *vmsk) ) EE_Prm.ithruJackInMsk &= ~(1 << jackIn);
+        *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
+        return SX_NO_ERROR;
+      }
+
+      // Output ports list
 
       // Set midi in jack msk
       EE_Prm.ithruJackInMsk |= (1 << jackIn);
 
       // Set target port out msk
       uint16_t newMsk = 0;
-      for ( uint8_t i = 4 ; i <= msgLen  ; i++) {
-          if ( sxMsg[i] < SERIAL_INTERFACE_COUNT )
+      for ( uint8_t i = 5 ; i <= msgLen  ; i++) {
+          if ( sxMsg[i] < outPortMax )
                 newMsk |= 	1 << sxMsg[i] ;
           else return SX_ERROR_BAD_PORT;
       }

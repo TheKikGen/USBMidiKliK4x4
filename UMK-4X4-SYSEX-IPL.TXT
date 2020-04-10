@@ -118,9 +118,10 @@ F0 77 77 78 0E 01 F7
 F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
 
 0E 03 Set jack routing
-F0 77 77 78 0E 03 <JackIn port > [<out port type><out ports list: nn...nn>] F7
+F0 77 77 78 0E 03 <JackIn port > [<out port type> [<out ports list: nn...nn>] ] F7
 Allowed port type : jack=1 | virtual=2   port:0-F  out por type/ports list are optional.
 If only jackin is passed, this toggle on/off IThru if output ports exist.
+If no out ports list passed, the entire out type will be cleared.
 
 -------------------------------------------------------------------------------
 0F Midi routing
