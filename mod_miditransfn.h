@@ -397,13 +397,13 @@ void ShowPipelineSlot(uint8_t s) {
   transPipe_t *pipeline = EE_Prm.pipelineSlot[s-1].pipeline ;
 
   Serial.println();
-  SerialPrintf("PIPELINE SLOT %d :%n",s);
+  SerialPrintf("%M %M %d :",str_PIPELINE,str_SLOT,s);
 
   if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) {
       Serial.println(" EMPTY");
   } else {
     Serial.println();Serial.println();
-    Serial.println("| Idx | Pipe id    ( p1, p2, p3, p4 ) | Bypass |");
+    SerialPrintf("| Idx | Pipe id    ( p1, p2, p3, p4 ) | %y |",str_BYPASS);
 
     for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
         SerialPrintf("|  %2d | %02x %s (",i,pipeline->pId,MidiTransFnVector[pipeline->pId].shortName);
@@ -414,9 +414,9 @@ void ShowPipelineSlot(uint8_t s) {
     }
   }
   Serial.println();
-  Serial.println("| Attached ports            |          1111111 |");
-  Serial.println("|                           | 1234567890123456 |");
-    Serial.print("| Cables out                | ");
+  SerialPrintf("| Attached %s            |          %s |%n",str_PORT,str_71DIGITS);
+  SerialPrintf("|                          | %s |%n",str_16DIGITS);
+  SerialPrintf("| %y %s                | ",str_CABLE,str_OUT);
 
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > USBCABLE_INTERFACE_MAX) Serial.print(" ");
@@ -426,7 +426,7 @@ void ShowPipelineSlot(uint8_t s) {
   }
 
   Serial.println(" |");
-  Serial.print("| Jacks in                  | ");
+  SerialPrintf("| %y %s                  | ",str_JACK,str_IN);
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesJack[j].slot == s)
@@ -435,7 +435,7 @@ void ShowPipelineSlot(uint8_t s) {
   }
 
   Serial.println(" |");
-  Serial.print("| Jacks in Ithru            | ");
+  SerialPrintf("| %y %s %y            | ",str_JACK,str_IN,str_ITHRU);
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesIthru[j].slot == s)
@@ -444,7 +444,7 @@ void ShowPipelineSlot(uint8_t s) {
   }
 
   Serial.println(" |");
-  Serial.print("| Virtual in                | ");
+  SerialPrintf("| %y %s               | ",str_VIRTUAL,str_IN);
   for (uint8_t j=0; j < 16 ; j++) {
     if (j > VIRTUAL_INTERFACE_MAX) Serial.print(" ");
     else if ( EE_Prm.rtRulesVirtual[j].slot == s)

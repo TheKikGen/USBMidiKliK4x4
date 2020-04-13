@@ -59,8 +59,10 @@ __ __| |           |  /_) |     ___|             |           |
 
 // EEPROMS parameters
 EEPROM_Prm_t EE_Prm;
-// Timer
-HardwareTimer timer(2);
+// Timers
+// 1 msec timer
+HardwareTimer timerMillis(2);
+
 // Serial interfaces Array
 HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
@@ -81,6 +83,9 @@ volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
   };
 
 #endif
+
+// Midi Clocks initialize
+bpmTick_t bpmTicks[MIDI_CLOCKGEN_MAX] ;
 
 // USB Midi object & globals
 USBMidi MidiUSB;
@@ -156,9 +161,9 @@ int memcmpcpy ( void * pDest, void * pSrc, size_t sz ) {
 
 }
 ///////////////////////////////////////////////////////////////////////////////
-// Timer2 interrupt handler
+// Timer2 interrupt handler - 1 millisec timer
 ///////////////////////////////////////////////////////////////////////////////
-void Timer2Handler(void)
+void TimerMillisHandler(void)
 {
   LED_Update();
 }
@@ -166,7 +171,7 @@ void Timer2Handler(void)
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - Init PINS
 ///////////////////////////////////////////////////////////////////////////////
-boolean LED_Init() {
+void LED_Init() {
   // LED connect
   gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
   LED_Flash(&LED_ConnectTick);
@@ -179,6 +184,7 @@ boolean LED_Init() {
     LED_TurnOn(&LED_MidiOutTick[i]);
   }
 #endif
+
 }
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - Turn ON / OFF A LED (Faster with GPIO functions)
@@ -388,7 +394,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // ROUTING rules masks
 	uint16_t cbInTargets  = 0;
 	uint16_t jkOutTargets = 0;
-  uint16_t vrOutTargets = 0;
+  uint16_t vrInTargets  = 0;
   uint8_t  attachedSlot = 0;
 
   // Save intelliThruActive state as it could be changed in an interrupt
@@ -396,7 +402,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
   FLASH_LED_IN(port);
 
-  // A midi packet from serial jack ?
+  // A midi packet from physical serial jack ?
   if ( portType == PORT_TYPE_JACK ) {
     // Check at the physical level (i.e. not the bus)
     if ( port >= SERIAL_INTERFACE_MAX ) return;
@@ -411,16 +417,15 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
     // IntelliThru active ? If so, take the good routing rules
     if ( ithru ) {
-      if ( ! EE_Prm.ithruJackInMsk ) return; // Double check.
       jkOutTargets = EE_Prm.rtRulesIthru[port].jkOutTgMsk;
-      vrOutTargets = EE_Prm.rtRulesIthru[port].vrOutTgMsk;
+      vrInTargets  = EE_Prm.rtRulesIthru[port].vrInTgMsk;
       attachedSlot = EE_Prm.rtRulesIthru[port].slot;
     }
     // else Standard jack rules
     else {
       cbInTargets  = EE_Prm.rtRulesJack[port].cbInTgMsk;
       jkOutTargets = EE_Prm.rtRulesJack[port].jkOutTgMsk;
-      vrOutTargets = EE_Prm.rtRulesJack[port].vrOutTgMsk;
+      vrInTargets  = EE_Prm.rtRulesJack[port].vrInTgMsk;
       attachedSlot = EE_Prm.rtRulesJack[port].slot;
     }
   }
@@ -429,15 +434,14 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
     if ( port >= USBCABLE_INTERFACE_MAX ) return;
     cbInTargets  = EE_Prm.rtRulesCable[port].cbInTgMsk;
     jkOutTargets = EE_Prm.rtRulesCable[port].jkOutTgMsk;
-    vrOutTargets = EE_Prm.rtRulesCable[port].vrOutTgMsk;
+    vrInTargets  = EE_Prm.rtRulesCable[port].vrInTgMsk;
     attachedSlot = EE_Prm.rtRulesCable[port].slot;
   }
-  // Virtual port
+  // A midi packet from a virtual port ?
   else if ( portType == PORT_TYPE_VIRTUAL ) {
     if ( port >= VIRTUAL_INTERFACE_MAX ) return;
     cbInTargets  = EE_Prm.rtRulesVirtual[port].cbInTgMsk;
     jkOutTargets = EE_Prm.rtRulesVirtual[port].jkOutTgMsk;
-    vrOutTargets = EE_Prm.rtRulesVirtual[port].vrOutTgMsk;
     attachedSlot = EE_Prm.rtRulesVirtual[port].slot;
   }
 
@@ -449,7 +453,8 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // The port#0 is mandatory a port of the master or a port of a slave without bus.
   // Only virtual port can be 0 when bus mode active.
   if (port == 0 && portType != PORT_TYPE_VIRTUAL && !slotLockMsk) {
-		if ( cin <= 7 && cin >= 4 ) {
+    // CIN 5 exception : tune request. It is not a sysex packet !
+		if ( cin <= 7 && cin >= 4 && pk->packet[1] != midiXparser::tuneRequestStatus) {
       if (SysExInternal_Parse(portType, pk,sysExInternalBuffer))
             SysExInternal_Process(portType,sysExInternalBuffer);
     }
@@ -460,13 +465,9 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
   // 2/ Apply virtual port routing if a target match
   uint8_t t=0;
-  while ( vrOutTargets && t != VIRTUAL_INTERFACE_MAX ) {
-    if ( vrOutTargets & 1 ) {
-      // Do no route to itself to avoid infinite loop
-      if ( !(portType == PORT_TYPE_VIRTUAL && t == port ) )
-          RoutePacketToTarget(PORT_TYPE_VIRTUAL,  pk);
-    }
-    t++; vrOutTargets >>= 1;
+  while ( vrInTargets && t != VIRTUAL_INTERFACE_MAX ) {
+    if ( vrInTargets & 1 ) RoutePacketToTarget(PORT_TYPE_VIRTUAL,  pk);
+    t++; vrInTargets >>= 1;
   }
 
   // 3/ Apply serial jack routing if a target match
@@ -518,6 +519,68 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// MIDI CLOCK GENERATOR TO VIRTUAL PORTS
+// Clocks are mandatory attached to their respective virtual port.
+///////////////////////////////////////////////////////////////////////////////
+void MidiClockGenerator() {
+  for ( uint8_t i = 0 ;  i != MIDI_CLOCKGEN_MAX ; i++ ) {
+    if ( EE_Prm.bpmClocks[i].enabled && micros() > bpmTicks[i].nextBpmTick ) {
+      // Generate a midi timingClock status packet
+      // Change virtual port clk 0 to port 0, clk1 port1, ...
+      midiPacket_t timingClockPk = { .packet= {0x0F ,0XF8,0,0} };
+      timingClockPk.packet[0] += (i<< 4);
+      RoutePacketToTarget(PORT_TYPE_VIRTUAL, &timingClockPk);
+      bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm;
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Set a midi clock attached to a virtual port or 7F for all ports.
+// If port = 0, then bpm is kept.
+///////////////////////////////////////////////////////////////////////////////
+
+boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
+
+  if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
+  if ( (bpm != 0 && bpm < MIN_BPM) || bpm > MAX_BPM  ) return false;
+
+  if ( clockNo == 0x7F) {
+    for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
+      if (bpm) EE_Prm.bpmClocks[i].bpm = bpm;
+      bpmTicks[i].tickBpm = ( (60000000 / EE_Prm.bpmClocks[i].bpm ) / 24 ) * 10;
+      bpmTicks[i].nextBpmTick = 0;
+    }
+    return true;
+  }
+
+  if (! bpm) return false;
+  EE_Prm.bpmClocks[clockNo].bpm = bpm;
+  bpmTicks[clockNo].tickBpm = ( (60000000 / EE_Prm.bpmClocks[clockNo].bpm ) / 24 ) * 10;
+  bpmTicks[clockNo].nextBpmTick = 0;
+
+  return true;
+}
+///////////////////////////////////////////////////////////////////////////////
+// Enable/Disable a midi clock attached to a virtual port or 7F for all ports.
+///////////////////////////////////////////////////////////////////////////////
+
+boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
+  if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
+
+  if ( clockNo == 0x7F) {
+    for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
+        EE_Prm.bpmClocks[i].enabled = enable;
+        bpmTicks[i].nextBpmTick = 0;
+    }
+    return true;
+  }
+  bpmTicks[clockNo].nextBpmTick = 0;
+  EE_Prm.bpmClocks[clockNo].enabled = enable;
+  return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Reset routing rules to default factory
 // ROUTING_RESET_ALL         : Factory defaults
 // ROUTING_RESET_MIDIUSB     : Midi USB , serial, virtual routing to defaults
@@ -538,10 +601,8 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EE_Prm.rtRulesVirtual[i].slot = 0;
       EE_Prm.rtRulesVirtual[i].cbInTgMsk = 0 ;
       EE_Prm.rtRulesVirtual[i].jkOutTgMsk = 0  ;
-      EE_Prm.rtRulesVirtual[i].vrOutTgMsk = 0  ;
     }
   }
-
 
   if (mode == ROUTING_CLEAR_ALL ) {
     for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
@@ -550,7 +611,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EE_Prm.rtRulesCable[i].slot = 0;
       EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
       EE_Prm.rtRulesCable[i].jkOutTgMsk = 0 ;
-      EE_Prm.rtRulesCable[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesCable[i].vrInTgMsk = 0  ;
 
     }
     // Jack serial
@@ -558,14 +619,14 @@ void ResetMidiRoutingRules(uint8_t mode) {
       EE_Prm.rtRulesJack[i].slot = 0;
       EE_Prm.rtRulesJack[i].cbInTgMsk = 0 ;
       EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
-      EE_Prm.rtRulesJack[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrInTgMsk = 0  ;
     }
 
     // "Intelligent thru" serial mode
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EE_Prm.rtRulesIthru[i].slot = 0;
 	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
-      EE_Prm.rtRulesIthru[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesIthru[i].vrInTgMsk = 0  ;
 		}
 		EE_Prm.ithruJackInMsk = 0;
 	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
@@ -579,7 +640,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	    EE_Prm.rtRulesCable[i].slot = 0;
 	    EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
 	    EE_Prm.rtRulesCable[i].jkOutTgMsk = 1 << i ;
-      EE_Prm.rtRulesCable[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesCable[i].vrInTgMsk = 0  ;
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
@@ -587,7 +648,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	    EE_Prm.rtRulesJack[i].slot = 0;
 	    EE_Prm.rtRulesJack[i].cbInTgMsk = 1 << i ;
 	    EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
-      EE_Prm.rtRulesJack[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrInTgMsk = 0  ;
 	  }
 
   }
@@ -598,7 +659,7 @@ void ResetMidiRoutingRules(uint8_t mode) {
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
 	    EE_Prm.rtRulesIthru[i].slot = 0;
 	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
-      EE_Prm.rtRulesIthru[i].vrOutTgMsk = 0  ;
+      EE_Prm.rtRulesIthru[i].vrInTgMsk = 0  ;
 		}
     // Default IN 1 -> OUT 1,2 (split) , IN 2,3 -> OUT 3 (merge)
     EE_Prm.rtRulesIthru[0].jkOutTgMsk = B0011 ;
@@ -799,21 +860,26 @@ void SerialMidi_Process()
 ///////////////////////////////////////////////////////////////////////////////
 void setup()
 {
-    LED_Init();
-
     // Retrieve EEPROM parameters
     EE_PrmInit();
 
-    // Configure the TIMER2
-    timer.pause();
-    timer.setPeriod(TIMER2_RATE_MICROS); // in microseconds
+    // Configure the millisec timer ISR
+    timerMillis.pause();
+    timerMillis.setPeriod(TIMER_MILLIS_RATE_MICROS); // in microseconds
     // Set up an interrupt on channel 1
-    timer.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-    timer.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
-    timer.attachCompare1Interrupt(Timer2Handler);
-    timer.refresh();   // Refresh the timer's count, prescale, and overflow
-    timer.resume();    // Start the timer counting
+    timerMillis.setChannel1Mode(TIMER_OUTPUT_COMPARE);
+    timerMillis.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
+    timerMillis.attachCompare1Interrupt(TimerMillisHandler);
+    timerMillis.refresh();
+    timerMillis.resume();
 
+    // Reset LEDs counters.
+    LED_Init();
+
+    // recompute all midi clocks ticks...
+    SetMidiBpmClock(0x7F, 0);
+
+    // Check if we must go to configuration mode
 		CheckBootMode();
 
     // MIDI MODE START HERE ==================================================
@@ -832,7 +898,7 @@ void setup()
 		// I2C bus checks that could disable the bus mode
   	I2C_BusChecks();
 
-    // Add Serial to process fn vector
+    // Add Serial process to process fn vector
     procVectorFn[procVectorFnCount++] = &SerialMidi_Process;
 
     // Midi USB only if master when bus is enabled or master/slave
@@ -840,11 +906,14 @@ void setup()
     if ( !(IS_SLAVE && IS_BUS_E)  ) {
         procVectorFn[procVectorFnCount++] = &USBMidi_Process;
         USBMidi_Init();
+
+    // Add midi clock generator to process fn vector, not for a slave on bus
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
   	}
 
     // Add add-hoc I2C BUS process vector fn
     if ( IS_BUS_E && IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
-		else if ( IS_BUS_E && IS_MASTER ) procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
+		else if ( IS_BUS_E && IS_MASTER )  procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
 
     // Start Wire if bus mode enabled. AFTER MIDI !
     I2C_BusStartWire();

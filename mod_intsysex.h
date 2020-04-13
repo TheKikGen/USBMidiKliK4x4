@@ -63,6 +63,7 @@ void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnGlobalFunctions(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnSetUsbSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnVirtClocksSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *,uint8_t *);
@@ -98,7 +99,7 @@ enum SysExInternal_Error {
   SX_ERROR_BAD_SLOT,
   SX_ERROR_BAD_VALUE,
   SX_ERROR_BAD_DEVICEID,
-  SX_ERROR_BAD_ADDR
+  SX_ERROR_BAD_ADDR,
 } ;
 
 boolean sysExFunctionAckToggle = false;
@@ -123,6 +124,7 @@ enum SysExInternal_FnId {
   FN_SX_DUMP              = 0X05,
   FN_SX_GLOBAL_FN         = 0X06,
   FN_SX_USB_SET           = 0X0B,
+  FN_SX_CLOCKS_SET        = 0X0C,
   FN_SX_ITHRU_SET         = 0X0E,
   FN_SX_MIDI_ROUTING_SET  = 0X0F,
   FN_SX_BUS_SET           = 0X10,
@@ -143,11 +145,12 @@ typedef struct {
 #define SX_DO_SYNC_MSK     B00000100
 #define SX_DO_REBOOT_MSK   B00001000
 
-#define FN_SX_VECTOR_SIZE 7
+#define FN_SX_VECTOR_SIZE 8
 const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
   { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig          },
   { FN_SX_GLOBAL_FN         ,&SysExInternal_fnGlobalFunctions     },
   { FN_SX_USB_SET           ,&SysExInternal_fnSetUsbSettings      },
+  { FN_SX_CLOCKS_SET        ,&SysExInternal_fnVirtClocksSettings  },
   { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings       },
   { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings },
   { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings     },
@@ -243,6 +246,8 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 		// Only SYSEX and concerned packet on cable or serial 1
 
 		if (cin > 7 || cin < 4 ) return false;
+    // CIN 5 exception : tune request
+    if (pk->packet[1] == midiXparser::tuneRequestStatus) return false;
 		if (cin == 4 && pk->packet[1] != 0xF0 && sxMsgIdx < 3 ) return false;
 		if (cin > 4  && sxMsgIdx <3 ) return false;
 
@@ -340,6 +345,9 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 ///////////////////////////////////////////////////////////////////////////////
 // 06 Global functions
 //
+// 06 00 Hardware reset
+// F0 77 77 78 06 0A F7
+//
 // 06 01 Identity request
 // F0 77 77 78 06 01 F7
 //
@@ -358,12 +366,17 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 // 06 08 Reboot in configuration mode
 // F0 77 77 78 06 08 F7
 //
-// 06 0A Hardware reset
-// F0 77 77 78 06 0A F7
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
 
   *doMask = SX_DO_ACK_MSK;
+
+  // Hardware reset
+  if ( sxMsg[2] == 0x00 && sxMsg[0] == 2 ) {
+    *doMask = SX_DO_REBOOT_MSK;
+    return SX_NO_ERROR;
+  }
+
   // Identity request
   if ( sxMsg[2] == 0x01 && sxMsg[0] == 2 ) {
       if (portType == PORT_TYPE_CABLE && midiUSBCx) {
@@ -408,12 +421,6 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
     return SX_NO_ERROR;
   }
 
-  // Hardware reset
-  if ( sxMsg[2] == 0x0A && sxMsg[0] == 2 ) {
-    *doMask = SX_DO_REBOOT_MSK;
-    return SX_NO_ERROR;
-  }
-
   return SX_ERROR_ANY;
 }
 
@@ -421,15 +428,15 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
 // 0B USB device settings
 //
 // 0B 00 Set USB product string
-// F0 77 77 78 0B 01 <usb product string not accentuated> F7
+// F0 77 77 78 0B 00 <usb product string not accentuated> F7
 //
 // Copy the received string to the USB Product String Descriptor
 // For MIDI protocol compatibility, and avoid a sysex encoding,
 // accentuated ASCII characters, below 128 are non supported.
 // Size without null termination is defined by USB_MIDI_PRODUCT_STRING_SIZE
 
-// 0B 01 0C Set USB vendor ID and product ID
-// F0 77 77 78 0B 02 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
+// 0B 01 Set USB vendor ID and product ID
+// F0 77 77 78 0B 01 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
 //
 // To respect a simple encoding of 7 bits bytes, each hex digit must be
 // transmitted separately in a serialized way.
@@ -463,6 +470,53 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 
   return SX_ERROR_ANY;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// 0C Virtual port Midi Clock settings
+//
+// 0C 00 Enable/disable midi clock
+// F0 77 77 78 0C 00 <virtual port:0-8> <disable:0 enabled:1> F7
+//
+// 0C 01 Set midi clock bpm
+// F0 77 77 78 0C 01 <virtual port:0-8> <bpm: msbn lsbn1 lsbn2> F7
+// Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
+// Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
+// If virtual port = 7F, then all clocks are updated.
+///////////////////////////////////////////////////////////////////////////////
+uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+  *doMask = SX_DO_ACK_MSK;
+
+  // Enable / disable Clock
+  if ( sxMsg[2] == 0x00 ) {
+    if ( sxMsg[0] != 4 )  return SX_ERROR_BAD_MSG_SIZE;
+    // MIDI_CLOCKGEN_MAX is defines as VIRTUAL_INTERFACE_MAX
+    // but we keep here the possibility to reduce the number of clocks
+    // starting form virtual port 0.
+    if ( sxMsg[3] != 0x7F && sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
+    if ( sxMsg[4] > 1 )  return SX_ERROR_ANY;
+
+    if ( SetMidiEnableClock(sxMsg[3],sxMsg[4]) ) {
+      *doMask |= SX_DO_SAVE_MSK;
+      return SX_NO_ERROR;
+    }
+  }
+  else
+  // Set bpm
+  if ( sxMsg[2] == 0x01 ) {
+    if ( sxMsg[0] != 6 )  return SX_ERROR_BAD_MSG_SIZE;
+    if ( sxMsg[3] != 0x7F && sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
+    uint16_t bpm = (sxMsg[4]<< 8) + (sxMsg[5]<< 4) + sxMsg[6];
+    uint16_t oldBpm = EE_Prm.bpmClocks[sxMsg[3]].bpm;
+    if ( SetMidiBpmClock(sxMsg[3],bpm) ) {
+      if (oldBpm != bpm) *doMask |= SX_DO_SAVE_MSK;
+      return SX_NO_ERROR;
+    }
+  }
+
+  return SX_ERROR_ANY;
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // 0E IntelligentThru routing is activated when USB is idle beyond <delay>
@@ -524,7 +578,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *d
       // disable/enable (toggle) Intellithru for this port
       if (msgLen == 3 ) {
         if ( ( EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk & (1 << jackIn) )||
-             ( EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk & (1 << jackIn) ) )
+             ( EE_Prm.rtRulesIthru[jackIn].vrInTgMsk & (1 << jackIn) ) )
             EE_Prm.ithruJackInMsk ^= (1 << jackIn);  // Toggle
         else EE_Prm.ithruJackInMsk &= ~(1 << jackIn); // Off if no out ports
         *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
@@ -533,7 +587,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *d
 
       uint16_t *msk;
       uint16_t *jmsk = &EE_Prm.rtRulesIthru[jackIn].jkOutTgMsk;
-      uint16_t *vmsk = &EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk;
+      uint16_t *vmsk = &EE_Prm.rtRulesIthru[jackIn].vrInTgMsk;
       uint8_t outPortType = sxMsg[4];
       uint8_t outPortMax = 0;
 
@@ -595,6 +649,7 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *d
 // F0 77 77 78 0F 02 <in port> <out port type>[out ports list: nn...nn] F7 F7
 // F0 77 77 78 0F 03 <JackIn port: 0-F > [jk out ports list: nn nn ... nn] F7
 // port type : cable = 0 |jack=1 | virtual=2    port : 0-F    out ports list is optional.
+// A virtual port can't be routed to another virtual port.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   uint8_t msgLen = sxMsg[0];
@@ -619,6 +674,9 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
     uint8_t maxInPort = 0;
     uint8_t maxOutPort = 0;
 
+    // Virtual to virtual not allowed
+    if (inPortType == PORT_TYPE_VIRTUAL &&  inPortType == outPortType )  return SX_ERROR_BAD_PORT;
+
     if (inPortType == PORT_TYPE_CABLE ) maxInPort = USBCABLE_INTERFACE_MAX;
     else if (inPortType == PORT_TYPE_JACK ) maxInPort = SERIAL_INTERFACE_COUNT;
     else if (inPortType == PORT_TYPE_VIRTUAL ) maxInPort = VIRTUAL_INTERFACE_MAX ;
@@ -632,15 +690,11 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
     if ( inPort >= maxInPort ) return SX_ERROR_BAD_PORT;
     if ( msgLen > (maxOutPort + 5) ) return SX_ERROR_BAD_MSG_SIZE;
 
-    boolean checkVirtualLoop = ( inPortType == PORT_TYPE_VIRTUAL && inPortType == outPortType);
-
     uint16_t msk = 0;
     // If out port list, Compute mask else no target
     if ( msgLen > 5 ) {
       for ( uint8_t i = 6 ; i <= msgLen  ; i++) {
           if ( sxMsg[i] >= maxOutPort ) return SX_ERROR_BAD_PORT;
-          if ( checkVirtualLoop &&  inPort == sxMsg[i] ) continue;
-          // Forbid virtual on it self
           msk |= 	1 << sxMsg[i] ;
       } // for
     }
@@ -649,21 +703,20 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
     if (inPortType == PORT_TYPE_CABLE ) {
           if (outPortType == PORT_TYPE_CABLE)         EE_Prm.rtRulesCable[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK)     EE_Prm.rtRulesCable[inPort].jkOutTgMsk = msk;
-          else if (outPortType == PORT_TYPE_VIRTUAL)  EE_Prm.rtRulesCable[inPort].vrOutTgMsk = msk;
+          else if (outPortType == PORT_TYPE_VIRTUAL)  EE_Prm.rtRulesCable[inPort].vrInTgMsk = msk;
           else return SX_ERROR_BAD_PORT_TYPE;
     }
     // Jack
     else if (inPortType == PORT_TYPE_JACK ) {
           if (outPortType == PORT_TYPE_CABLE)         EE_Prm.rtRulesJack[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK)     EE_Prm.rtRulesJack[inPort].jkOutTgMsk = msk;
-          else  if (outPortType == PORT_TYPE_VIRTUAL) EE_Prm.rtRulesJack[inPort].vrOutTgMsk = msk;
+          else  if (outPortType == PORT_TYPE_VIRTUAL) EE_Prm.rtRulesJack[inPort].vrInTgMsk = msk;
           else return SX_ERROR_BAD_PORT_TYPE;
     }
     // Virtual
     else if (inPortType == PORT_TYPE_VIRTUAL ) {
           if (outPortType == PORT_TYPE_CABLE)        EE_Prm.rtRulesVirtual[inPort].cbInTgMsk = msk;
           else if (outPortType == PORT_TYPE_JACK)    EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk = msk;
-          else if (outPortType == PORT_TYPE_VIRTUAL) EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk = msk;
           else return SX_ERROR_BAD_PORT_TYPE;
     }
     *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
@@ -694,10 +747,10 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t 
   // Enable/disable Bus mode
   if (cmdId == 0x00 && msgLen == 3 )  {
 
-      boolean busState;
+      boolean busState = false;
       if ( sxMsg[3] == 1 ) busState = B_ENABLED;
       else if ( sxMsg[3] == 0)  busState = B_DISABLED ;
-      else SX_ERROR_ANY;
+      else return SX_ERROR_ANY;
 
       if ( EE_Prm.I2C_BusModeState != busState ) EE_Prm.I2C_BusModeState = busState;
       else return SX_NO_ERROR;
@@ -711,7 +764,7 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t 
       if ( sxMsg[3] > B_SLAVE_DEVICE_LAST_ADDR || sxMsg[3] < B_SLAVE_DEVICE_BASE_ADDR ) return SX_ERROR_BAD_DEVICEID;
       if ( sxMsg[3] != EE_Prm.I2C_DeviceId ) {
         EE_Prm.I2C_DeviceId = sxMsg[3];
-        if (EE_Prm.I2C_BusModeState = B_ENABLED) *doMask |= SX_DO_REBOOT_MSK;
+        if (EE_Prm.I2C_BusModeState == B_ENABLED) *doMask |= SX_DO_REBOOT_MSK;
         *doMask |= SX_DO_SAVE_MSK;
       }
       return SX_NO_ERROR;
@@ -767,7 +820,7 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_
     }
 
     // Clear slot <Slot number 1-8> <0x7F = ALL SLOTS>
-    else if (cmdSubId == 0x01  && msgLen == 4 & TransPacketPipeline_ClearSlot(sxMsg[4]) ) {
+    else if (cmdSubId == 0x01  && msgLen == 4 && TransPacketPipeline_ClearSlot(sxMsg[4]) ) {
         *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
         return SX_NO_ERROR ;
     }
@@ -833,7 +886,7 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_
     }
     else
     // ByPass pipe by index
-    if (cmdSubId == 0x05  && msgLen == 6 & TransPacketPipe_ByPass(sxMsg[4],sxMsg[5],sxMsg[6]) ) {
+    if (cmdSubId == 0x05  && msgLen == 6 && TransPacketPipe_ByPass(sxMsg[4],sxMsg[5],sxMsg[6]) ) {
       *doMask |= ( SX_DO_SAVE_MSK | SX_DO_SYNC_MSK);
       return SX_NO_ERROR ;
     }
@@ -993,7 +1046,7 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
       *(++buff2) = jackIn;
       *(++buff2) = PORT_TYPE_VIRTUAL;
       for (  uint8_t i=0; i!= VIRTUAL_INTERFACE_MAX ; i++) {
-      	     if ( EE_Prm.rtRulesIthru[jackIn].vrOutTgMsk & ( 1 << i) ) {
+      	     if ( EE_Prm.rtRulesIthru[jackIn].vrInTgMsk & ( 1 << i) ) {
               *(++buff2) = i;
               out++;
            }
@@ -1029,20 +1082,19 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
       *(++buff2) = inPortType;
       *(++buff2) = inPort;
 
-      if (inPortType == 0 ) {  // Cable
+      if (inPortType == PORT_TYPE_CABLE ) {  // Cable
         cmsk = EE_Prm.rtRulesCable[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesCable[inPort].jkOutTgMsk;
-        vmsk = EE_Prm.rtRulesCable[inPort].vrOutTgMsk;
+        vmsk = EE_Prm.rtRulesCable[inPort].vrInTgMsk;
       }
-      else if (inPortType == 1 ){  // jack
+      else if (inPortType == PORT_TYPE_JACK ){  // jack
         cmsk = EE_Prm.rtRulesJack[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesJack[inPort].jkOutTgMsk;
-        vmsk = EE_Prm.rtRulesJack[inPort].vrOutTgMsk;
+        vmsk = EE_Prm.rtRulesJack[inPort].vrInTgMsk;
       }
-      else if (inPortType == 2 ) {  // Virtual
+      else if (inPortType == PORT_TYPE_VIRTUAL ) {  // Virtual
         cmsk = EE_Prm.rtRulesVirtual[inPort].cbInTgMsk;
         jmsk = EE_Prm.rtRulesVirtual[inPort].jkOutTgMsk;
-        vmsk = EE_Prm.rtRulesVirtual[inPort].vrOutTgMsk;
       } else return 0;
 
       uint8_t  i = 0;
@@ -1069,20 +1121,22 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
       }
       *(++buff2) = 0xF7;
 
-      // Virtual targets
-      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
-      buff2+=sizeof(sysExInternalHeader);
-      *buff2 = fnId ;
-      *(++buff2) = 0X01; // cmdId
-      *(++buff2) = inPortType;
-      *(++buff2) = inPort;
-      *(++buff2) = 2 ; // outport Type virtual
-      i = 0;
-      while ( vmsk && i != B_SERIAL_INTERFACE_MAX) {
-        if (vmsk & 1  ) *(++buff2) = i;
-        vmsk >>= 1; i++;
+      // Virtual targets for CB and JK
+      if ( inPortType != PORT_TYPE_VIRTUAL ) {
+        memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+        buff2+=sizeof(sysExInternalHeader);
+        *buff2 = fnId ;
+        *(++buff2) = 0X01; // cmdId
+        *(++buff2) = inPortType;
+        *(++buff2) = inPort;
+        *(++buff2) = 2 ; // outport Type virtual
+        i = 0;
+        while ( vmsk && i != B_SERIAL_INTERFACE_MAX) {
+          if (vmsk & 1  ) *(++buff2) = i;
+          vmsk >>= 1; i++;
+        }
+        *(++buff2) = 0xF7;
       }
-      *(++buff2) = 0xF7;
 
       return buff2-buff+1;
   }
@@ -1127,10 +1181,10 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = 0X02; // Attach port
     *(++buff2) = inPortType;
     *(++buff2) = inPort;
-    if ( inPortType == 0) *(++buff2) = EE_Prm.rtRulesCable[inPort].slot;
-    else if ( inPortType == 1) *(++buff2) = EE_Prm.rtRulesJack[inPort].slot;
-    else if ( inPortType == 2) *(++buff2) = EE_Prm.rtRulesVirtual[inPort].slot;
-    else if ( inPortType == 3) *(++buff2) = EE_Prm.rtRulesIthru[inPort].slot;
+    if ( inPortType      == PORT_TYPE_CABLE)   *(++buff2) = EE_Prm.rtRulesCable[inPort].slot;
+    else if ( inPortType == PORT_TYPE_JACK)    *(++buff2) = EE_Prm.rtRulesJack[inPort].slot;
+    else if ( inPortType == PORT_TYPE_VIRTUAL) *(++buff2) = EE_Prm.rtRulesVirtual[inPort].slot;
+    else if ( inPortType == PORT_TYPE_ITHRU)   *(++buff2) = EE_Prm.rtRulesIthru[inPort].slot;
     else return 0;
 
     *(++buff2) = 0xF7;

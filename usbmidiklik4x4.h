@@ -50,8 +50,8 @@ __ __| |           |  /_) |     ___|             |           |
 #include "usb_midi_device.h"
 #include "hardware_config.h"
 
-// Timer for attachCompare1Interrupt
-#define TIMER2_RATE_MICROS 1000
+// Millisec all purpose Timer (LED off notably)
+#define TIMER_MILLIS_RATE_MICROS 1000
 // LED ON duration in loop count. NB : 255 tick max * TIMER2_RATE_MICROS
 #define LED_TICK_COUNT 5
 // LED ON recovery time in msec when no dedicated LED for CONNECT USB
@@ -128,15 +128,18 @@ typedef struct {
       uint8_t  slot;
       uint16_t cbInTgMsk;
       uint16_t jkOutTgMsk;
-      uint16_t vrOutTgMsk;
+      uint16_t vrInTgMsk;
 } __packed routingRule_t;
 
+// Routing structure used for IThru and Virtual IN
 typedef struct {
       uint8_t  slot;
+      union {
+        uint16_t cbInTgMsk;
+        uint16_t vrInTgMsk;
+      };
       uint16_t jkOutTgMsk;
-      uint16_t vrOutTgMsk;
-} __packed routingRuleJack_t;
-
+} __packed routingRuleAlt_t;
 
 // Use this structure to send and receive packet to/from USB /serial/BUS
 typedef union  {
@@ -153,6 +156,27 @@ typedef union {
   } __packed mpk;
   uint8_t packet[5];
 } __packed masterMidiPacket_t;
+
+// MIDI CLOCK GENERATOR MANAGEMENT
+// Compute a BPM where BPM is x 10 to manage half bpm.
+// i.e. 1205 means 120.5 BPM
+#define MIDI_CLOCKGEN_MAX VIRTUAL_INTERFACE_MAX
+//# 1205 BPM means 120.5
+#define DEFAULT_BPM 1200
+#define MAX_BPM 3000
+#define MIN_BPM 100
+
+// midi Bpm Clock type. Overflow value is stored in tick.
+typedef struct {
+  boolean   enabled;
+  uint16_t  bpm;
+} __packed bpmClock_t;
+
+typedef struct {
+    unsigned long tickBpm;
+    unsigned long nextBpmTick;
+} __packed bpmTick_t;
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
@@ -210,10 +234,8 @@ uint8_t static const BusCommandRequestSize[]= {
 
 // Bus data types for transfers
 enum BusDataType {
-  B_DTYPE_ROUTING_RULES_CABLE,
-  B_DTYPE_ROUTING_RULES_JACK,
-  B_DTYPE_ROUTING_RULES_VIRTUAL,
-  B_DTYPE_ROUTING_RULES_ITHRU,
+  B_DTYPE_ROUTING_RULE,
+  B_DTYPE_ROUTING_RULE_ALT,
   B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_ROUTING_ITHRU_JACKIN_MSK,
   B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD,
@@ -234,7 +256,7 @@ enum BusDeviceSate {
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
 #define EE_SIGNATURE "UMK"
-#define EE_PRMVER 25
+#define EE_PRMVER 26
 
 typedef struct {
         uint8_t         signature[3];
@@ -258,15 +280,20 @@ typedef struct {
 
         routingRule_t rtRulesCable[USBCABLE_INTERFACE_MAX];
         routingRule_t rtRulesJack[B_SERIAL_INTERFACE_MAX];
-        routingRule_t rtRulesVirtual[VIRTUAL_INTERFACE_MAX];
 
-        // IntelliThru routing rules jack only
-        routingRuleJack_t rtRulesIthru[B_SERIAL_INTERFACE_MAX];
-        uint16_t          ithruJackInMsk;
-        uint8_t           ithruUSBIdleTimePeriod; // 1 to 255 periods of 15s.
+        // Virtual routing rules : cable and jack only
+        routingRuleAlt_t rtRulesVirtual[VIRTUAL_INTERFACE_MAX];
+
+        // IntelliThru routing rules jack and virtual in only
+        routingRuleAlt_t rtRulesIthru[B_SERIAL_INTERFACE_MAX];
+        uint16_t         ithruJackInMsk;
+        uint8_t          ithruUSBIdleTimePeriod; // 1 to 255 periods of 15s.
 
         // Transformation pipelines slots.
         transPipeline_t pipelineSlot[TRANS_PIPELINE_SLOT_SIZE];
+
+        // Midiclock virtuals
+        bpmClock_t  bpmClocks[MIDI_CLOCKGEN_MAX] ;
 
         uint16_t        vendorID;
         uint16_t        productID;
@@ -277,18 +304,22 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-boolean LED_Flash(volatile LEDTick_t *);
+int     memcmpcpy ( void * , void * , size_t );
+void    TimerMillisHandler();
+void    LED_Init();
 void    LED_TurnOn(volatile LEDTick_t *);
 void    LED_TurnOff(volatile LEDTick_t *);
+boolean LED_Flash(volatile LEDTick_t *);
 void    LED_Update();
-int     memcmpcpy ( void * , void * , size_t );
-void    Timer2Handler(void);
 void    FlashAllLeds(uint8_t);
 void    SerialMidi_SendMsg(uint8_t *, uint8_t);
 void    SerialMidi_SendPacket(midiPacket_t *, uint8_t );
 void    SerialMidi_RouteMsg( uint8_t, midiXparser*  );
 void    SerialMidi_RouteSysEx( uint8_t , midiXparser* );
 void    RoutePacketToTarget(uint8_t , midiPacket_t *);
+void    MidiClockGenerator();
+boolean SetMidiBpmClock(uint8_t, uint16_t);
+boolean SetMidiEnableClock(uint8_t , boolean );
 void    ResetMidiRoutingRules(uint8_t);
 boolean USBMidi_SendSysExPacket(uint8_t,const uint8_t *,uint16_t );
 void    CheckBootMode();

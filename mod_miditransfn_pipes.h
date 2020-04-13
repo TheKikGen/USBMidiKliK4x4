@@ -124,7 +124,7 @@ enum MidiTransPipeId {
 typedef boolean (*MidiTransFnP_t) (uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) ;
 typedef boolean (*MidiTransFn_CheckParmsP_t) (transPipe_t *pipe) ;
 typedef struct {
-    char *                    shortName;
+    const char *                    shortName;
     MidiTransFnP_t            pipeFn;
     MidiTransFn_CheckParmsP_t checkFn;
 } __packed MidiTransFnVector_t;
@@ -153,19 +153,45 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // |         |                    |  Sys.cmn :0010 (2) |                    |                    |
 // |         |                    |  realtime:0100 (4) |                    |                    |
 // |         |                    |  sysex   :1000 (8) |                    |                    |
+// |         |   MidiStatus       |  include:0         | status1:80-FF      |   status2:80-FF    |
+// |         |  dble filter:1     |  exclude:1         |(sysex not allowed) |    if unused:0     |
 // -----------------------------------------------------------------------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe) {
-  if ( pipe->par1 > 0 ) return false;
-  if ( pipe->par2 == 0 || pipe->par2 > 0B1111 ) return false;
-
+  if ( pipe->par1 > 1 ) return false;
+  if ( pipe->par1 == 0 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
+  if ( pipe->par1 == 1 ) {
+    if ( pipe->par2 > 1 ) return false;
+    if ( pipe->par3 < 0x80 || (pipe->par3 >= 0x80 && pipe->par4 > 0 && pipe->par4 < 0x80 ) ) return false;
+    if ( pipe->par3 == 0xF0 || pipe->par3 == 0xF7 ) return false;
+    if ( pipe->par4 == 0xF0 || pipe->par4 == 0xF7 ) return false;
+  }
   return true;
 }
 
 boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+
 	// Apply inclusive filter. Drop if not matching.
-  if ( pipe->par1 == 0 && (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2)  )
-          return true;
-  return false;
+  if ( pipe->par1 == 0  ) {
+    uint8_t msgType = 0;
+    uint8_t cin   = pk->packet[0] & 0x0F ;
+    // Check if SysEx filter first and modify the msgType mask because it is a multipacket msg
+    // Note the CIN 5 exception for tune request
+    if ( ( cin <= 7 && cin >= 4 && pk->packet[1] != midiXparser::tuneRequestStatus ) )
+          msgType = midiXparser::sysExMsgTypeMsk;
+    else
+          msgType = midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]); // All other msg
+
+    return ( pipe->par2 & msgType );
+  }
+  // Midi Status double filter
+  else  if ( pipe->par1 == 1  ) {
+    uint8_t midiStatus = pk->packet[1] & 0xF0 ;
+    if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  )
+        return (pipe->par2 == 0 ? true : false ); //Keep or drop...
+    else return true;
+  }
+  else
+  return false; // Error
 }
 // -----------------------------------------------------------------------------------------------
 // | PipeID  |        par1        |        par2        |        par3        |         par4       |
@@ -465,9 +491,9 @@ boolean MidiTransFn_KbSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pip
   if ( pk->packet[2] >= pipe->par1  ) {
     pk->packet[1] = midiStatus + pipe->par2; // Channel
     if ( pipe->par3 == 1 || pipe->par3 == 2  ) {
-        // Transpose+
-        transPipe_t p =  { FN_TRANSPIPE_NOTE_CHANGER,(pipe->par3 == 1?0:1),pipe->par4,0,0 };
-        return MidiTransFn_NoteChanger(portType, pk, &p);
+      // Transpose+
+      transPipe_t p =  { FN_TRANSPIPE_NOTE_CHANGER,0, (uint8_t)(pipe->par3 - 1),pipe->par4,0,0 };
+      return MidiTransFn_NoteChanger(portType, pk, &p);
     }
   }
   return true;

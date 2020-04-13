@@ -316,6 +316,10 @@ void EE_PrmInit(bool factorySettings)
 
 		ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
+		// Set BPM and disable all clocks
+		SetMidiBpmClock(0x7F,DEFAULT_BPM);
+		SetMidiEnableClock(0x7F,false);
+
 	  EE_Prm.vendorID  = USB_MIDI_VENDORID;
     EE_Prm.productID = USB_MIDI_PRODUCTID;
 

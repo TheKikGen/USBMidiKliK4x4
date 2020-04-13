@@ -111,49 +111,42 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 	Wire.endTransmission();
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS INSIDE AN ISR ! - PARSE DATA FROM MASTER TO SYNC ROUTING RULES
 //////////////////////////////////////////////////////////////////////////////
 int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
 {
-  // midiRoutingRule
-  if (dataType == B_DTYPE_ROUTING_RULES_CABLE  || dataType == B_DTYPE_ROUTING_RULES_JACK
-				|| dataType == B_DTYPE_ROUTING_RULES_VIRTUAL )
+  // midiRoutingRule.
+	// arg1 = index
+	// arg2 = 0: cable, 1:Jk, 2:virtual,
+  if (dataType == B_DTYPE_ROUTING_RULE )
   {
-    routingRule_t *mr ;
     if (Wire.available() != sizeof(routingRule_t)) return -1;
+		routingRule_t *mr ;
+		if ( arg2 == PORT_TYPE_CABLE && arg1 < USBCABLE_INTERFACE_MAX) mr = &EE_Prm.rtRulesCable[arg1];
+		else if ( arg2 == PORT_TYPE_JACK && arg1 < B_SERIAL_INTERFACE_MAX) mr = &EE_Prm.rtRulesJack[arg1];
+		else return -1;
 
-    if ( dataType == B_DTYPE_ROUTING_RULES_CABLE )
-    {
-        if (arg1 >= USBCABLE_INTERFACE_MAX)  return -1;
-        mr = &EE_Prm.rtRulesCable[arg1];
-    }
-    else
-		if ( dataType == B_DTYPE_ROUTING_RULES_JACK )
-    {
-        if (arg1 >= B_SERIAL_INTERFACE_MAX)  return -1;
-        mr = &EE_Prm.rtRulesJack[arg1];
-    }
-		else
-		{
-				if (arg1 >= VIRTUAL_INTERFACE_MAX)  return -1;
-				mr = &EE_Prm.rtRulesVirtual[arg1];
-		}
     routingRule_t r;
     Wire.readBytes((uint8_t *)&r,sizeof(routingRule_t));
     if (memcmpcpy((void*)mr,(void*)&r,sizeof(routingRule_t))) I2C_SlaveSyncDoUpdate = true;
   }
   else
-  // rtRulesIthru
-  if ( dataType == B_DTYPE_ROUTING_RULES_ITHRU )
+	// Alternate midi routing rule
+	// arg1 : pipeIndex
+	// arg2 : 2 : virtual, 3:Ithru
+	if ( dataType == B_DTYPE_ROUTING_RULE_ALT )
   {
-      if (Wire.available() != sizeof(routingRuleJack_t)) return -1;
-      if (arg1 >= B_SERIAL_INTERFACE_MAX)  return -1;
-      routingRuleJack_t *mr;
-      routingRuleJack_t r;
-      Wire.readBytes((uint8_t *)&r,sizeof(routingRuleJack_t));
-      mr = &EE_Prm.rtRulesIthru[arg1];
-      if (memcmpcpy((void*)mr,(void*)&r,sizeof(routingRuleJack_t))) I2C_SlaveSyncDoUpdate = true;
+    if (Wire.available() != sizeof(routingRuleAlt_t)) return -1;
+		routingRuleAlt_t *mr;
+		if (arg2 == PORT_TYPE_VIRTUAL && arg1 < VIRTUAL_INTERFACE_MAX ) mr = &EE_Prm.rtRulesVirtual[arg1];
+		else if ( arg2 == PORT_TYPE_ITHRU && arg1 < B_SERIAL_INTERFACE_MAX) mr = &EE_Prm.rtRulesIthru[arg1];
+    else return -1;
+
+    routingRuleAlt_t r;
+    Wire.readBytes((uint8_t *)&r,sizeof(routingRuleAlt_t));
+    if (memcmpcpy((void*)mr,(void*)&r,sizeof(routingRuleAlt_t))) I2C_SlaveSyncDoUpdate = true;
   }
   else
   // ithruJackInMsk
@@ -485,20 +478,19 @@ void I2C_SlavesRoutingSyncFromMaster()
 	uint8_t i=0;
   // Send rtRulesCable
   for ( i=0 ; i != USBCABLE_INTERFACE_MAX ; i ++ ) {
-    I2C_SendData(B_DTYPE_ROUTING_RULES_CABLE, i, 0, (uint8_t *)&EE_Prm.rtRulesCable[i], sizeof(routingRule_t));
+    I2C_SendData(B_DTYPE_ROUTING_RULE, i, PORT_TYPE_CABLE, (uint8_t *)&EE_Prm.rtRulesCable[i], sizeof(routingRule_t));
   }
 
   // Send rtRulesJack -  rtRulesIthru
   for ( i=0 ; i != B_SERIAL_INTERFACE_MAX ; i ++ ) {
-    I2C_SendData(B_DTYPE_ROUTING_RULES_JACK, i, 0, (uint8_t *)&EE_Prm.rtRulesJack[i], sizeof(routingRule_t));
-    I2C_SendData(B_DTYPE_ROUTING_RULES_ITHRU, i, 0, (uint8_t *)&EE_Prm.rtRulesIthru[i], sizeof(routingRuleJack_t));
+    I2C_SendData(B_DTYPE_ROUTING_RULE, i, PORT_TYPE_JACK, (uint8_t *)&EE_Prm.rtRulesJack[i], sizeof(routingRule_t));
+    I2C_SendData(B_DTYPE_ROUTING_RULE_ALT, i, PORT_TYPE_ITHRU, (uint8_t *)&EE_Prm.rtRulesIthru[i], sizeof(routingRuleAlt_t));
   }
 
 	// Send rtRulesVirtual
   for ( i=0 ; i != VIRTUAL_INTERFACE_MAX ; i ++ ) {
-    I2C_SendData(B_DTYPE_ROUTING_RULES_VIRTUAL, i, 0, (uint8_t *)&EE_Prm.rtRulesVirtual[i], sizeof(routingRule_t));
+    I2C_SendData(B_DTYPE_ROUTING_RULE_ALT, i, PORT_TYPE_VIRTUAL, (uint8_t *)&EE_Prm.rtRulesVirtual[i], sizeof(routingRuleAlt_t));
   }
-
 
   I2C_SendData(B_DTYPE_ROUTING_ITHRU_JACKIN_MSK, 0, 0,(uint8_t *)&EE_Prm.ithruJackInMsk, sizeof(EE_Prm.ithruJackInMsk));
   I2C_SendData(B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD, 0, 0, (uint8_t *)&EE_Prm.ithruUSBIdleTimePeriod, sizeof(EE_Prm.ithruUSBIdleTimePeriod));
@@ -581,7 +573,7 @@ void I2C_ProcessSlave ()
 	}
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
-  // and C pressed
+  // and key pressed
 	if (Serial.available()) {
       char key = Serial.read();
 			Serial.println();
