@@ -118,6 +118,15 @@ The following menu should appear after connecting to the right serial USB port ,
 8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview to help to better understand what are possible paths for a midi message packet, coming from a physical in port to a physical out port :
 <img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
 
+## FULL SYSEX preliminary implementation (RC1 - 06 April 2020) ###
+
+https://github.com/TheKikGen/USBMidiKliK4x4/wiki/Preliminary-UMK4x4-SYSEX-2.5--implementation
+
+## Midi transformation pipelines (RC1 - 06 April 2020) ###
+
+A powerfull "pipeline" feature has been added to the RC1 allowing to modify an incoming midi message a chain of transformation functions, e.g.,  transpose notes, split, map channel to another, map CC to another, etc....    
+<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
+
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
 Update tool is included.  Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).
