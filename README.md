@@ -115,7 +115,7 @@ The following menu should appear after connecting to the right serial USB port ,
 
 ## Midi clock generator and virtual ports added (14 April 2020) ###
 
-8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview of what you do with an inconming midi message :
+8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview of what are possible path for an an inconming midi message, before reaching an out port :
 <img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
 
 ## Build 2.191207.1818 is ready (07 December 2019) ###
