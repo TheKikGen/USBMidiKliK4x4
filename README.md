@@ -113,13 +113,10 @@ The following menu should appear after connecting to the right serial USB port ,
 
 # NEWS
 
-## Midi transformation pipelines (22 March 2020) ###
+## Midi clock generator and virtual ports added (14 April 2020) ###
 
-I'm currently working on a powerfull new feature allowing to modify an incoming midi message via a "pipeline". A pipeline can be seen as a chain of transformation functions, e.g.,  transpose notes, split, map channel to another, map CC to another, etc....  
-The RC1 will be delivered around end of March.  Have a look at the MIDITRANS branch and at the wiki :
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/Preliminary-UMK4x4-SYSEX-2.5--implementation
-
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
+8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview of what you do with an inconming midi message :
+<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
 
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
