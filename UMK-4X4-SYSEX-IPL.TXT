@@ -26,7 +26,7 @@ FN Description / sub command
 0B USB device settings
     00 Set USB product string
     01 Set USB vendor id and product id
-0C Virtual port Midi Clock settings
+0C Midi Clock settings
     00 Enable/disable midi clock
     01 Set midi clock bpm
 0E Intelligent thru mode settings
@@ -65,6 +65,7 @@ F0 77 77 78 05 <dump address:nn nn nn nn> F7
 -------------------------------------------------------------
 | All                   | 7F 00 00 00
 | USB device settings   | 0B 00 00 00
+| Midi clock settings   | 0C <clock#:0-8> 00 00
 | USB Idle              | 0E 02 00 00
 | IThru routing         | 0E 03 <Jack In> 00
 | In port midi routing  | 0F 01 <in port type:0-2> <in port>
@@ -72,7 +73,7 @@ F0 77 77 78 05 <dump address:nn nn nn nn> F7
 | In port attached slot | 11 00 <in port type:0-3> <in port>
 | Pipes in slot         | 11 01 <slot> <pipe index>
 -------------------------------------------------------------
-in port: 0-F
+Clock #: 0-8    in port: 0-F
 port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 
 -------------------------------------------------------------------------------
@@ -113,16 +114,17 @@ F0 77 77 78 0B 00 <usb product string not accentuated> F7
 F0 77 77 78 0B 01 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
 
 -------------------------------------------------------------------------------
-0C Virtual port Midi Clock settings
+0C Midi Clock settings
 
 0C 00 Enable/disable midi clock
-F0 77 77 78 0C 00 <virtual port:0-8> <disable:0 enabled:1> F7
+F0 77 77 78 0C 00 <clock #:0-8> <disable:0 enabled:1> F7
 
 0C 01 Set midi clock bpm
-F0 77 77 78 0C 01 <virtual port:0-8> <bpm: msbn lsbn1 lsbn2> F7
+F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
 Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
 Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
-If virtual port = 7F, then all clocks are updated.
+If clock # = 7F, then all clocks are updated.
+
 Due to the frequency of change, the clock state or BPM are not stored into
 the flash memory after the execution of the sysex command.
 However, the global function "Save settings" (06) can be used to save clocks.

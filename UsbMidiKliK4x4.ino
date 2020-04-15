@@ -549,7 +549,7 @@ boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
     for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
       if (bpm) EE_Prm.bpmClocks[i].bpm = bpm;
       bpmTicks[i].tickBpm = ( (60000000 / EE_Prm.bpmClocks[i].bpm ) / 24 ) * 10;
-      bpmTicks[i].nextBpmTick = 0;
+      bpmTicks[i].nextBpmTick = micros() + bpmTicks[i].tickBpm;
     }
     return true;
   }
@@ -557,7 +557,7 @@ boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
   if (! bpm) return false;
   EE_Prm.bpmClocks[clockNo].bpm = bpm;
   bpmTicks[clockNo].tickBpm = ( (60000000 / EE_Prm.bpmClocks[clockNo].bpm ) / 24 ) * 10;
-  bpmTicks[clockNo].nextBpmTick = 0;
+  bpmTicks[clockNo].nextBpmTick = micros() + bpmTicks[clockNo].tickBpm;
 
   return true;
 }
@@ -571,11 +571,11 @@ boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
   if ( clockNo == 0x7F) {
     for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
         EE_Prm.bpmClocks[i].enabled = enable;
-        bpmTicks[i].nextBpmTick = 0;
+        bpmTicks[i].nextBpmTick = micros() + bpmTicks[i].tickBpm;
     }
     return true;
   }
-  bpmTicks[clockNo].nextBpmTick = 0;
+  bpmTicks[clockNo].nextBpmTick = micros() + bpmTicks[clockNo].tickBpm;
   EE_Prm.bpmClocks[clockNo].enabled = enable;
   return true;
 }

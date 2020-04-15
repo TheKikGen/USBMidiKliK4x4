@@ -975,6 +975,7 @@ void ShowConfigMenu()
 								Serial.print(".");
 								uint8_t bpm2 = AsknNumber(1,false);
 							  bpm1 = bpm1 * 10 + bpm2;
+								--i;
 								if ( !SetMidiBpmClock(i, bpm1) || !SetMidiEnableClock(i,true) ) SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
 							}
 					}

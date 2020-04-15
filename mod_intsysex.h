@@ -63,7 +63,7 @@ void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnGlobalFunctions(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnSetUsbSettings(uint8_t ,uint8_t *,uint8_t *);
-uint8_t SysExInternal_fnVirtClocksSettings(uint8_t ,uint8_t *,uint8_t *);
+uint8_t SysExInternal_fnMidiClocksSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnIThruSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t ,uint8_t *,uint8_t *);
 uint8_t SysExInternal_fnBusModeSettings(uint8_t ,uint8_t *,uint8_t *);
@@ -110,11 +110,9 @@ boolean sysExFunctionAckToggle = false;
 // FN Description
 //
 // 05 Configuration sysex dump
-// 06 General Information
-// 08 Reboot in configuration mode
-// 0A Hardware reset
-// 0B Set USB product string
-// 0C Set USB vendor id and product id
+// 06 Global functions
+// 0B USB device settings
+// 0C Midi Clock settings
 // 0E Intelligent thru mode settings
 // 0F Midi routing settings
 // 10 Bus mode settings
@@ -150,7 +148,7 @@ const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
   { FN_SX_DUMP              ,&SysExInternal_fnDumpConfig          },
   { FN_SX_GLOBAL_FN         ,&SysExInternal_fnGlobalFunctions     },
   { FN_SX_USB_SET           ,&SysExInternal_fnSetUsbSettings      },
-  { FN_SX_CLOCKS_SET        ,&SysExInternal_fnVirtClocksSettings  },
+  { FN_SX_CLOCKS_SET        ,&SysExInternal_fnMidiClocksSettings  },
   { FN_SX_ITHRU_SET         ,&SysExInternal_fnIThruSettings       },
   { FN_SX_MIDI_ROUTING_SET  ,&SysExInternal_fnMidiRoutingSettings },
   { FN_SX_BUS_SET           ,&SysExInternal_fnBusModeSettings     },
@@ -302,6 +300,7 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // -------------------------------------------------------------
 // | All                   | 7F 00 00 00
 // | USB device settings   | 0B 00 00 00
+// | Midi clock settings   | 0C <clock #:0-8> 00 00
 // | USB Idle              | 0E 02 00 00
 // | IThru routing         | 0E 03 <Jack In> 00
 // | In port midi routing  | 0F 01 <in port type:0-2> <in port>
@@ -309,7 +308,7 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // | In port attached slot | 11 00 <in port type:0-3> <in port>
 // | Pipes in slot         | 11 01 <slot> <pipe index>
 // -------------------------------------------------------------
-// in port: 0-F
+// Clock #: 0-8    in port: 0-F
 // port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
@@ -327,6 +326,7 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
   uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
   if ( ! ( (sxAddr == 0x7F000000 )
           || (sxAddr == 0x0B000000 )
+          || (sxAddr >= 0x0C000000 && sxAddr <= 0x0C080000)
           || (sxAddr == 0x0E020000 )
           || (sxAddr >= 0x0E030000 && sxAddr <= 0x0E030F00)
           || (sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F)
@@ -420,7 +420,7 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
 
   // Save settings
   if ( sxMsg[2] == 0x06 && sxMsg[0] == 2 ) {
-    *doMask = SX_DO_SAVE_MSK;
+    *doMask |= SX_DO_SAVE_MSK;
     return SX_NO_ERROR;
   }
 
@@ -482,29 +482,30 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 0C Virtual port Midi Clock settings
+// 0C Midi Clock settings
 //
 // 0C 00 Enable/disable midi clock
-// F0 77 77 78 0C 00 <virtual port:0-8> <disable:0 enabled:1> F7
+// F0 77 77 78 0C 00 <clock #:0-8> <disable:0 enabled:1> F7
 //
 // 0C 01 Set midi clock bpm
-// F0 77 77 78 0C 01 <virtual port:0-8> <bpm: msbn lsbn1 lsbn2> F7
-// Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
+// F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
 // Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
-// If virtual port = 7F, then all clocks are updated.
+// Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
+// If clock # = 7F, then all clocks are updated.
+//
 // Due to the frequency of change, the clock state or BPM are not stored into
 // the flash memory after the execution of the sysex command.
 // However, the global function "Save settings" (06) can be used to save clocks.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   *doMask = SX_DO_ACK_MSK;
 
   // Enable / disable Clock
   if ( sxMsg[2] == 0x00 ) {
     if ( sxMsg[0] != 4 )  return SX_ERROR_BAD_MSG_SIZE;
-    // MIDI_CLOCKGEN_MAX is defines as VIRTUAL_INTERFACE_MAX
+    // MIDI_CLOCKGEN_MAX is defined as VIRTUAL_INTERFACE_MAX
     // but we keep here the possibility to reduce the number of clocks
-    // starting form virtual port 0.
+    // starting from virtual port 0.
     if ( sxMsg[3] != 0x7F && sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
     if ( sxMsg[4] > 1 )  return SX_ERROR_ANY;
 
@@ -517,10 +518,11 @@ uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
   // Set bpm
   if ( sxMsg[2] == 0x01 ) {
     if ( sxMsg[0] != 6 )  return SX_ERROR_BAD_MSG_SIZE;
-    if ( sxMsg[3] != 0x7F && sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
+    uint8_t clockNo = sxMsg[3];
+    if ( clockNo != 0x7F && clockNo > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
     uint16_t bpm = (sxMsg[4]<< 8) + (sxMsg[5]<< 4) + sxMsg[6];
-    uint16_t oldBpm = EE_Prm.bpmClocks[sxMsg[3]].bpm;
-    if ( SetMidiBpmClock(sxMsg[3],bpm) ) {
+    uint16_t oldBpm = EE_Prm.bpmClocks[clockNo].bpm;
+    if ( SetMidiBpmClock(clockNo,bpm) ) {
       if (oldBpm != bpm) *doMask |= SX_DO_SYNC_MSK;
       return SX_NO_ERROR;
     }
@@ -934,6 +936,11 @@ void SysexInternal_DumpConfToStream(uint8_t dest) {
   // Usb settings : product string , PID, VID
   SysexInternal_DumpAddrToStream(0x0B000000,dest);
 
+  // Midi Clock Settings 0C <Clock #>
+  for (  uint32_t i=0; i!= MIDI_CLOCKGEN_MAX ; i++) {
+    SysexInternal_DumpAddrToStream(0x0C000000 + (i << 16 ) , dest);
+  }
+
   // Ithru USB Idle, routing,
   SysexInternal_DumpAddrToStream(0x0E020000,dest);
   for (  uint32_t i=0; i!= B_SERIAL_INTERFACE_MAX ; i++)
@@ -1021,6 +1028,28 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
     *(++buff2) = (EE_Prm.productID & 0x000F) ;
     *(++buff2) = 0xF7;
     return buff2-buff+1;
+  }
+
+  // 0C Clock settings
+  // Dump : 0C <clock #> 00 00
+  // Generate F0 77 77 78 0C 00 <clock #:0-8> <disable:0 enabled:1> F7
+  // Generate F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
+  if ( sxAddr >= 0x0C000000 && sxAddr <= 0x0C080000 ) {
+      uint8_t clockNo = ( (sxAddr<<8) >> 24 ) ;
+      *(++buff2) = 0X00; // Enable/Disable
+      *(++buff2) = clockNo;
+      *(++buff2) = EE_Prm.bpmClocks[clockNo].enabled;
+      *(++buff2) = 0xF7;
+      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+      buff2+=sizeof(sysExInternalHeader);
+      *buff2 = fnId ;
+      *(++buff2) = 0X01; // Bpm set
+      *(++buff2) = clockNo;
+      *(++buff2) = EE_Prm.bpmClocks[clockNo].bpm >> 8 ;
+      *(++buff2) = (EE_Prm.bpmClocks[clockNo].bpm & 0x00FF) >> 4  ;
+      *(++buff2) = (EE_Prm.bpmClocks[clockNo].bpm & 0x00F)   ;
+      *(++buff2) = 0xF7;
+      return buff2-buff+1;
   }
 
   // 0E Intelligent thru - 02 Set USB idle
