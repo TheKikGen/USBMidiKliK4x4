@@ -111,7 +111,6 @@ void I2C_BusSerialSendMidiPacket(midiPacket_t *pk, uint8_t targetPort)
 	Wire.endTransmission();
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // THIS IS INSIDE AN ISR ! - PARSE DATA FROM MASTER TO SYNC ROUTING RULES
 //////////////////////////////////////////////////////////////////////////////
@@ -169,6 +168,18 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
       I2C_SlaveSyncDoUpdate = true;
     }
   }
+	else
+	// Bpm clocks (not used when slave but useful to monitor master)
+  if (dataType == B_DTYPE_BPM_CLOCK) {
+		if (Wire.available() != sizeof(bpmClock_t)) return -1;
+		bpmClock_t *mr;
+		if (arg1 < MIDI_CLOCKGEN_MAX ) mr = &EE_Prm.bpmClocks[arg1];
+    else return -1;
+
+		bpmClock_t r;
+    Wire.readBytes((uint8_t *)&r,sizeof(bpmClock_t));
+    if (memcmpcpy((void*)mr,(void*)&r,sizeof(bpmClock_t))) I2C_SlaveSyncDoUpdate = true;
+	}
 	else
 	// Pipeline slots . Pipe by pipe
 	if (dataType == B_DTYPE_MIDI_TRANSPIPE) {
@@ -491,6 +502,11 @@ void I2C_SlavesRoutingSyncFromMaster()
   for ( i=0 ; i != VIRTUAL_INTERFACE_MAX ; i ++ ) {
     I2C_SendData(B_DTYPE_ROUTING_RULE_ALT, i, PORT_TYPE_VIRTUAL, (uint8_t *)&EE_Prm.rtRulesVirtual[i], sizeof(routingRuleAlt_t));
   }
+
+	// Send Bpm clocks (not used when slave but useful to monitor master)
+  for ( i=0 ; i != MIDI_CLOCKGEN_MAX ; i ++ ) {
+  	I2C_SendData(B_DTYPE_BPM_CLOCK, i, 0, (uint8_t *)&EE_Prm.bpmClocks[i], sizeof(bpmClock_t));
+	}
 
   I2C_SendData(B_DTYPE_ROUTING_ITHRU_JACKIN_MSK, 0, 0,(uint8_t *)&EE_Prm.ithruJackInMsk, sizeof(EE_Prm.ithruJackInMsk));
   I2C_SendData(B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD, 0, 0, (uint8_t *)&EE_Prm.ithruUSBIdleTimePeriod, sizeof(EE_Prm.ithruUSBIdleTimePeriod));

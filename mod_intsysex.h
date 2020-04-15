@@ -363,6 +363,9 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 // 06 05 Clear all (midi, Ithru routing rules and pipelines..)
 // F0 77 77 78 06 05 F7
 //
+// 06 06 Save settings to flash memory
+//F0 77 77 78 06 06 F7
+//
 // 06 08 Reboot in configuration mode
 // F0 77 77 78 06 08 F7
 //
@@ -414,6 +417,13 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
     *doMask |= (SX_DO_SAVE_MSK | SX_DO_SYNC_MSK); // Sync slaves
     return SX_NO_ERROR;
   }
+
+  // Save settings
+  if ( sxMsg[2] == 0x06 && sxMsg[0] == 2 ) {
+    *doMask = SX_DO_SAVE_MSK;
+    return SX_NO_ERROR;
+  }
+
   // Reboot in configuration mode
   if ( sxMsg[2] == 0x08 && sxMsg[0] == 2 ) {
     EE_Prm.nextBootMode = bootModeConfigMenu;
@@ -482,6 +492,9 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 // Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
 // Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
 // If virtual port = 7F, then all clocks are updated.
+// Due to the frequency of change, the clock state or BPM are not stored into
+// the flash memory after the execution of the sysex command.
+// However, the global function "Save settings" (06) can be used to save clocks.
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
   *doMask = SX_DO_ACK_MSK;
@@ -496,7 +509,7 @@ uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
     if ( sxMsg[4] > 1 )  return SX_ERROR_ANY;
 
     if ( SetMidiEnableClock(sxMsg[3],sxMsg[4]) ) {
-      *doMask |= SX_DO_SAVE_MSK;
+      *doMask |= SX_DO_SYNC_MSK;
       return SX_NO_ERROR;
     }
   }
@@ -508,7 +521,7 @@ uint8_t SysExInternal_fnVirtClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
     uint16_t bpm = (sxMsg[4]<< 8) + (sxMsg[5]<< 4) + sxMsg[6];
     uint16_t oldBpm = EE_Prm.bpmClocks[sxMsg[3]].bpm;
     if ( SetMidiBpmClock(sxMsg[3],bpm) ) {
-      if (oldBpm != bpm) *doMask |= SX_DO_SAVE_MSK;
+      if (oldBpm != bpm) *doMask |= SX_DO_SYNC_MSK;
       return SX_NO_ERROR;
     }
   }
