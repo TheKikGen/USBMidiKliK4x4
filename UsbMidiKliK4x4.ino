@@ -468,7 +468,11 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // 2/ Apply virtual port routing if a target match
   uint8_t t=0;
   while ( vrInTargets && t != VIRTUAL_INTERFACE_MAX ) {
-    if ( vrInTargets & 1 ) RoutePacketToTarget(PORT_TYPE_VIRTUAL,  pk);
+    if ( vrInTargets & 1 ) {
+      midiPacket_t pk2 = { .i = pk->i }; // packet copy
+      pk2.packet[0] = ( t << 4 ) + cin;
+      RoutePacketToTarget(PORT_TYPE_VIRTUAL,  &pk2);
+    }
     t++; vrInTargets >>= 1;
   }
 
