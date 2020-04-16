@@ -124,9 +124,10 @@ RingBuffer<uint8_t,B_RING_BUFFER_PACKET_SIZE> I2C_QPacketsFromMaster;
 RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 
 // Vector for process run in main Loop to avoid testing flags in a pure loop
-// approahc. All function pointer are added when they are only necessary in Setup.
+// approch. All function pointer are added when they are only necessary in Setup.
+// Check carefully the array size...
 uint8_t procVectorFnCount = 0;
-procVectorFn_t procVectorFn[4] ;
+procVectorFn_t procVectorFn[6] ;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CODE MODULES
@@ -186,6 +187,7 @@ void LED_Init() {
 #endif
 
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - Turn ON / OFF A LED (Faster with GPIO functions)
 ///////////////////////////////////////////////////////////////////////////////
@@ -523,37 +525,54 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 // Clocks are mandatory attached to their respective virtual port.
 ///////////////////////////////////////////////////////////////////////////////
 void MidiClockGenerator() {
+  static unsigned long nextMTCFrameTick = 0;
+  uint8_t frameByte = 0;
+  boolean sendMTC = false;
+
+  // MTC Frame byte
+  if ( micros() > nextMTCFrameTick ) {
+       nextMTCFrameTick = micros() + MTC_FRAME_TICK;
+       frameByte = MidiTimeCodeGetFrameByte();
+       sendMTC = true;
+  }
+
   for ( uint8_t i = 0 ;  i != MIDI_CLOCKGEN_MAX ; i++ ) {
-    if ( EE_Prm.bpmClocks[i].enabled && micros() > bpmTicks[i].nextBpmTick ) {
-      // Generate a midi timingClock status packet
-      // Change virtual port clk 0 to port 0, clk1 port1, ...
-      midiPacket_t timingClockPk = { .packet= {0x0F ,0XF8,0,0} };
-      timingClockPk.packet[0] += (i<< 4);
-      RoutePacketToTarget(PORT_TYPE_VIRTUAL, &timingClockPk);
-      bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm;
+    // MTC
+    if ( EE_Prm.bpmClocks[i].mtc && sendMTC ) {
+       midiPacket_t MtcPk = {.packet = { (uint8_t)(0x02 + (i<<4)),0XF1, frameByte,0x00 } };
+       RoutePacketToTarget(PORT_TYPE_VIRTUAL, &MtcPk);
+    }
+    // Midi Clock
+    if ( EE_Prm.bpmClocks[i].enabled ) {
+       // Generate a midi timingClock status packet
+       if (micros() > bpmTicks[i].nextBpmTick ) {
+          // Change virtual port clk 0 to port 0, clk1 port1, ...
+          midiPacket_t timingClockPk = { .packet= {0x0F ,0XF8,0,0} };
+          timingClockPk.packet[0] += (i<< 4);
+          RoutePacketToTarget(PORT_TYPE_VIRTUAL, &timingClockPk);
+          bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm;
+       }
     }
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Set a midi clock attached to a virtual port or 7F for all ports.
-// If port = 0, then bpm is kept.
+// Set a midi clock bpm or 7F for all.
 ///////////////////////////////////////////////////////////////////////////////
-
 boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
-
   if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
   if ( (bpm != 0 && bpm < MIN_BPM) || bpm > MAX_BPM  ) return false;
 
   if ( clockNo == 0x7F) {
     for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
+      // If bpm = 0, then current bpm is kept.
       if (bpm) EE_Prm.bpmClocks[i].bpm = bpm;
       bpmTicks[i].tickBpm = ( (60000000 / EE_Prm.bpmClocks[i].bpm ) / 24 ) * 10;
       bpmTicks[i].nextBpmTick = micros() + bpmTicks[i].tickBpm;
     }
     return true;
   }
-
+  // a valid bpm value is required here
   if (! bpm) return false;
   EE_Prm.bpmClocks[clockNo].bpm = bpm;
   bpmTicks[clockNo].tickBpm = ( (60000000 / EE_Prm.bpmClocks[clockNo].bpm ) / 24 ) * 10;
@@ -562,9 +581,8 @@ boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
   return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
-// Enable/Disable a midi clock attached to a virtual port or 7F for all ports.
+// Enable/Disable a midi clock or 7F for all .
 ///////////////////////////////////////////////////////////////////////////////
-
 boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
   if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
 
@@ -578,6 +596,49 @@ boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
   bpmTicks[clockNo].nextBpmTick = micros() + bpmTicks[clockNo].tickBpm;
   EE_Prm.bpmClocks[clockNo].enabled = enable;
   return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Generate the midi time code (MTC) frame byte
+///////////////////////////////////////////////////////////////////////////////
+uint8_t MidiTimeCodeGetFrameByte() {
+  //static unsigned long nextFrameTick = 0;
+  static uint8_t hh=0, mm=0 , ss=0, frmType=0, frmCount=0;
+  // MTC packet F1 0nnn dddd
+  // 0nnn = frame Type - dddd = 4 bits data
+
+  uint8_t frameByte = 0;
+  // frame type
+  frameByte = frmType << 4;
+  //   0 = Frame count LS nibble
+  if ( frmType == 0 ) frameByte += frmCount & 0x0F ;
+  //   1 = Frame count MS nibble
+  else if ( frmType == 1 ) frameByte += frmCount >> 4  ;
+  //   2 = Seconds LS nibble
+  else if ( frmType == 2 ) frameByte += ss & 0x0F ;
+  //   3 = Seconds count MS nibble
+  else if ( frmType == 3 ) frameByte += ss  >> 4 ;
+  //   4 = Minutes count LS nibble
+  else if ( frmType == 4 ) frameByte += mm & 0x0F ;
+  //   5 = Minutes count MS nibble
+  else if ( frmType == 5 ) frameByte += mm  >> 4 ;
+  //   6 = Hours count LS nibble
+  else if ( frmType == 6 ) frameByte += hh & 0x0F ;
+  //   7 = Hours count MS nibble and SMPTE Type : 0nnn x yy d
+  //  Where nnn is 7. x is unused and set to 0.
+  //  d is bit 4 of the Hours Time. yy tells the SMPTE Type as follows:
+  // 0 = 24 fps, 1 = 25 fps, 2 = 30 fps (Drop-Frame), 3 = 30 fps
+  if ( frmType++ == 7 ) { frameByte += (hh  >> 4) + (MTC_SMPTE_TYPE<<1) ; frmType = 0; }
+
+  if ( ++frmCount == MTC_FPS ) { frmCount = 0 ;
+     if ( ++ss > 59 ) { ss = 0 ;
+       if ( ++mm > 59 ) { mm = 0 ;
+         if ( ++hh > 23 ) hh = 0;
+       } //mm
+     } // ss
+  } //frmCount
+
+  return frameByte;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -898,24 +959,43 @@ void setup()
 		// I2C bus checks that could disable the bus mode
   	I2C_BusChecks();
 
-    // Add Serial process to process fn vector
+    // PROCESSES.
+    // 1. SerialMidi_Process
+    // 2. MidiClockGenerator (if not slave on bus)
+    // 3. USBMidi_Process
+    // 4. MidiClockGenerator (if not slave on bus)
+    // 5. I2C_ProcessSlave or I2C_ProcessMaster (if bus enabled)
+    // 6. MidiClockGenerator (if master on bus )
+    //
+    // MidiClockGenerator is added after each process because we don't
+    // want to wait the full loop.
+
+    // 1. Add Serial process to process fn vector
     procVectorFn[procVectorFnCount++] = &SerialMidi_Process;
 
-    // Midi USB only if master when bus is enabled or master/slave
-    // if so, add USB to process fn vector & init USB
+    // Midi USB only if available only for master when bus is enabled or master/slave
     if ( !(IS_SLAVE && IS_BUS_E)  ) {
+        // 2. Add midi clock generator not for a slave on bus
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
+        // 3. Add midi USB process
         procVectorFn[procVectorFnCount++] = &USBMidi_Process;
         USBMidi_Init();
-
-    // Add midi clock generator to process fn vector, not for a slave on bus
+        // 4. add again midi clock generator for the best refresh rate possible
         procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
   	}
 
-    // Add add-hoc I2C BUS process vector fn
-    if ( IS_BUS_E && IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
-		else if ( IS_BUS_E && IS_MASTER )  procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
+    // 5. Add add-hoc I2C BUS process vector fn when bus is enabled
+    if ( IS_BUS_E ) {
+      if (IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
+      else
+      if ( IS_MASTER )  {
+        procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
+        // 6. Add midi clock generator again for the master.
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
+      }
+    }
 
-    // Start Wire if bus mode enabled. AFTER MIDI !
+    // Start Wire (I2C) if bus mode enabled. AFTER MIDI !
     I2C_BusStartWire();
 }
 

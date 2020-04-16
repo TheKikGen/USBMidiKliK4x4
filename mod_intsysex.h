@@ -326,7 +326,7 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
   uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
   if ( ! ( (sxAddr == 0x7F000000 )
           || (sxAddr == 0x0B000000 )
-          || (sxAddr >= 0x0C000000 && sxAddr <= 0x0C080000)
+          || (sxAddr >= 0x0C000000 && sxAddr <= (0x0C000000 + ((MIDI_CLOCKGEN_MAX -1) << 16) ) )
           || (sxAddr == 0x0E020000 )
           || (sxAddr >= 0x0E030000 && sxAddr <= 0x0E030F00)
           || (sxAddr >= 0x0F010000 && sxAddr <= 0x0F01020F)
@@ -491,8 +491,11 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 // F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
 // Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
 // Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
-// If clock # = 7F, then all clocks are updated.
 //
+// 0C 02 Enable/disable Midi Time Clock
+// F0 77 77 78 0C 02 <clock #:0-3> <disable MTC:0 enabled MTC:1> F7
+//
+// If clock # = 7F, then all clocks are updated (MTC must be set individually).
 // Due to the frequency of change, the clock state or BPM are not stored into
 // the flash memory after the execution of the sysex command.
 // However, the global function "Save settings" (06) can be used to save clocks.
@@ -503,7 +506,7 @@ uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
   // Enable / disable Clock
   if ( sxMsg[2] == 0x00 ) {
     if ( sxMsg[0] != 4 )  return SX_ERROR_BAD_MSG_SIZE;
-    // MIDI_CLOCKGEN_MAX is defined as VIRTUAL_INTERFACE_MAX
+    // MIDI_CLOCKGEN_MAX is usually defined as VIRTUAL_INTERFACE_MAX/2
     // but we keep here the possibility to reduce the number of clocks
     // starting from virtual port 0.
     if ( sxMsg[3] != 0x7F && sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
@@ -526,6 +529,20 @@ uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
       if (oldBpm != bpm) *doMask |= SX_DO_SYNC_MSK;
       return SX_NO_ERROR;
     }
+  }
+  else
+  // Enable / disable MTC
+  if ( sxMsg[2] == 0x02 ) {
+    if ( sxMsg[0] != 4 )  return SX_ERROR_BAD_MSG_SIZE;
+    if ( sxMsg[3] > MIDI_CLOCKGEN_MAX) return SX_ERROR_BAD_PORT;
+    if ( sxMsg[4] > 1 )  return SX_ERROR_ANY;
+
+    if ( sxMsg[4] != EE_Prm.bpmClocks[sxMsg[3]].mtc) {
+      EE_Prm.bpmClocks[sxMsg[3]].mtc = sxMsg[4];
+      *doMask |= SX_DO_SYNC_MSK;
+    }
+
+    return SX_NO_ERROR;
   }
 
   return SX_ERROR_ANY;
@@ -1032,9 +1049,10 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
 
   // 0C Clock settings
   // Dump : 0C <clock #> 00 00
-  // Generate F0 77 77 78 0C 00 <clock #:0-8> <disable:0 enabled:1> F7
-  // Generate F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
-  if ( sxAddr >= 0x0C000000 && sxAddr <= 0x0C080000 ) {
+  // Generate F0 77 77 78 0C 00 <clock #:0-3> <disable:0 enabled:1> F7
+  // Generate F0 77 77 78 0C 01 <clock #:0-3> <bpm: msbn lsbn1 lsbn2> F7
+  // Generate F0 77 77 78 0C 02 <clock #:0-3> <disable MTC:0 enabled MTC:1> F7
+  if ( sxAddr >= 0x0C000000 && sxAddr <= (0x0C000000 + ((MIDI_CLOCKGEN_MAX -1) << 16) ) ) {
       uint8_t clockNo = ( (sxAddr<<8) >> 24 ) ;
       *(++buff2) = 0X00; // Enable/Disable
       *(++buff2) = clockNo;
@@ -1048,6 +1066,13 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
       *(++buff2) = EE_Prm.bpmClocks[clockNo].bpm >> 8 ;
       *(++buff2) = (EE_Prm.bpmClocks[clockNo].bpm & 0x00FF) >> 4  ;
       *(++buff2) = (EE_Prm.bpmClocks[clockNo].bpm & 0x00F)   ;
+      *(++buff2) = 0xF7;
+      memcpy(++buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
+      buff2+=sizeof(sysExInternalHeader);
+      *buff2 = fnId ;
+      *(++buff2) = 0X02; // MTC
+      *(++buff2) = clockNo;
+      *(++buff2) = EE_Prm.bpmClocks[clockNo].mtc;
       *(++buff2) = 0xF7;
       return buff2-buff+1;
   }

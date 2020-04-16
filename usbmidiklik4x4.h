@@ -160,15 +160,22 @@ typedef union {
 // MIDI CLOCK GENERATOR MANAGEMENT
 // Compute a BPM where BPM is x 10 to manage half bpm.
 // i.e. 1205 means 120.5 BPM
-#define MIDI_CLOCKGEN_MAX VIRTUAL_INTERFACE_MAX
+#define MIDI_CLOCKGEN_MAX VIRTUAL_INTERFACE_MAX/2
 //# 1205 BPM means 120.5
 #define DEFAULT_BPM 1200
 #define MAX_BPM 3000
 #define MIN_BPM 100
+// MIDI TIME CODE
+#define MTC_FPS 30
+// SMPTE type  : 0 = 24 fps, 1 = 25 fps, 2 = 30 fps (Drop-Frame), 3 = 30 fps
+#define MTC_SMPTE_TYPE 3
+#define MTC_FRAME_TICK 1000000 / MTC_FPS
 
 // midi Bpm Clock type. Overflow value is stored in tick.
+// When mtc is true, a MIDI TIME CODE is sent
 typedef struct {
   boolean   enabled;
+  boolean   mtc;
   uint16_t  bpm;
 } __packed bpmClock_t;
 
@@ -176,7 +183,6 @@ typedef struct {
     unsigned long tickBpm;
     unsigned long nextBpmTick;
 } __packed bpmTick_t;
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
@@ -321,6 +327,7 @@ void    RoutePacketToTarget(uint8_t , midiPacket_t *);
 void    MidiClockGenerator();
 boolean SetMidiBpmClock(uint8_t, uint16_t);
 boolean SetMidiEnableClock(uint8_t , boolean );
+uint8_t MidiTimeCodeGetFrameByte();
 void    ResetMidiRoutingRules(uint8_t);
 boolean USBMidi_SendSysExPacket(uint8_t,const uint8_t *,uint16_t );
 void    CheckBootMode();

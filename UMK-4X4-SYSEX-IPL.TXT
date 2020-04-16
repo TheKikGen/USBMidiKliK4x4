@@ -29,6 +29,7 @@ FN Description / sub command
 0C Midi Clock settings
     00 Enable/disable midi clock
     01 Set midi clock bpm
+    02 Enable/disable Midi Time Clock
 0E Intelligent thru mode settings
     00 Reset to default
     01 Disable
@@ -117,14 +118,17 @@ F0 77 77 78 0B 01 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
 0C Midi Clock settings
 
 0C 00 Enable/disable midi clock
-F0 77 77 78 0C 00 <clock #:0-8> <disable:0 enabled:1> F7
+F0 77 77 78 0C 00 <clock #:0-3> <disable:0 enabled:1> F7
 
 0C 01 Set midi clock bpm
-F0 77 77 78 0C 01 <clock #:0-8> <bpm: msbn lsbn1 lsbn2> F7
+F0 77 77 78 0C 01 <clock #:0-3> <bpm: msbn lsbn1 lsbn2> F7
 Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
 Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
-If clock # = 7F, then all clocks are updated.
 
+0C 02 Enable/disable Midi Time Clock
+F0 77 77 78 0C 02 <clock #:0-3> <disable MTC:0 enabled MTC:1> F7
+
+If clock # = 7F, then all clocks are updated (MTC must be set individually).
 Due to the frequency of change, the clock state or BPM are not stored into
 the flash memory after the execution of the sysex command.
 However, the global function "Save settings" (06) can be used to save clocks.

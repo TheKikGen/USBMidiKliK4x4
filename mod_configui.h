@@ -440,7 +440,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
 		if (port < MIDI_CLOCKGEN_MAX ) {
 			uint16_t bpm = EE_Prm.bpmClocks[port].bpm/10;
 			uint16_t bpmDec = EE_Prm.bpmClocks[port].bpm - bpm*10 ;
-			SerialPrintf(" | %3d.%d    %c    |", bpm,bpmDec,EE_Prm.bpmClocks[port].enabled ? 'X':'.');
+			SerialPrintf(" |  %c  %3d.%d    %c    |",EE_Prm.bpmClocks[port].mtc ? 'X':'.',bpm,bpmDec,EE_Prm.bpmClocks[port].enabled ? 'X':'.');
 		}
 	}
 	else {
@@ -516,7 +516,7 @@ void ShowMidiRouting(uint8_t portType)
   SerialPrintf(" | %y %M %s",str_JACK,str_OUT,str_71DIGITS);
 
 	// Show clocks attached to virtual ports
-	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |<-| Clk Generator");
+	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |<-|  Clock Generator ");
   else {
   	SerialPrintf(" | %y %M %s",str_VIRT,str_IN,str_71DIGITS);
 		if ( portType == PORT_TYPE_JACK) {
@@ -528,7 +528,7 @@ void ShowMidiRouting(uint8_t portType)
 
 	// Header line 2
   SerialPrintf("|    |   %y   | %s | %s",str_SLOT,str_16DIGITS,str_16DIGITS);
-	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |  |  Bpm  %y",str_ENABLED);
+	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |  | MTC  Bpm  %y",str_ENABLED);
 	else {
    	SerialPrintf(" | %s",str_16DIGITS);
  	  if ( portType == PORT_TYPE_JACK)
@@ -967,7 +967,10 @@ void ShowConfigMenu()
 						else break;
 					}
 					if ( i > 0 ) {
-							if (AskChoice("Disable clock","") == 'y' ) {
+							--i;
+							if (AskChoice("Send Midi Time Clock","") == 'y' ) EE_Prm.bpmClocks[i].mtc = true;
+							else EE_Prm.bpmClocks[i].mtc = false;
+							if (AskChoice("Disable midi clock","") == 'y' ) {
 								if ( !SetMidiEnableClock(i,false) ) SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
 							} else {
 								Serial.print("Enter BPM (10.0-300) :");
@@ -975,7 +978,7 @@ void ShowConfigMenu()
 								Serial.print(".");
 								uint8_t bpm2 = AsknNumber(1,false);
 							  bpm1 = bpm1 * 10 + bpm2;
-								--i;
+
 								if ( !SetMidiBpmClock(i, bpm1) || !SetMidiEnableClock(i,true) ) SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
 							}
 					}
