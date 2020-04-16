@@ -403,7 +403,7 @@ void ShowPipelineSlot(uint8_t s) {
       Serial.println(" EMPTY");
   } else {
     Serial.println();Serial.println();
-    SerialPrintf("| Idx | Pipe id    ( p1, p2, p3, p4 ) | %y |",str_BYPASS);
+    SerialPrintf("| Idx | Pipe id    ( p1, p2, p3, p4 ) | %y |%n",str_BYPASS);
 
     for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
         SerialPrintf("|  %2d | %02x %s (",i,pipeline->pId,MidiTransFnVector[pipeline->pId].shortName);
