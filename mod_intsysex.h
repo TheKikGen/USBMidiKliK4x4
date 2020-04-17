@@ -258,7 +258,7 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 		for ( uint8_t i = 0 ; i< pklen ; i++ ) {
 
       if (sxHeaderFound) {
-				if ( sxMsg[0] <  SYSEX_INTERNAL_BUFF_SIZE -1  ) {
+				if ( sxMsg[0] <  GLOBAL_DATA_BUFF_SIZE -1  ) {
 						if (pk->packet[ev] != 0xF7) sxMsg[++sxMsg[0]]  = pk->packet[ev];
 						ev++;
 				}
@@ -937,10 +937,10 @@ void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest) {
 
   uint16_t l;
   // Build a stream according to the address
-  l = SysexInternal_DumpAddrToBuff(sxAddr, sysExInternalBuffer);
-  if ( l && dest == 2 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-  else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-  else if ( l && dest == 0 && midiUSBCx ) USBMidi_SendSysExPacket(0,sysExInternalBuffer,l);
+  l = SysexInternal_DumpAddrToBuff(sxAddr, globalDataBuffer);
+  if ( l && dest == 2 ) {ShowBufferHexDump(globalDataBuffer,l,0);Serial.println();}
+  else if ( l && dest == 1 ) serialHw[0]->write(globalDataBuffer,l);
+  else if ( l && dest == 0 && midiUSBCx ) USBMidi_SendSysExPacket(0,globalDataBuffer,l);
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Generate a full sysex config dump to the appropriate destination stream

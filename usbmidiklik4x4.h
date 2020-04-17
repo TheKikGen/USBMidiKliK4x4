@@ -58,7 +58,7 @@ __ __| |           |  /_) |     ___|             |           |
 #define LED_CONNECT_USB_RECOVER_TIME_MILLIS 500
 
 // Sysex internal buffer size
-#define SYSEX_INTERNAL_BUFF_SIZE 64
+#define GLOBAL_DATA_BUFF_SIZE 64
 
 // Boot modes
 enum nextBootMode {
@@ -147,16 +147,6 @@ typedef union  {
     uint8_t  packet[4];
 } __packed midiPacket_t;
 
-// Specific midi packet for master on BUS.
-// packed clause is mandatory to reflect the real size!!!
-typedef union {
-  struct {
-        uint8_t dest;
-        midiPacket_t pk;
-  } __packed mpk;
-  uint8_t packet[5];
-} __packed masterMidiPacket_t;
-
 // MIDI CLOCK GENERATOR MANAGEMENT
 // Compute a BPM where BPM is x 10 to manage half bpm.
 // i.e. 1205 means 120.5 BPM
@@ -187,6 +177,26 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 // BUS MODE
 ///////////////////////////////////////////////////////////////////////////////
+
+// Specific midi packet for master on BUS.
+// packed clause is mandatory to reflect the real size!!!
+typedef union {
+  struct {
+        uint8_t dest;
+        midiPacket_t pk;
+  } __packed mpk;
+  uint8_t packet[5];
+} __packed masterMidiPacket_t;
+
+// I2C Bulk data transfer packet. 19 bytes.
+// Size is data size >0 and <= 16
+// Checksum is a xor of all 16 data bytes
+typedef struct {
+    uint8_t size;
+    uint8_t data[16];
+    uint8_t cksum;
+} __packed I2C_bulkDataPacket_t;
+
 #define I2C_LED_TIMER_MILLIS 500
 
 #define PIN_SDA PB7
@@ -246,6 +256,7 @@ enum BusDataType {
   B_DTYPE_MIDI_TRANSPIPE,
   B_DTYPE_ROUTING_ITHRU_JACKIN_MSK,
   B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD,
+  B_DTYPE_BULK_DATA,
 };
 
 enum BusDeviceSate {

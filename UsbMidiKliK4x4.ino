@@ -97,8 +97,8 @@ bool 					        isSerialBusy   = false ;
 // MIDI Parsers for serial 1 to n
 midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
-uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
-
+// Multi purpose data buffer.
+uint8_t globalDataBuffer[GLOBAL_DATA_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
 volatile bool intelliThruActive = false;
@@ -457,13 +457,16 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   if (port == 0 && portType != PORT_TYPE_VIRTUAL && !slotLockMsk) {
     // CIN 5 exception : tune request. It is not a sysex packet !
 		if ( cin <= 7 && cin >= 4 && pk->packet[1] != midiXparser::tuneRequestStatus) {
-      if (SysExInternal_Parse(portType, pk,sysExInternalBuffer))
-            SysExInternal_Process(portType,sysExInternalBuffer);
+      if (SysExInternal_Parse(portType, pk,globalDataBuffer))
+            SysExInternal_Process(portType,globalDataBuffer);
     }
 	}
 
   // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
   if ( attachedSlot && !TransPacketPipelineExec(portType, attachedSlot, pk) ) return ;
+
+  // Force a clock update
+  if ( !(IS_SLAVE && IS_BUS_E)  ) MidiClockGenerator();
 
   // 2/ Apply virtual port routing if a target match
   uint8_t t=0;
