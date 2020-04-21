@@ -1074,13 +1074,6 @@ void ShowConfigMenu()
             }  while ( c != 'x');
         break;
         }
-				// TODO
-	      case 'z':{
-						uint8_t bloc[]={0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01};
-						FLASH_WritePage(63,bloc,sizeof(bloc));
-				}
-	        break;
-
 
       // Format EEPROM
       case '/':
