@@ -54,30 +54,30 @@ __ __| |           |  /_) |     ___|             |           |
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 //Shared. See usbmidiKlik4x4.h
-//void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
-uint8_t GetInt8FromHexChar(char) __attribute__((optimize("-Os")));
-uint16_t GetInt16FromHex4Char(char *) __attribute__((optimize("-Os")));
-uint16_t GetInt16FromHex4Bin(char * ) __attribute__((optimize("-Os")));
+//void __O_SMALL ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) ;
+uint8_t __O_SMALL GetInt8FromHexChar(char);
+uint16_t __O_SMALL GetInt16FromHex4Char(char *);
+uint16_t __O_SMALL GetInt16FromHex4Bin(char * );
 //Shared. See usbmidiKlik4x4.h
-//void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
-uint16_t PowInt(uint8_t ,uint8_t)  __attribute__((optimize("-Os")));
-uint16_t AsknNumber(uint8_t,boolean nl=true) __attribute__((optimize("-Os")));
-char AskDigit() __attribute__((optimize("-Os")));
-char AskChar()  __attribute__((optimize("-Os")));
-uint8_t AsknHexChar(char *, uint8_t ,char,char) __attribute__((optimize("-Os")));
-char AskChoice(const char * , const char *,boolean nl=true) __attribute__((optimize("-Os")));
-void ShowMask16(uint16_t ,uint8_t ) __attribute__((optimize("-Os"))) ;
-void ShowPipelineSlotBrowser(boolean mustLoop=true)  __attribute__((optimize("-Os"))) ;
-void ShowMidiRoutingLine(uint8_t ,uint8_t ) __attribute__((optimize("-Os"))) ;
-void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
-void ShowMidiKliKHeader() __attribute__((optimize("-Os")));
-void ShowGlobalSettings() __attribute__((optimize("-Os")));
-uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t ) __attribute__((optimize("-Os")));
-void AskMidiRouting(uint8_t) __attribute__((optimize("-Os")));
-void AskProductString() __attribute__((optimize("-Os")));
-void AskVIDPID() __attribute__((optimize("-Os")));
-void MenuItems( const char * ) __attribute__((optimize("-Os")));
-void ShowConfigMenu() __attribute__((optimize("-Os")));
+//void __O_SMALL SerialPrintf(const char *format, ...)  ;
+uint16_t __O_SMALL PowInt(uint8_t ,uint8_t);
+uint16_t __O_SMALL AsknNumber(uint8_t,boolean nl=true);
+char __O_SMALL AskDigit();
+char __O_SMALL AskChar();
+uint8_t __O_SMALL AsknHexChar(char *, uint8_t ,char,char);
+char __O_SMALL AskChoice(const char * , const char *,boolean nl=true);
+void __O_SMALL ShowMask16(uint16_t ,uint8_t );
+void __O_SMALL ShowPipelineSlotBrowser(boolean mustLoop=true);
+void __O_SMALL ShowMidiRoutingLine(uint8_t ,uint8_t );
+void __O_SMALL ShowMidiRouting(uint8_t);
+void __O_SMALL ShowMidiKliKHeader();
+void __O_SMALL ShowGlobalSettings();
+uint16_t __O_SMALL AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
+void __O_SMALL AskMidiRouting(uint8_t);
+void __O_SMALL AskProductString();
+void __O_SMALL AskVIDPID();
+void __O_SMALL MenuItems( const char * );
+void __O_SMALL ShowConfigMenu();
 
 ///////////////////////////////////////////////////////////////////////////////
 // Strings const used in UI
@@ -579,8 +579,7 @@ void ShowGlobalSettings()
   SerialPrintf("%nI2C Bus mode        : %M%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED:str_ENABLED);
 	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,IS_MASTER ? str_MASTER:str_SLAVE);
 
-  SerialPrintf("%nNext BootMode       : %d%n",EE_Prm.nextBootMode);
-  SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,((int)sizeof(EEPROM_Prm_t)*100) / ((int)EE_CAPACITY));
+	SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,((int)sizeof(EEPROM_Prm_t)*100) / ((int)EE_CAPACITY));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -837,6 +836,7 @@ void ShowConfigMenu()
   "fFactory settings",
   "rReset routing",
   "sSave settings",
+	"zUpdate Mode",
   "xExit",
   "!Dump EEPROM",
   ":Dump Flash memory",
@@ -1041,9 +1041,6 @@ void ShowConfigMenu()
 				Serial.println();
         SerialPrintf("Save %s",str_SETTINGS);
         if (AskChoice("","") == 'y' ) {
-					//Goto midi mode at the next boot
-					EE_Prm.nextBootMode = bootModeMidi;
-					EE_PrmSave();
 					delay(100);
           SerialPrintf("%s !%n",str_DONE_B);
 					showMenu = false;
@@ -1081,7 +1078,15 @@ void ShowConfigMenu()
           EEPROM_Format();
         break;
 
-			// Abort
+      // Update Mode
+      case 'z':
+					if (AskChoice("Reboot to update mode","") == 'y' ) {
+						SetBootMagicWord(BOOT_BTL_CONFIG_MAGIC);
+						nvic_sys_reset();
+					}
+					break;
+
+			// Exit
 			case 'x':
 				if ( AskChoice("Exit","") == 'y' ) {
             Serial.println();

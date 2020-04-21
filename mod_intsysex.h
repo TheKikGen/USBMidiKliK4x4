@@ -430,9 +430,16 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
 
   // Reboot in configuration mode
   if ( sxMsg[2] == 0x08 && sxMsg[0] == 2 ) {
-    EE_Prm.nextBootMode = bootModeConfigMenu;
-    *doMask = SX_DO_SAVE_MSK | SX_DO_REBOOT_MSK;
-    return SX_NO_ERROR;
+      SetBootMagicWord(BOOT_CONFIG_MAGIC);
+      *doMask = SX_DO_REBOOT_MSK;
+      return SX_NO_ERROR;
+  }
+
+  // Reboot in bootloader/update mode
+  if ( sxMsg[2] == 0x09 && sxMsg[0] == 2 ) {
+      SetBootMagicWord(BOOT_BTL_CONFIG_MAGIC);
+      *doMask = SX_DO_REBOOT_MSK;
+      return SX_NO_ERROR;
   }
 
   return SX_ERROR_ANY;

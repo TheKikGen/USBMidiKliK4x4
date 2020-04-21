@@ -46,7 +46,13 @@ __ __| |           |  /_) |     ___|             |           |
 #include "build_number_defines.h"
 #include <string.h>
 #include <stdarg.h>
+
 #include <libmaple/nvic.h>
+#include "libmaple/flash.h"
+#include "libmaple/pwr.h"
+#include "libmaple/rcc.h"
+#include "libmaple/bkp.h"
+
 #include <Wire_slave.h>
 #include <midiXparser.h>
 #include "usbmidiklik4x4.h"
@@ -59,6 +65,10 @@ __ __| |           |  /_) |     ___|             |           |
 
 // EEPROMS parameters
 EEPROM_Prm_t EE_Prm;
+
+// Default Boot modes magic word
+uint16_t bootMagicWord = BOOT_MIDI_MAGIC;
+
 // Timers
 // 1 msec timer
 HardwareTimer timerMillis(2);
@@ -788,6 +798,66 @@ boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t 
   return true;
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Get/ Set magic boot mode
+///////////////////////////////////////////////////////////////////////////////
+
+uint16_t GetAndClearBootMagicWord()
+{
+  uint16_t magicWord = 0x0000;
+
+  RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+  // read magic word in register register
+  magicWord = BKP_BASE->DR4 ;
+  // Reset magic word
+  // Enable write access to the backup registers and the RTC
+  PWR_BASE->CR |= PWR_CR_DBP;
+  // write register
+  BKP_BASE->DR4 = 0x0000;
+  BKP_BASE->DR5 = 0x0000;
+  // Disable write
+  PWR_BASE->CR &= ~PWR_CR_DBP;
+  RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+  return magicWord;
+}
+
+void SetBootMagicWord(uint16_t magicWord)
+{
+  if ( magicWord != BOOT_BTL_MAGIC &&
+       magicWord != BOOT_BTL_CONFIG_MAGIC &&
+       magicWord != BOOT_CONFIG_MAGIC &&
+       magicWord != BOOT_MIDI_MAGIC )
+
+       return;
+
+   bootMagicWord = magicWord;
+
+   // Write the Magic word bootloader
+
+   RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+   // Enable write access to the backup registers and the RTC
+   PWR_BASE->CR |= PWR_CR_DBP;
+
+   // write register
+   // Double action : bootloader then Config mode
+   if (magicWord == BOOT_BTL_CONFIG_MAGIC ) {
+     BKP_BASE->DR4 = BOOT_BTL_MAGIC;
+     // DR5 magic Will be written again to DR4 by the modified hid bootloader
+     BKP_BASE->DR5 = BOOT_CONFIG_MAGIC;
+   }
+   // usual case.
+   else {
+     BKP_BASE->DR4 = bootMagicWord;
+     BKP_BASE->DR5 = 0x0000;
+   }
+
+   // Disable write
+   PWR_BASE->CR &= ~PWR_CR_DBP;
+   RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Check what is the current boot mode.
 // Will never come back if config mode.
@@ -796,11 +866,13 @@ void CheckBootMode()
 {
 	// Does the config menu boot mode is active ?
 	// if so, prepare the next boot in MIDI mode and jump to menu
-	if  ( EE_Prm.nextBootMode == bootModeConfigMenu ) {
+
+  // Read the boot magic word
+  bootMagicWord = GetAndClearBootMagicWord();
+  if (bootMagicWord == BOOT_CONFIG_MAGIC ) {
 
       // Next boot on Midi
-      EE_Prm.nextBootMode = bootModeMidi;
-      EE_PrmSave();
+      SetBootMagicWord(BOOT_MIDI_MAGIC);
 
 			#ifdef HAS_MIDITECH_HARDWARE
 				// Assert DISC PIN (PA8 usually for Miditech) to enable USB

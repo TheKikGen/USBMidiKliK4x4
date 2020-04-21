@@ -59,11 +59,11 @@ int8_t I2C_ParseDataSync(uint8_t ,uint8_t,uint8_t );
 void I2C_ParseImmediateCmd();
 void I2C_SlaveReceiveEvent(int);
 void I2C_SlaveRequestEvent ();
-void I2C_BusChecks() __attribute__((optimize("-Os")));
-void I2C_BusStartWire() __attribute__((optimize("-Os")));
+void __O_SMALL I2C_BusChecks();
+void __O_SMALL I2C_BusStartWire();
 int16_t I2C_SendCommand(uint8_t,BusCommand);
 //Shared. See usbmidiKlik4x4.h
-//void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
+//void __O_SMALL I2C_ShowActiveDevice() ;
 int16_t I2C_getPacket(uint8_t , masterMidiPacket_t *);
 boolean I2C_isDeviceActive(uint8_t );
 int8_t I2C_SendData(uint8_t, uint8_t, uint8_t, uint8_t * , uint16_t );
@@ -367,9 +367,9 @@ void I2C_BusStartWire()
 
 			// If no slave active, reboot master in config mode
 			if ( ! I2C_DeviceActiveCount ) {
-				 EE_Prm.nextBootMode = bootModeConfigMenu;
-				 EE_PrmSave();
-				 Wire.end(); delay(10) ; nvic_sys_reset();
+				 SetBootMagicWord(BOOT_CONFIG_MAGIC);
+				 Wire.end();
+				 delay(10) ; nvic_sys_reset();
 			}
 
 			// Check slaves availibility, and reboot if one not ready

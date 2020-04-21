@@ -23,6 +23,7 @@ FN Description / sub command
     05 Clear all (midi, Ithru routing rules and pipelines..)
     06 Save settings to flash memory
     08 Reboot in configuration mode
+    09 Reboot in update mode
 0B USB device settings
     00 Set USB product string
     01 Set USB vendor id and product id
@@ -104,6 +105,9 @@ F0 77 77 78 06 06 F7
 
 06 08 Reboot in configuration mode
 F0 77 77 78 06 08 F7
+
+06 09 Reboot in update mode
+F0 77 77 78 06 09 F7
 
 -------------------------------------------------------------------------------
 0B USB device settings

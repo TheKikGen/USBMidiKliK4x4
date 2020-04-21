@@ -47,6 +47,8 @@ __ __| |           |  /_) |     ___|             |           |
 #define _USBMIDIKLIK4X4_H_
 #pragma once
 
+#define __O_SMALL __attribute__((optimize("-Os")))
+
 #include "usb_midi_device.h"
 #include "hardware_config.h"
 
@@ -60,11 +62,15 @@ __ __| |           |  /_) |     ___|             |           |
 // Sysex internal buffer size
 #define GLOBAL_DATA_BUFF_SIZE 64
 
-// Boot modes
-enum nextBootMode {
-    bootModeMidi   = 0,
-    bootModeConfigMenu = 2,
-};
+// Boot modes magic words
+// hid_bootloader, default behaviour (DR4)
+#define BOOT_BTL_MAGIC 0x424C
+// hid_bootloader, then come back to config mode (DR4+DR5)
+#define BOOT_BTL_CONFIG_MAGIC 0x2912
+// Configuration mode.(DR4)
+#define BOOT_CONFIG_MAGIC 0x3012
+// Midi (default) (DR4)
+#define BOOT_MIDI_MAGIC 0x0000
 
 // LED Tick
 typedef struct {
@@ -274,7 +280,7 @@ enum BusDeviceSate {
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
 #define EE_SIGNATURE "UMK"
-#define EE_PRMVER 26
+#define EE_PRMVER 27
 
 typedef struct {
         uint8_t         signature[3];
@@ -283,8 +289,6 @@ typedef struct {
         uint8_t         minorVersion;
         uint8_t         prmVersion;
         uint8_t         TimestampedVersion[14];
-
-        uint8_t         nextBootMode;
 
         // I2C device
         uint8_t         I2C_DeviceId;
@@ -341,6 +345,8 @@ boolean SetMidiEnableClock(uint8_t , boolean );
 uint8_t MidiTimeCodeGetFrameByte();
 void    ResetMidiRoutingRules(uint8_t);
 boolean USBMidi_SendSysExPacket(uint8_t,const uint8_t *,uint16_t );
+uint16_t GetAndClearBootMagicWord();
+void    SetBootMagicWord(uint16_t);
 void    CheckBootMode();
 void    USBMidi_Init();
 void    USBMidi_Process();
@@ -349,10 +355,10 @@ void    SerialMidi_Process();
 ///////////////////////////////////////////////////////////////////////////////
 // EXTERNAL SHARED FUNCTIONS PROTOTYPES (MODULES)
 ///////////////////////////////////////////////////////////////////////////////
-void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
+void __O_SMALL ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) ;
 
 void I2C_SlavesRoutingSyncFromMaster();
-void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
+void __O_SMALL I2C_ShowActiveDevice() ;
 
 boolean TransPacketPipeline_ClearSlot(uint8_t);
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
@@ -361,7 +367,7 @@ boolean TransPacketPipe_AddToSlot(uint8_t , transPipe_t *);
 boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , transPipe_t *,boolean);
 boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
 boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
-void ShowPipelineSlot(uint8_t s) __attribute__((optimize("-Os"))) ;
-void SerialPrintf(const char *format, ...) __attribute__((optimize("-Os"))) ;
+void __O_SMALL ShowPipelineSlot(uint8_t s)  ;
+void __O_SMALL SerialPrintf(const char *format, ...)  ;
 
 #endif

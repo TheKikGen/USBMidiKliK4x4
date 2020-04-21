@@ -90,9 +90,6 @@ __ __| |           |  /_) |     ___|             |           |
 
 #pragma once
 
-#include "libmaple/util.h"
-#include "libmaple/flash.h"
-
 typedef enum
 	{
 	FLASH_COMPLETE = 0,
@@ -114,24 +111,24 @@ typedef enum
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
 // Low level functions
-void  FLASH_Unlock()                                      __attribute__((optimize("-Os")));
-void  FLASH_Lock()                                        __attribute__((optimize("-Os")));
-void  FLASH_WaitEndOfOperation()                          __attribute__((optimize("-Os")));
-FLASH_Status FLASH_ErasePage(uint32)                      __attribute__((optimize("-Os")));
-FLASH_Status FLASH_ProgramHalfWord(uint32, uint16)        __attribute__((optimize("-Os")));
-FLASH_Status FLASH_WritePage(uint8_t,uint8_t *,uint16_t)  __attribute__((optimize("-Os")));
-boolean FLASH_DiffPage(uint8_t,uint8_t *,uint16_t)        __attribute__((optimize("-Os")));
+void  __O_SMALL  FLASH_Unlock();
+void  __O_SMALL  FLASH_Lock();
+void  __O_SMALL FLASH_WaitEndOfOperation();
+FLASH_Status __O_SMALL FLASH_ErasePage(uint32);
+FLASH_Status __O_SMALL FLASH_ProgramHalfWord(uint32, uint16);
+FLASH_Status __O_SMALL FLASH_WritePage(uint8_t,uint8_t *,uint16_t);
+boolean __O_SMALL FLASH_DiffPage(uint8_t,uint8_t *,uint16_t);
 
 // High level functions
-void EE_PrmLoad()                                         __attribute__((optimize("-Os")));
-void EE_PrmSave()                                         __attribute__((optimize("-Os")));
-void EE_PrmInit(bool factorySettings=false)               __attribute__((optimize("-Os")));
+void __O_SMALL EE_PrmLoad();
+void __O_SMALL EE_PrmSave();
+void __O_SMALL EE_PrmInit(bool factorySettings=false);
 
 // EEPROM emulation functions
-void EEPROM_Update(uint8_t* ,uint16_t )                   __attribute__((optimize("-Os")));
-void EEPROM_Get(uint8_t* ,uint16_t, uint16_t)             __attribute__((optimize("-Os")));
-void EEPROM_Format()                                      __attribute__((optimize("-Os")));
-void EEPROM_FlashMemoryDump(uint8_t , uint8_t )           __attribute__((optimize("-Os")));
+void __O_SMALL EEPROM_Update(uint8_t* ,uint16_t );
+void __O_SMALL EEPROM_Get(uint8_t* ,uint16_t, uint16_t);
+void __O_SMALL EEPROM_Format();
+void __O_SMALL EEPROM_FlashMemoryDump(uint8_t , uint8_t );
 
 ///////////////////////////////////////////////////////////////////////////////
 // STM32F103 flash memory FUNCTIONS
@@ -322,7 +319,7 @@ void EE_PrmInit(bool factorySettings)
   // If the signature is not found, of not the same version of parameters structure,
   // or new version, or new size then initialize (factory settings)
 
-	// New fimware  uploaded
+	// New firmware  uploaded
 	if ( memcmp(EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion)) )
 	{
 		// Update timestamp and activate
@@ -338,7 +335,7 @@ void EE_PrmInit(bool factorySettings)
 			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
 			// Default boot mode when new firmware uploaded only for this session.
-	    EE_Prm.nextBootMode = bootModeConfigMenu;
+			bootMagicWord = BOOT_CONFIG_MAGIC;
 			return;
 
 		}
@@ -376,14 +373,11 @@ void EE_PrmInit(bool factorySettings)
 
     memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
-		EE_Prm.nextBootMode = bootModeMidi;
-
 		//Write the whole param struct
     EE_PrmSave();
 
 		// Default boot mode when new firmware uploaded (not saved as one shot mode)
-		EE_Prm.nextBootMode = bootModeConfigMenu;
-
+		bootMagicWord = BOOT_CONFIG_MAGIC;
   }
 }
 
