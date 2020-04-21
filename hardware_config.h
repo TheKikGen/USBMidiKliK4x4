@@ -44,30 +44,29 @@ __ __| |           |  /_) |     ___|             |           |
 */
 
 #ifndef _HARDWARE_CONFIG_H_
-#define _HARDWARE_CONFIG_H_
-#pragma once
+ #define _HARDWARE_CONFIG_H_
+ #pragma once
 
+// Macros to expand preprocessor variables
+ #define __VALUE_TO_STRING(x) #x
+ #define __VALUE(x) __VALUE_TO_STRING(x)
+ #define __VAR_NAME_VALUE(var) #var " = "  __VALUE(var)
 
-// Low-density devices are STM32F103xx microcontrollers
-// where the Flash memory density ranges between 16 and 32 Kbytes.
-// Medium-density devices are STM32F103xx microcontrollers where the
-// Flash memory density ranges between 32 and 128 Kbytes.
-// High-density devices are STM32F10x and STM32F103xx microcontrollers where the Flash
-// memory density ranges between 256 and 512 Kbytes.
+// About STM32F103xx microcontrollers :
+// Low-density devices have a flash memory between 16 and 32 Kbytes.
+// Medium-density devices have a flash memory between 32 and 128 Kbytes.
+// High-density devices have a a flash memory between 256 and 512 Kbytes.
 // Low and medium-density devices use a 1K bytes page size.
-// High-density density use a 2K bytes page size.
+// High-density density devices use a 2K bytes page size.
 
-// Flash memory base address (cf datasheet page 34)
-#define EE_FLASH_MEMORY_BASE 0x08000000
+// Flash memory base address (cf STM32F103xx datasheet page 34)
+ #define EE_FLASH_MEMORY_BASE 0x08000000
 
-#ifdef  MCU_STM32F103RC
-
-  #warning "MIDITECH OR MCU_STM32F103RC HARDWARE DETECTED"
+ #ifdef  MCU_STM32F103RC
 
   // Set EEPROM parameters for the STMF103RC (high density)
-  //
   #define EE_PAGE_SIZE  0x800
-  #define EE_FLASH_SIZE 256
+  #define EE_FLASH_SIZEK 256
   #define EE_NBPAGE 1
   #define EE_CAPACITY   EE_NBPAGE*EE_PAGE_SIZE
 
@@ -81,19 +80,15 @@ __ __| |           |  /_) |     ___|             |           |
   #define SERIAL_INTERFACE_MAX  4
   #define SERIALS_PLIST &Serial1,&Serial2,&Serial3,&Serial4
   #ifdef HAS_MIDITECH_HARDWARE
-     #warning "MIDITECH4X4 STM32F103RC HARDWARE DETECTED"
      #define HARDWARE_TYPE "MIDITECH4x4 STM32F103RC"
      #define LED_CONNECT PC9
   #else
-     #warning "STM32F103RC HARDWARE DETECTED"
      #define HARDWARE_TYPE "STM32F103RC 256K FLASH"
      #define LED_CONNECT PC13
   #endif
 
  #else
   #if defined(MCU_STM32F103C8) || defined(MCU_STM32F103CB)
-
-    #warning "BLUEPILL HARDWARE DETECTED"
 
     // Set EEPROM parameters for the STMF103Cx
     #define EE_PAGE_SIZE  0x400
@@ -102,10 +97,10 @@ __ __| |           |  /_) |     ___|             |           |
 
     #if defined(MCU_STM32F103C8)
       #define HARDWARE_TYPE "BLUEPILL STMF103C8x 64K FLASH"
-      #define EE_FLASH_SIZE 64
+      #define EE_FLASH_SIZEK 64
     #else
       #define HARDWARE_TYPE "BLUEPILL STMF103CBx 128K FLASH"
-      #define EE_FLASH_SIZE 128
+      #define EE_FLASH_SIZEK 128
     #endif
 
     #define SERIAL_INTERFACE_MAX  3
@@ -116,8 +111,10 @@ __ __| |           |  /_) |     ___|             |           |
   #endif
  #endif
 
+ #pragma message(__VAR_NAME_VALUE(HARDWARE_TYPE))
+
  // Reserve the last pages for the EEPROM emulation
- #define EE_BASE EE_FLASH_MEMORY_BASE + EE_FLASH_SIZE*1024 - EE_CAPACITY
+ #define EE_BASE EE_FLASH_MEMORY_BASE + EE_FLASH_SIZEK * 1024 - EE_CAPACITY
  #define EE_PAGE_BASE ( EE_BASE - EE_FLASH_MEMORY_BASE ) / EE_PAGE_SIZE
 
  #define USBCABLE_INTERFACE_MAX USB_MIDI_IO_PORT_NUM

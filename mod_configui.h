@@ -79,7 +79,6 @@ void AskVIDPID() __attribute__((optimize("-Os")));
 void MenuItems( const char * ) __attribute__((optimize("-Os")));
 void ShowConfigMenu() __attribute__((optimize("-Os")));
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Strings const used in UI
 //////////////////////////////////////////////////////////////////////////////
@@ -126,7 +125,7 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 	for (uint16_t i=0; i != sz; i++) {
 				SerialPrintf("%02x",*pp);
 				Serial.print(" ");
-				if (nl && (++j > nl) ) { Serial.println(); j=0; }
+				if (nl && (++j >= nl) ) { Serial.println(); j=0; }
 				pp++;
 	}
 }
@@ -269,7 +268,8 @@ void SerialPrintf(const char *format, ...)
 ///////////////////////////////////////////////////////////////////////////////
 // A Pow function to not use the fat float math library one
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t PowInt(uint8_t p,uint8_t n) {
+uint16_t PowInt(uint8_t p,uint8_t n)
+{
 
   if (n == 0) return 1;
   uint16_t pow = 1;
@@ -375,7 +375,8 @@ void ShowMask16(uint16_t bitMsk,uint8_t maxValue)
 ///////////////////////////////////////////////////////////////////////////////
 // Browse pipelines
 ///////////////////////////////////////////////////////////////////////////////
-void ShowPipelineSlotBrowser(boolean mustLoop) {
+void ShowPipelineSlotBrowser(boolean mustLoop)
+{
   while (1) {
     SerialPrintf("Enter %s %s 1-8, or 0 to exit :",str_PIPELINE,str_SLOT);
     uint8_t choice = AsknNumber(1);
@@ -769,7 +770,8 @@ void AskVIDPID()
 ///////////////////////////////////////////////////////////////////////////////
 // Show menu items with columns
 ///////////////////////////////////////////////////////////////////////////////
-void MenuItems( const char * menuItems[]) {
+void MenuItems( const char * menuItems[])
+{
   uint8_t c = 0;
   uint8_t l = 0;
   uint8_t nb = 0;
@@ -1066,12 +1068,19 @@ void ShowConfigMenu()
             uint16_t p=0;
             do {
               EEPROM_FlashMemoryDump(p,1);
-              c = AskChoice("q/s to navigate or e(x)it","qsx");
-              if (c == 'q' && p > 0) p--;
-              else if ( c == 's' && p < (EE_FLASH_SIZE*1024 / EE_PAGE_SIZE -1 ) ) p++;
+              c = AskChoice("v/b to navigate or e(x)it","vbx");
+              if (c == 'v' && p > 0) p--;
+              else if ( c == 'b' && p < (EE_FLASH_SIZEK*1024 / EE_PAGE_SIZE -1 ) ) p++;
             }  while ( c != 'x');
         break;
         }
+				// TODO
+	      case 'z':{
+						uint8_t bloc[]={0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01};
+						FLASH_WritePage(63,bloc,sizeof(bloc));
+				}
+	        break;
+
 
       // Format EEPROM
       case '/':
