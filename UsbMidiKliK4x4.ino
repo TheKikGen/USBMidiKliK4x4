@@ -151,7 +151,8 @@ procVectorFn_t procVectorFn[6] ;
 ///////////////////////////////////////////////////////////////////////////////
 // memcmpcpy : copy if different
 ///////////////////////////////////////////////////////////////////////////////
-int memcmpcpy ( void * pDest, void * pSrc, size_t sz ) {
+int memcmpcpy ( void * pDest, void * pSrc, size_t sz )
+{
 
   int r = 0;
   if ( ( r = memcmp(pDest,pSrc,sz) ) ) {
@@ -172,7 +173,8 @@ void TimerMillisHandler(void)
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - Init PINS
 ///////////////////////////////////////////////////////////////////////////////
-void LED_Init() {
+void LED_Init()
+{
   // LED connect
   gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
   LED_Flash(&LED_ConnectTick);
@@ -191,18 +193,21 @@ void LED_Init() {
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - Turn ON / OFF A LED (Faster with GPIO functions)
 ///////////////////////////////////////////////////////////////////////////////
-void LED_TurnOn(volatile LEDTick_t *ledTick) {
+void LED_TurnOn(volatile LEDTick_t *ledTick)
+{
   gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
 }
 
-void LED_TurnOff(volatile LEDTick_t *ledTick) {
+void LED_TurnOff(volatile LEDTick_t *ledTick)
+{
   gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, HIGH);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - FLASH A LED DURING LED_TICK_COUNT*TIMER2_RATE_MICROS
 ///////////////////////////////////////////////////////////////////////////////
-boolean LED_Flash(volatile LEDTick_t *ledTick) {
+boolean LED_Flash(volatile LEDTick_t *ledTick)
+{
     if ( ! ledTick->tick ) {
       gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
       ledTick->tick = LED_TICK_COUNT;
@@ -215,7 +220,8 @@ boolean LED_Flash(volatile LEDTick_t *ledTick) {
 ///////////////////////////////////////////////////////////////////////////////
 // LED MANAGEMENT - CHECK TO SWITCH OFF FLASHED LEDS AT TIMER2_RATE_MICROS RATE
 ///////////////////////////////////////////////////////////////////////////////
-void LED_Update() {
+void LED_Update()
+{
     // LED connect
     if ( LED_ConnectTick.tick ) {
       if ( !( --LED_ConnectTick.tick ) ) {
@@ -292,7 +298,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 // Prepare a pseudo packet from serial midi and route it to the right target
 ///////////////////////////////////////////////////////////////////////////////
- void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
+void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
 {
 
     midiPacket_t pk = { .i = 0 };
@@ -332,7 +338,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 // We use the midiXparser 'on the fly' mode, allowing to tag bytes as "captured"
 // when they belong to a midi SYSEX message, without storing them in a buffer.
 ///////////////////////////////////////////////////////////////////////////////
- void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
+void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
 {
   static midiPacket_t pk[SERIAL_INTERFACE_MAX];
   static uint8_t packetLen[SERIAL_INTERFACE_MAX];
@@ -531,7 +537,8 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 // MIDI CLOCK GENERATOR TO VIRTUAL PORTS
 // Clocks are mandatory attached to their respective virtual port.
 ///////////////////////////////////////////////////////////////////////////////
-void MidiClockGenerator() {
+void MidiClockGenerator()
+{
   static unsigned long nextMTCFrameTick = 0;
   uint8_t frameByte = 0;
   boolean sendMTC = false;
@@ -566,7 +573,8 @@ void MidiClockGenerator() {
 ///////////////////////////////////////////////////////////////////////////////
 // Set a midi clock bpm or 7F for all.
 ///////////////////////////////////////////////////////////////////////////////
-boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
+boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm)
+{
   if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
   if ( (bpm != 0 && bpm < MIN_BPM) || bpm > MAX_BPM  ) return false;
 
@@ -590,7 +598,8 @@ boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm) {
 ///////////////////////////////////////////////////////////////////////////////
 // Enable/Disable a midi clock or 7F for all .
 ///////////////////////////////////////////////////////////////////////////////
-boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
+boolean SetMidiEnableClock(uint8_t clockNo, boolean enable)
+{
   if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
 
   if ( clockNo == 0x7F) {
@@ -608,7 +617,8 @@ boolean SetMidiEnableClock(uint8_t clockNo, boolean enable) {
 ///////////////////////////////////////////////////////////////////////////////
 // Generate the midi time code (MTC) frame byte
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t MidiTimeCodeGetFrameByte() {
+uint8_t MidiTimeCodeGetFrameByte()
+{
   //static unsigned long nextFrameTick = 0;
   static uint8_t hh=0, mm=0 , ss=0, frmType=0, frmCount=0;
   // MTC packet F1 0nnn dddd
@@ -656,7 +666,8 @@ uint8_t MidiTimeCodeGetFrameByte() {
 // ROUTING_INTELLITHRU_OFF   : Stop IntelliThru
 // ROUTING_CLEAR_ALL         : Erase all routing and pipeline rules
 ///////////////////////////////////////////////////////////////////////////////
-void ResetMidiRoutingRules(uint8_t mode) {
+void ResetMidiRoutingRules(uint8_t mode)
+{
 
   // Clear all pipelines slots
   if (mode == ROUTING_RESET_ALL || mode == ROUTING_CLEAR_ALL ) {
@@ -744,7 +755,8 @@ void ResetMidiRoutingRules(uint8_t mode) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send a SYSEX midi message to USB Cable 0
 ///////////////////////////////////////////////////////////////////////////////
-boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t sz) {
+boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t sz)
+{
   midiPacket_t pk { .i = 0};
   uint8_t b=0;
   bool startSx=false;
@@ -816,6 +828,7 @@ void CheckBootMode()
 
 			ShowConfigMenu(); // INFINITE LOOP
 	}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
