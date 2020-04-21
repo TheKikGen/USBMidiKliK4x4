@@ -354,6 +354,7 @@ void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optim
 void I2C_SlavesRoutingSyncFromMaster();
 void I2C_ShowActiveDevice() __attribute__((optimize("-Os")));
 
+boolean TransPacketPipeline_ClearSlot(uint8_t);
 boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
 boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
 boolean TransPacketPipe_AddToSlot(uint8_t , transPipe_t *);
