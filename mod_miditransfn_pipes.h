@@ -156,7 +156,8 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // |         |   MidiStatus       |  include:0         | status1:80-FF      |   status2:80-FF    |
 // |         |  dble filter:1     |  exclude:1         |(sysex not allowed) |    if unused:0     |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 1 ) return false;
   if ( pipe->par1 == 0 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
   if ( pipe->par1 == 1 ) {
@@ -168,7 +169,8 @@ boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
 	// Apply inclusive filter. Drop if not matching.
   if ( pipe->par1 == 0  ) {
@@ -199,13 +201,15 @@ boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_
 // | NOTECHG |    transpose+:0    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
 // |   01    |    transpose-:1    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_NoteChanger_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_NoteChanger_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 1 ) return false;
   if ( pipe->par2 == 0 || pipe->par2 == 0x7F ) return false;
   return true;
 }
 
-boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -238,7 +242,8 @@ boolean MidiTransFn_NoteChanger(uint8_t portType, midiPacket_t *pk, transPipe_t 
 // |   02    | ch map to port:1   |   source ch:0-F    |   midi port:0-F    |     00 (unused)    |
 // |         | ch rotat.offset:2  |   ch offset:0-F    |     00 (unused)    |     00 (unused)    |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_ChannelMapper_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_ChannelMapper_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 2 ) return false;
   if ( pipe->par1 == 0 && pipe->par2 > 0x0F && pipe->par2 != 0x7F ) return false;
   if ( (pipe->par1 == 1 || pipe->par1 == 2) && pipe->par2 > 0x0F ) return false;
@@ -246,7 +251,8 @@ boolean MidiTransFn_ChannelMapper_CheckParms(transPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
   //Channel voice only
   if (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) !=  midiXparser::channelVoiceMsgTypeMsk)
@@ -284,14 +290,16 @@ boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, transPipe_
 // |         |         sub:4      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
 // |         |        half:5      |     00 (unused)    |     00 (unused)    |     00 (unused)    |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_VeloChanger_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_VeloChanger_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 5 ) return false;
   if ( (pipe->par1 == 0 || pipe->par1 == 1) && pipe->par2 > pipe->par3 ) return false;
   if ( ( pipe->par1 == 3 || pipe->par1 == 4) && pipe->par2 == 0) return false;
   return true;
 }
 
-boolean MidiTransFn_VeloChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_VeloChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -336,13 +344,15 @@ boolean MidiTransFn_VeloChanger(uint8_t portType, midiPacket_t *pk, transPipe_t 
 // |         |     exclude:2      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
 // |         |      invert:3      |    src cc :0-7F    |     00 (unused)    |     00 (unused)    |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_CCChanger_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_CCChanger_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 3 ) return false;
   if ( (pipe->par1 == 1 || pipe->par1 == 2 ) && ( pipe->par2 > pipe->par3 ) ) return false;
   return true;
 }
 
-boolean MidiTransFn_CCChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_CCChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
   uint8_t midiStatus = pk->packet[1] & 0xF0;
 
@@ -387,12 +397,14 @@ boolean MidiTransFn_CCChanger(uint8_t portType, midiPacket_t *pk, transPipe_t *p
 // Example for a div 3 : 1---2---(3)---4---5---(6)---7---8---(9)
 // (x) means clock sent
 
-boolean MidiTransFn_ClockDivider_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_ClockDivider_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 < 2 || pipe->par1 >16 ) return false;
   return true;
 }
 
-boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
 
   if ( pk->packet[1] != midiXparser::timingClockStatus)
       return true;
@@ -415,7 +427,8 @@ boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pk, transPipe_t
 // |         |      virt.in:2     |                    |                    |                    |
 // |         |       no chg:3     |                    |                    |                    |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_LoopBack_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_LoopBack_CheckParms(transPipe_t *pipe)
+{
   if ( pipe->par1 > 3 ) return false;
   if ( pipe->par1 == 0 && pipe->par3 > USBCABLE_INTERFACE_MAX ) return false;
   if ( pipe->par1 == 1 && pipe->par3 > B_SERIAL_INTERFACE_MAX ) return false;
@@ -425,7 +438,8 @@ boolean MidiTransFn_LoopBack_CheckParms(transPipe_t *pipe) {
   return true;
 }
 
-boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
   uint8_t cin         = pk->packet[0] & 0x0F;
   uint8_t sourcePort  = pk->packet[0] >> 4;
   // Protect sysex integrity. Don't route a sysex pk 2 times on the same port
@@ -437,7 +451,8 @@ boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pi
   }
 
   // Apply filter
-  if ( midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2  ) {
+  if ( midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) & pipe->par2  )
+  {
     midiPacket_t pk2 = { .i = pk->i }; // make a copy of the packet
 
     // No change
@@ -460,12 +475,14 @@ boolean MidiTransFn_LoopBack(uint8_t portType, midiPacket_t *pk, transPipe_t *pi
 // |   07    |                    |                    |                    |                    |
 // -----------------------------------------------------------------------------------------------
 
-boolean MidiTransFn_SlotChain_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_SlotChain_CheckParms(transPipe_t *pipe)
+{
   if (pipe->par1 < 1 || pipe->par1 > TRANS_PIPELINE_SLOT_SIZE ) return false;
   return true;
 }
 
-boolean MidiTransFn_SlotChain(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
+boolean MidiTransFn_SlotChain(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
   return TransPacketPipelineExec(portType, pipe->par1,  pk) ;
 }
 
@@ -476,13 +493,14 @@ boolean MidiTransFn_SlotChain(uint8_t portType, midiPacket_t *pk, transPipe_t *p
 // |   08    |                    |                    |    transpose+:1    |   semitone:00-7F   |
 // |         |                    |                    |    transpose-:2    |   semitone:00-7F   |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_KbSplit_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_KbSplit_CheckParms(transPipe_t *pipe)
+{
   if (pipe->par2 > 0x0F || pipe->par3 > 2) return false;
   return true;
 }
 
-boolean MidiTransFn_KbSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
-
+boolean MidiTransFn_KbSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
   uint8_t midiStatus = pk->packet[1] & 0xF0;
   // Only notes ON Notes OFF
   if ( midiStatus != midiXparser::noteOnStatus && midiStatus != midiXparser::noteOffStatus)
@@ -506,13 +524,14 @@ boolean MidiTransFn_KbSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pip
 // |         |                    |                    |         add:2      |     value:0-7F     |
 // |         |                    |                    |         sub:3      |     value:0-7F     |
 // -----------------------------------------------------------------------------------------------
-boolean MidiTransFn_VeloSplit_CheckParms(transPipe_t *pipe) {
+boolean MidiTransFn_VeloSplit_CheckParms(transPipe_t *pipe)
+{
   if (pipe->par2 > 0x0F || pipe->par3 > 3) return false;
   return true;
 }
 
-boolean MidiTransFn_VeloSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe) {
-
+boolean MidiTransFn_VeloSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
   uint8_t midiStatus = pk->packet[1] & 0xF0;
   // Only notes ON Notes OFF
   if ( midiStatus != midiXparser::noteOnStatus&& midiStatus != midiXparser::noteOffStatus)

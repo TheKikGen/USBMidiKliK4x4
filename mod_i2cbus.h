@@ -199,7 +199,8 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
 // THIS IS INSIDE AN ISR ! - PARSE IMMEDIATE Command
 //////////////////////////////////////////////////////////////////////////////
 //    Manage immediate commands not followed by a requestFrom
-void I2C_ParseImmediateCmd() {
+void I2C_ParseImmediateCmd()
+{
 
   I2C_Command = Wire.read();
 

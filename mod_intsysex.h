@@ -169,7 +169,8 @@ const SysExInternalFnVector_t SysExInternalFnVector[FN_SX_VECTOR_SIZE] = {
 // sxMsg[1] function id
 // sxMsg[2] data without EOX
 ///////////////////////////////////////////////////////////////////////////////
-boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
+boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[])
+{
 
   if ( sxMsg[0] < 1 ) return false;
   for (uint8_t i=0 ; i < FN_SX_VECTOR_SIZE ; i++ ) {
@@ -202,7 +203,8 @@ boolean SysExInternal_Process(uint8_t portType, uint8_t sxMsg[]) {
 ///////////////////////////////////////////////////////////////////////////////
 // Send ACK sysex msg.F0 77 77 78 06 03 <ack> F7
 ///////////////////////////////////////////////////////////////////////////////
-void SysExInternal_SendFnACK(uint8_t portType,uint8_t errorCode) {
+void SysExInternal_SendFnACK(uint8_t portType,uint8_t errorCode)
+{
 
   sysExInternalCommandACK[6] = errorCode;
   if (portType == PORT_TYPE_CABLE && midiUSBCx) {
@@ -311,7 +313,8 @@ boolean SysExInternal_Parse(uint8_t portType, midiPacket_t *pk,uint8_t sxMsg[])
 // Clock #: 0-8    in port: 0-F
 // port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
 
   *doMask = SX_DO_ACK_MSK;
   if (sxMsg[0] != 5) return SX_ERROR_BAD_MSG_SIZE;
@@ -370,7 +373,8 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 // F0 77 77 78 06 08 F7
 //
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
 
   *doMask = SX_DO_ACK_MSK;
 
@@ -454,7 +458,8 @@ uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t 
 // F0 77 77 78 0B 02 08 0F 01 02 09 00 06 07 F7
 //                8  F  1  2  9  0  6  7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
 
   *doMask = SX_DO_ACK_MSK;
 
@@ -500,7 +505,8 @@ uint8_t SysExInternal_fnSetUsbSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *
 // the flash memory after the execution of the sysex command.
 // However, the global function "Save settings" (06) can be used to save clocks.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
   *doMask = SX_DO_ACK_MSK;
 
   // Enable / disable Clock
@@ -568,7 +574,8 @@ uint8_t SysExInternal_fnMidiClocksSettings(uint8_t portType,uint8_t *sxMsg,uint8
 // If only jackin is passed, this toggle on/off IThru if outpout ports exists.
 // If no out ports list passed, the entire out type will be cleared.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
 
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
@@ -683,7 +690,8 @@ uint8_t SysExInternal_fnIThruSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *d
 // port type : cable = 0 |jack=1 | virtual=2    port : 0-F    out ports list is optional.
 // A virtual port can't be routed to another virtual port.
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
@@ -770,7 +778,8 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
 // F0 77 77 78 10 01 < deviceid:04-08 > F7
 // deviceid must be set to 4 when master. The device will reboot after the command is bus active..
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
   uint8_t msgLen = sxMsg[0];
   uint8_t cmdId  = sxMsg[2];
 
@@ -836,7 +845,8 @@ uint8_t SysExInternal_fnBusModeSettings(uint8_t portType,uint8_t *sxMsg,uint8_t 
 // 11 01 Pipe operation - 05 pipe bypass index
 // F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass!0 | bypass:1> F7
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask) {
+uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
+{
   uint8_t msgLen    = sxMsg[0];
   uint8_t cmdId     = sxMsg[2];
   uint8_t cmdSubId  = sxMsg[3];
@@ -933,7 +943,8 @@ uint8_t SysExInternal_fnPipelinesSettings(uint8_t portType,uint8_t *sxMsg,uint8_
 // 1 : Jack port 0
 // 2 : HexDump to serial 0
 ///////////////////////////////////////////////////////////////////////////////
-void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest) {
+void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest)
+{
 
   uint16_t l;
   // Build a stream according to the address
@@ -942,13 +953,15 @@ void SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest) {
   else if ( l && dest == 1 ) serialHw[0]->write(globalDataBuffer,l);
   else if ( l && dest == 0 && midiUSBCx ) USBMidi_SendSysExPacket(0,globalDataBuffer,l);
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 // Generate a full sysex config dump to the appropriate destination stream
 // 0 : Cable 0
 // 1 : Jack port 0
 // 2 : HexDump to serial 0
 ///////////////////////////////////////////////////////////////////////////////
-void SysexInternal_DumpConfToStream(uint8_t dest) {
+void SysexInternal_DumpConfToStream(uint8_t dest)
+{
 
   // Usb settings : product string , PID, VID
   SysexInternal_DumpAddrToStream(0x0B000000,dest);
@@ -1006,7 +1019,8 @@ void SysexInternal_DumpConfToStream(uint8_t dest) {
 ///////////////////////////////////////////////////////////////////////////////
 // Return current configuration as a SYSEX buffer
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff) {
+uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff)
+{
 
   uint8_t *buff2 = buff;
 
