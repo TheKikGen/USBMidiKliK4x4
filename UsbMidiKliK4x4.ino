@@ -40,7 +40,6 @@ __ __| |           |  /_) |     ___|             |           |
   necessary for your intended use.  This program is distributed in the hope that
   it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
 */
 
 #include "build_number_defines.h"
@@ -80,7 +79,6 @@ HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
 
 // LEDs ticks for Connect, MIDIN and MIDIOUT
-
 #ifdef HAS_MIDITECH_HARDWARE
   // LED must be declared in the same order as hardware serials
   #define LED_MIDI_SIZE 4
@@ -91,7 +89,6 @@ volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
   volatile LEDTick_t LED_MidiOutTick[LED_MIDI_SIZE] = {
     {D36,0},{D37,0},{D16,0},{D17,0}
   };
-
 #endif
 
 // Midi Clocks initialize
@@ -99,9 +96,9 @@ bpmTick_t bpmTicks[MIDI_CLOCKGEN_MAX] ;
 
 // USB Midi object & globals
 USBMidi MidiUSB;
-volatile bool					midiUSBCx      = false;
-volatile bool         midiUSBIdle    = false;
-//bool                  midiUSBLaunched= false;
+
+volatile bool					midiUSBCx      = false ;
+volatile bool         midiUSBIdle    = false ;
 bool 					        isSerialBusy   = false ;
 
 // MIDI Parsers for serial 1 to n
@@ -111,22 +108,22 @@ midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 uint8_t globalDataBuffer[GLOBAL_DATA_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
-volatile bool intelliThruActive = false;
-unsigned long ithruUSBIdlelMillis = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
+volatile bool midiIthruActive        = false ;
+unsigned long ithruUSBIdlelMillis    = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
 
 // Bus Mode globals
+volatile uint8_t I2C_Command         = B_CMD_NONE;
 
 // True if events received from Master when slave
-volatile boolean I2C_MasterIsActive = false;
-
-uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
-uint8_t I2C_DeviceActiveCount=0;
-
-volatile uint8_t I2C_Command = B_CMD_NONE;
+volatile boolean I2C_MasterIsActive    = false;
 
 // Master to slave synchonization globals
-volatile boolean I2C_SlaveSyncStarted = false;
+volatile boolean I2C_SlaveSyncStarted  = false;
 volatile boolean I2C_SlaveSyncDoUpdate = false;
+
+// Array of active devices
+uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
+uint8_t I2C_DeviceActiveCount=0;
 
 // Templated RingBuffers to manage I2C slave reception/transmission outside I2C ISR
 // Volatile by default and RESERVED TO SLAVE
@@ -310,7 +307,6 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
 {
-
     midiPacket_t pk = { .i = 0 };
     uint8_t msgLen = xpMidi->getMidiMsgLen();
     uint8_t msgType = xpMidi->getMidiMsgType();
@@ -415,8 +411,8 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   uint16_t vrInTargets  = 0;
   uint8_t  attachedSlot = 0;
 
-  // Save intelliThruActive state as it could be changed in an interrupt
-  boolean ithru = intelliThruActive;
+  // Save midiIthruActive state as it could be changed in an interrupt
+  boolean ithru = midiIthruActive;
 
   FLASH_LED_IN(port);
 
@@ -801,21 +797,20 @@ boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t 
 
 ///////////////////////////////////////////////////////////////////////////////
 // Get/ Set magic boot mode
+// DR5 backup register is used for UMK4x4
 ///////////////////////////////////////////////////////////////////////////////
-
 uint16_t GetAndClearBootMagicWord()
 {
   uint16_t magicWord = 0x0000;
 
   RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
   // read magic word in register register
-  magicWord = BKP_BASE->DR4 ;
+  magicWord = BKP_BASE->DR5 ;
   // Reset magic word
   // Enable write access to the backup registers and the RTC
   PWR_BASE->CR |= PWR_CR_DBP;
   // write register
-  BKP_BASE->DR4 = 0x0000;
-  BKP_BASE->DR5 = 0x0000;
+  BKP_BASE->DR5 = BOOT_MIDI_MAGIC; // Default
   // Disable write
   PWR_BASE->CR &= ~PWR_CR_DBP;
   RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
@@ -825,7 +820,6 @@ uint16_t GetAndClearBootMagicWord()
 void SetBootMagicWord(uint16_t magicWord)
 {
   if ( magicWord != BOOT_BTL_MAGIC &&
-       magicWord != BOOT_BTL_CONFIG_MAGIC &&
        magicWord != BOOT_CONFIG_MAGIC &&
        magicWord != BOOT_MIDI_MAGIC )
 
@@ -840,16 +834,16 @@ void SetBootMagicWord(uint16_t magicWord)
    PWR_BASE->CR |= PWR_CR_DBP;
 
    // write register
-   // Double action : bootloader then Config mode
-   if (magicWord == BOOT_BTL_CONFIG_MAGIC ) {
+   // if bootloader then write hid_boolaoder magic word to DR4
+   // Write also DR5 to come back to config mode.
+   if (magicWord == BOOT_BTL_MAGIC ) {
      BKP_BASE->DR4 = BOOT_BTL_MAGIC;
-     // DR5 magic Will be written again to DR4 by the modified hid bootloader
      BKP_BASE->DR5 = BOOT_CONFIG_MAGIC;
    }
    // usual case.
    else {
-     BKP_BASE->DR4 = bootMagicWord;
-     BKP_BASE->DR5 = 0x0000;
+     BKP_BASE->DR4 = 0x0000;
+     BKP_BASE->DR5 = bootMagicWord;
    }
 
    // Disable write
@@ -942,7 +936,7 @@ void USBMidi_Process()
 			lastPacketMillis = lastPollMillis  ;
       ledCxMillis = lastPollMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS;
 			midiUSBIdle = false;
-			intelliThruActive = false;
+			midiIthruActive = false;
 
 			// Read a Midi USB packet .
 			if ( !isSerialBusy ) {
@@ -964,8 +958,8 @@ void USBMidi_Process()
 		   midiUSBIdle = true;
   }
 
-	if ( midiUSBIdle && !intelliThruActive && EE_Prm.ithruJackInMsk) {
-			intelliThruActive = true;
+	if ( midiUSBIdle && !midiIthruActive && EE_Prm.ithruJackInMsk) {
+			midiIthruActive = true;
 			FlashAllLeds(0); // All leds when Midi intellithru mode active
 	}
 
@@ -1060,7 +1054,7 @@ void setup()
     // 6. MidiClockGenerator (if master on bus )
     //
     // MidiClockGenerator is added after each process because we don't
-    // want to wait the full loop.
+    // want to wait the full loop, for accuracy.
 
     // 1. Add Serial process to process fn vector
     procVectorFn[procVectorFnCount++] = &SerialMidi_Process;

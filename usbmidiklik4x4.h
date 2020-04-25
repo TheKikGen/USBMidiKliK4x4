@@ -63,13 +63,11 @@ __ __| |           |  /_) |     ___|             |           |
 #define GLOBAL_DATA_BUFF_SIZE 64
 
 // Boot modes magic words
-// hid_bootloader, default behaviour (DR4)
+// hid_bootloader,  (DR4)
 #define BOOT_BTL_MAGIC 0x424C
-// hid_bootloader, then come back to config mode (DR4+DR5)
-#define BOOT_BTL_CONFIG_MAGIC 0x2912
-// Configuration mode.(DR4)
+// Configuration mode.(DR5)
 #define BOOT_CONFIG_MAGIC 0x3012
-// Midi (default) (DR4)
+// Midi (default) (DR5)
 #define BOOT_MIDI_MAGIC 0x0000
 
 // LED Tick
