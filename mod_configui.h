@@ -562,9 +562,11 @@ void ShowMidiKliKHeader()
 ///////////////////////////////////////////////////////////////////////////////
 void ShowGlobalSettings()
 {
+
 	uint8_t i;
 	SerialPrintf("GLOBAL %s%n%n",str_SETTINGS_M);
   SerialPrintf("Hardware type       : %s%n",HARDWARE_TYPE);
+	SerialPrintf("MCU Flash size      : %dK%n",*(uint16_t *)0x1FFFF7E0);
 	SerialPrintf("Firmware version    : %d.%d - Build %s%n",EE_Prm.majorVersion, EE_Prm.minorVersion,(char *)EE_Prm.TimestampedVersion);
 	SerialPrintf("Magic number        : %3s%d%n",EE_Prm.signature,EE_Prm.prmVersion);
 	SerialPrintf("Sysex header        : ");
@@ -1081,7 +1083,7 @@ void ShowConfigMenu()
       // Update Mode
       case 'z':
 					if (AskChoice("Reboot to update mode","") == 'y' ) {
-						SetBootMagicWord(BOOT_BTL_CONFIG_MAGIC);
+						SetBootMagicWord(BOOT_BTL_MAGIC);
 						nvic_sys_reset();
 					}
 					break;
