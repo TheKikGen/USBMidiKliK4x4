@@ -223,11 +223,11 @@ void I2C_ParseImmediateCmd()
       break;
 
     case B_CMD_INTELLITHRU_ENABLED:
-      intelliThruActive = true;
+      midiIthruActive = true;
       break;
 
     case B_CMD_INTELLITHRU_DISABLED:
-      intelliThruActive = false;
+      midiIthruActive = false;
       break;
 
     case B_CMD_HARDWARE_RESET:
@@ -534,7 +534,7 @@ void I2C_ProcessMaster ()
   // Broadcast slaves of USB midi state & intellithru mode
   I2C_SendCommand(0, midiUSBCx ?  B_CMD_USBCX_AVAILABLE:B_CMD_USBCX_UNAVAILABLE);
   I2C_SendCommand(0, midiUSBIdle ?  B_CMD_USBCX_SLEEP:B_CMD_USBCX_AWAKE );
-  I2C_SendCommand(0, intelliThruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ;
+  I2C_SendCommand(0, midiIthruActive ?  B_CMD_INTELLITHRU_ENABLED:B_CMD_INTELLITHRU_DISABLED ) ;
 
   for ( uint8_t d = 0 ; d != I2C_DeviceActiveCount ; d++) {
 
@@ -548,7 +548,7 @@ void I2C_ProcessMaster ()
           I2C_BusSerialSendMidiPacket(&(mpk.mpk.pk), targetPort );
          // Send to a cable IN only if USB is available on the master
        } else if ( mpk.mpk.dest == PORT_TYPE_CABLE )
-        //&& midiUSBCx && !midiUSBdle && !intelliThruActive)
+        //&& midiUSBCx && !midiUSBdle && !midiIthruActive)
        {
           MidiUSB.writePacket(&(mpk.mpk.pk.i));
        }
@@ -599,7 +599,7 @@ void I2C_ProcessSlave ()
 			if (I2C_MasterIsActive)  Serial.print(" (MASTER READY)");
 			else                     Serial.print(" (NO MASTER)");
 			if (midiUSBIdle)  Serial.print(" (USB IDLE)");
-			if (intelliThruActive) Serial.print(" (ITHRU MODE)");
+			if (midiIthruActive) Serial.print(" (ITHRU MODE)");
 			Serial.println();Serial.println();
 			Serial.println("(r)outing rules - (1-8) pipeline slots - e(X)it to configuration menu :");
 			Serial.println();
