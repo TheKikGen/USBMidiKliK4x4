@@ -49,8 +49,8 @@ __ __| |           |  /_) |     ___|             |           |
 
 // Macro to flash LEDS IN
 #ifdef LED_MIDI_SIZE
-  #define FLASH_LED_IN(thisLed) LED_Flash(&LED_MidiInTick[thisLed])
-  #define FLASH_LED_OUT(thisLed) LED_Flash(&LED_MidiOutTick[thisLed])
+  #define FLASH_LED_IN(thisLed)  LED_Flash(thisLed < LED_MIDI_SIZE ? &LED_MidiInTick[thisLed]:&LED_ConnectTick)
+  #define FLASH_LED_OUT(thisLed) LED_Flash(thisLed < LED_MIDI_SIZE ? &LED_MidiOutTick[thisLed]:&LED_ConnectTick)
 #else
   #define FLASH_LED_IN(thisLed) LED_Flash(&LED_ConnectTick)
   #define FLASH_LED_OUT(thisLed) LED_Flash(&LED_ConnectTick)

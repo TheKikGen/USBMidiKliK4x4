@@ -184,17 +184,15 @@ void LED_Init()
 {
   // LED connect
   gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
-  LED_Flash(&LED_ConnectTick);
-
+  LED_TurnOn(&LED_ConnectTick);
+  delay(100);
 #ifdef LED_MIDI_SIZE
   for (uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
     gpio_set_mode(PIN_MAP[LED_MidiInTick[i].pin].gpio_device, PIN_MAP[LED_MidiInTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
     gpio_set_mode(PIN_MAP[LED_MidiOutTick[i].pin].gpio_device, PIN_MAP[LED_MidiOutTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
-    LED_TurnOn(&LED_MidiInTick[i]);
-    LED_TurnOn(&LED_MidiOutTick[i]);
   }
 #endif
-
+  FlashAllLeds(0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -794,7 +792,6 @@ boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t 
   return true;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Get/ Set magic boot mode
 // DR5 backup register is used for UMK4x4
@@ -805,12 +802,12 @@ uint16_t GetAndClearBootMagicWord()
 
   RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
   // read magic word in register register
-  magicWord = BKP_BASE->DR5 ;
+  magicWord = BKP_BASE->BOOT_REGISTER ;
   // Reset magic word
   // Enable write access to the backup registers and the RTC
   PWR_BASE->CR |= PWR_CR_DBP;
   // write register
-  BKP_BASE->DR5 = BOOT_MIDI_MAGIC; // Default
+  BKP_BASE->BOOT_REGISTER = BOOT_MIDI_MAGIC; // Default;
   // Disable write
   PWR_BASE->CR &= ~PWR_CR_DBP;
   RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
@@ -825,6 +822,7 @@ void SetBootMagicWord(uint16_t magicWord)
 
        return;
 
+   // global
    bootMagicWord = magicWord;
 
    // Write the Magic word bootloader
@@ -834,16 +832,16 @@ void SetBootMagicWord(uint16_t magicWord)
    PWR_BASE->CR |= PWR_CR_DBP;
 
    // write register
-   // if bootloader then write hid_boolaoder magic word to DR4
+   // if bootloader then write hid_boolaoder magic word to DR4/10
    // Write also DR5 to come back to config mode.
    if (magicWord == BOOT_BTL_MAGIC ) {
-     BKP_BASE->DR4 = BOOT_BTL_MAGIC;
-     BKP_BASE->DR5 = BOOT_CONFIG_MAGIC;
+     BKP_BASE->BOOT_BTL_REGISTER = BOOT_BTL_MAGIC;
+     BKP_BASE->BOOT_REGISTER = BOOT_CONFIG_MAGIC;
    }
-   // usual case.
+   // usual case. No Wait.
    else {
-     BKP_BASE->DR4 = 0x0000;
-     BKP_BASE->DR5 = bootMagicWord;
+     BKP_BASE->BOOT_BTL_REGISTER = BOOT_BTL_MAGIC_NOWAIT;
+     BKP_BASE->BOOT_REGISTER = bootMagicWord;
    }
 
    // Disable write
