@@ -69,7 +69,7 @@ __ __| |           |  /_) |     ___|             |           |
 #ifdef HID_BOOTLOADER
   #define BOOT_BTL_MAGIC        0x424C
   #define BOOT_BTL_MAGIC_NOWAIT 0x0000
-  #define BOOT_BTL_REGISTER     DR4
+  #define BOOT_BTL_REGISTER     DR10
 #else
   #define BOOT_BTL_MAGIC        0x424C
   #define BOOT_BTL_MAGIC_NOWAIT 0x424D

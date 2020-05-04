@@ -68,10 +68,6 @@ EEPROM_Prm_t EE_Prm;
 // Default Boot modes magic word
 uint16_t bootMagicWord = BOOT_MIDI_MAGIC;
 
-// Timers
-// 1 msec timer
-HardwareTimer timerMillis(2);
-
 // Serial interfaces Array
 HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
 
@@ -182,17 +178,24 @@ void TimerMillisHandler(void)
 ///////////////////////////////////////////////////////////////////////////////
 void LED_Init()
 {
+
+  // Initialize LED arrays
+
   // LED connect
   gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
-  LED_TurnOn(&LED_ConnectTick);
-  delay(100);
-#ifdef LED_MIDI_SIZE
+  LED_ConnectTick.tick = 0;
+
+  // LEDs IN/OUT if available
+#ifdef HAS_MIDITECH_HARDWARE
   for (uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
     gpio_set_mode(PIN_MAP[LED_MidiInTick[i].pin].gpio_device, PIN_MAP[LED_MidiInTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
     gpio_set_mode(PIN_MAP[LED_MidiOutTick[i].pin].gpio_device, PIN_MAP[LED_MidiOutTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
+
+    LED_MidiOutTick[i].tick = 0;
+    LED_MidiInTick[i].tick = 0;
   }
 #endif
-  FlashAllLeds(0);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1008,18 +1011,22 @@ void setup()
     // Retrieve EEPROM parameters
     EE_PrmInit();
 
-    // Configure the millisec timer ISR
-    timerMillis.pause();
-    timerMillis.setPeriod(TIMER_MILLIS_RATE_MICROS); // in microseconds
-    // Set up an interrupt on channel 1
-    timerMillis.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-    timerMillis.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
-    timerMillis.attachCompare1Interrupt(TimerMillisHandler);
-    timerMillis.refresh();
-    timerMillis.resume();
-
     // Reset LEDs counters.
     LED_Init();
+
+    // Configure TIMER.
+    HardwareTimer *timerMillis = new HardwareTimer(1);
+
+    // Configure the millisec timer ISR
+    timerMillis->pause();
+    timerMillis->setPeriod(TIMER_MILLIS_RATE_MICROS); // in microseconds
+    // Set up an interrupt on channel 1
+    timerMillis->setChannel1Mode(TIMER_OUTPUT_COMPARE);
+    // Interrupt 1 count after each update
+    timerMillis->setCompare(TIMER_CH4, 1);
+    timerMillis->attachInterrupt(TIMER_CH4, TimerMillisHandler);
+    timerMillis->refresh();
+    timerMillis->resume();
 
     // recompute all midi clocks ticks...
     SetMidiBpmClock(0x7F, 0);
@@ -1081,6 +1088,14 @@ void setup()
 
     // Start Wire (I2C) if bus mode enabled. AFTER MIDI !
     I2C_BusStartWire();
+
+    // Show end of setup phase
+    // Seems that using LED_Flash in combination with timer introduce
+    // some conflicts with USB (cf USBMidi_Init above)...
+    // This is a low level thing...in the core library probably.
+
+    FlashAllLeds(0);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
