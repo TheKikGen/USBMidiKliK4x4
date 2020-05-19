@@ -478,9 +478,6 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
   if ( attachedSlot && !TransPacketPipelineExec(portType, attachedSlot, pk) ) return ;
 
-  // Force a clock update
-  if ( !(IS_SLAVE && IS_BUS_E)  ) MidiClockGenerator();
-
   // 2/ Apply virtual port routing if a target match
   uint8_t t=0;
   while ( vrInTargets && t != VIRTUAL_INTERFACE_MAX ) {
@@ -530,10 +527,6 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
             mpk.mpk.pk.i = pk2.i;
             I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
         }
-
-        #ifdef LEDS_MIDI
-        flashLED_IN[t]->start();
-        #endif
     }
     t++; cbInTargets >>= 1;
   }
@@ -566,12 +559,12 @@ void MidiClockGenerator()
     // Midi Clock
     if ( EE_Prm.bpmClocks[i].enabled ) {
        // Generate a midi timingClock status packet
-       if (micros() > bpmTicks[i].nextBpmTick ) {
+       if ( micros() > bpmTicks[i].nextBpmTick ) {
           // Change virtual port clk 0 to port 0, clk1 port1, ...
           midiPacket_t timingClockPk = { .packet= {0x0F ,0XF8,0,0} };
           timingClockPk.packet[0] += (i<< 4);
           RoutePacketToTarget(PORT_TYPE_VIRTUAL, &timingClockPk);
-          bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm;
+          bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm ;
        }
     }
   }
@@ -862,9 +855,9 @@ void CheckBootMode()
 	// Does the config menu boot mode is active ?
 	// if so, prepare the next boot in MIDI mode and jump to menu
 
-  // Read the boot magic word
-  bootMagicWord = GetAndClearBootMagicWord();
-  if (bootMagicWord == BOOT_CONFIG_MAGIC ) {
+  // Read the boot magic word if default.
+  // If a new build was uploaded, we force config mode.
+    if (bootMagicWord == BOOT_CONFIG_MAGIC || GetAndClearBootMagicWord() == BOOT_CONFIG_MAGIC) {
 
       // Next boot on Midi
       SetBootMagicWord(BOOT_MIDI_MAGIC);
@@ -1008,14 +1001,17 @@ void SerialMidi_Process()
 ///////////////////////////////////////////////////////////////////////////////
 void setup()
 {
+
+    Serial.end();
+
     // Retrieve EEPROM parameters
     EE_PrmInit();
 
     // Reset LEDs counters.
     LED_Init();
 
-    // Configure TIMER.
-    HardwareTimer *timerMillis = new HardwareTimer(1);
+    // Configure the general purpose TIMER.
+    HardwareTimer *timerMillis = new HardwareTimer(2);
 
     // Configure the millisec timer ISR
     timerMillis->pause();
