@@ -333,6 +333,8 @@ void EE_PrmInit(bool factorySettings)
 		// New build only. We keep existing settings but reboot in config mode
  		{
 			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
+			// Write the whole param struct
+	    EE_PrmSave();
 
 			// Default boot mode when new firmware uploaded only for this session.
 			bootMagicWord = BOOT_CONFIG_MAGIC;
@@ -373,12 +375,10 @@ void EE_PrmInit(bool factorySettings)
 
     memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
-		//Write the whole param struct
-    EE_PrmSave();
-
 		// Default boot mode when new firmware uploaded (not saved as one shot mode)
 		bootMagicWord = BOOT_CONFIG_MAGIC;
   }
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
