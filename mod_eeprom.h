@@ -375,6 +375,9 @@ void EE_PrmInit(bool factorySettings)
 
     memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
+		// Write the whole param struct
+		EE_PrmSave();
+
 		// Default boot mode when new firmware uploaded (not saved as one shot mode)
 		bootMagicWord = BOOT_CONFIG_MAGIC;
   }
