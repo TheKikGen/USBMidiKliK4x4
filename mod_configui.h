@@ -1043,6 +1043,7 @@ void ShowConfigMenu()
 				Serial.println();
         SerialPrintf("Save %s",str_SETTINGS);
         if (AskChoice("","") == 'y' ) {
+					EE_PrmSave();
 					delay(100);
           SerialPrintf("%s !%n",str_DONE_B);
 					showMenu = false;
