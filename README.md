@@ -15,14 +15,11 @@ The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to
 Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
 I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
 
-The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode".
+The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, midi transformation, midi clock, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode".
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=thekikgen@gmail.com&lc=FR&item_name=Donation+to+TheKikGen+projects&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted)
-
-
-
 
 ## USBMidiKliK4x4 features
 
@@ -39,11 +36,24 @@ The current version V2 supports full USB midi until 16xIN , 16XOUT plus routing 
 + USB device ProductStringName, Vendor and Product Ids can be changed easily
 + STANDALONE Mode :  can be used as a standalone MIDI routing box without connecting any host to the USB
 + Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
++ Powerfull "pipeline" feature allows to modify an incoming midi message
++ 8 Midi clock / Midi Time Code generators
 + Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
+
+
+The "pipeline" feature allows you to modify an incoming midi message through a chain of transformation functions (a "pipe"), e.g.,  transpose notes, split, map channel to another, map CC to another, etc...New pipes can be easily added in order to obtain complex midi transformations without degrading performances.
+<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
+
+8 Midi clock generator / virtual ports are available form the routing engine. Below is an overview of the possible paths for a midi message packet, coming from a physical in port to a physical out port :
+<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
+
+The bus mode allows the aggregation of up to five interfaces using the I2C protocol, which will be seen as a single interface by the usb host and/or the midi routing engine (including standalone mode).
 
 <img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
 
-Configuration is stored in EEPROM and persists after power off.
+
+V2.5 SYSEX implementation : https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/UMK-4X4-SYSEX-IPL.TXT
+
 
 Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
@@ -115,20 +125,6 @@ The following menu should appear after connecting to the right serial USB port ,
 
 ## OFFICIAL RELEASE VERSION 2.5 merged to master branch ###
 This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 8 midi clock generators in the routing engine. 
-
-## Midi clock generator and virtual ports added (RC1 - 14 April 2020) ###
-
-8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview to help to better understand what are possible paths for a midi message packet, coming from a physical in port to a physical out port :
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
-
-## FULL SYSEX preliminary implementation (RC1 - 06 April 2020) ###
-
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/Preliminary-UMK4x4-SYSEX-2.5--implementation
-
-## Midi transformation pipelines (RC1 - 06 April 2020) ###
-
-A powerfull "pipeline" feature has been added to the RC1 allowing to modify an incoming midi message a chain of transformation functions, e.g.,  transpose notes, split, map channel to another, map CC to another, etc....    
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
 
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
