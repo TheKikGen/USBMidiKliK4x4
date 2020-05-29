@@ -53,39 +53,67 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 //  FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-void PrintCleanHEX(uint8_t);
-void ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) __attribute__((optimize("-Os")));
-void ShowBufferHexDumpDebugSerial(uint8_t* , uint8_t nl=16 ) __attribute__((optimize("-Os")));
-uint8_t GetInt8FromHexChar(char);
-uint16_t GetInt16FromHex4Char(char *);
-uint16_t GetInt16FromHex4Bin(char * );
-uint16_t PowInt(uint8_t ,uint8_t);
-uint16_t AsknNumber(uint8_t) ;
-char AskDigit();
-char AskChar();
-uint8_t AsknHexChar(char *, uint8_t ,char,char);
-char AskChoice(const char * , const char * );
-void ShowMidiRoutingLine(uint8_t ,uint8_t , void *) __attribute__((optimize("-Os"))) ;
-void ShowMidiRouting(uint8_t) __attribute__((optimize("-Os"))) ;
-void ShowMidiKliKHeader();
-void ShowGlobalSettings();
-uint16_t AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
-void AskMidiRouting(uint8_t);
-uint8_t AskMidiFilter(uint8_t, uint8_t );
-void AskProductString();
-void AskVIDPID();
-void MenuItems( const char * );
-void ShowConfigMenu();
-void I2C_ShowActiveDevice();
+//Shared. See usbmidiKlik4x4.h
+//void __O_SMALL ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) ;
+uint8_t __O_SMALL GetInt8FromHexChar(char);
+uint16_t __O_SMALL GetInt16FromHex4Char(char *);
+uint16_t __O_SMALL GetInt16FromHex4Bin(char * );
+//Shared. See usbmidiKlik4x4.h
+//void __O_SMALL SerialPrintf(const char *format, ...)  ;
+uint16_t __O_SMALL PowInt(uint8_t ,uint8_t);
+uint16_t __O_SMALL AsknNumber(uint8_t,boolean nl=true);
+char __O_SMALL AskDigit();
+char __O_SMALL AskChar();
+uint8_t __O_SMALL AsknHexChar(char *, uint8_t ,char,char);
+char __O_SMALL AskChoice(const char * , const char *,boolean nl=true);
+void __O_SMALL ShowMask16(uint16_t ,uint8_t );
+void __O_SMALL ShowPipelineSlotBrowser(boolean mustLoop=true);
+void __O_SMALL ShowMidiRoutingLine(uint8_t ,uint8_t );
+void __O_SMALL ShowMidiRouting(uint8_t);
+void __O_SMALL ShowMidiKliKHeader();
+void __O_SMALL ShowGlobalSettings();
+uint16_t __O_SMALL AskMidiRoutingTargets(uint8_t,uint8_t , uint8_t );
+void __O_SMALL AskMidiRouting(uint8_t);
+void __O_SMALL AskProductString();
+void __O_SMALL AskVIDPID();
+void __O_SMALL MenuItems( const char * );
+void __O_SMALL ShowConfigMenu();
 
 ///////////////////////////////////////////////////////////////////////////////
-// Serial print a formated hex value
+// Strings const used in UI
 //////////////////////////////////////////////////////////////////////////////
-void PrintCleanHEX(uint8_t hexVal)
-{
-          if ( hexVal < 0x10 ) Serial.print("0");
-          Serial.print(hexVal,HEX);
-}
+// _M : Major Case.  _B : Beautified.
+const char* str_16DIGITS     = "1234567890123456";
+const char* str_71DIGITS     = "1111111";
+const char* str_BYPASS       = "bypass";
+const char* str_MIDI         = "midi";
+const char* str_IN           = "in";
+const char* str_OUT          = "out";
+const char* str_CABLE        = "cable";
+const char* str_JACK         = "jack";
+const char* str_VIRTUAL      = "virtual";
+const char* str_ROUTING      = "routing";
+const char* str_PIPELINE     = "pipeline";
+const char* str_VIRT         = "virt.";
+const char* str_SLOT         = "slot";
+const char* str_ENABLE       = "enable";
+const char* str_ENABLED      = "enabled";
+const char* str_DISABLE      = "disable";
+const char* str_DISABLED     = "disabled";
+const char* str_USB_M        = "USB";
+const char* str_PORT         = "port";
+const char* str_ERROR_B      = "Error";
+const char* str_TRYAGAIN_B   = "Try again";
+const char* str_ITHRU        = "ithru";
+const char* str_DEVICE_ID_B  = "Device ID";
+const char* str_SETTINGS     = "settings";
+const char* str_SETTINGS_M   = "SETTINGS";
+const char* str_DONE_B       = "Done";
+const char* str_MASTER_M     = "MASTER";
+const char* str_MASTER       = "master";
+const char* str_SLAVE_M      = "SLAVE";
+const char* str_SLAVE        = "slave";
+const char* str_NO_CHG_MADE  = "no change made";
 
 ///////////////////////////////////////////////////////////////////////////////
 // DUMP a byte buffer to screen
@@ -95,26 +123,12 @@ void ShowBufferHexDump(uint8_t* bloc, uint16_t sz,uint8_t nl)
 	uint8_t j=0;
 	uint8_t * pp = bloc;
 	for (uint16_t i=0; i != sz; i++) {
-				PrintCleanHEX(*pp);
+				SerialPrintf("%02x",*pp);
 				Serial.print(" ");
-				if (nl && (++j > nl) ) { Serial.println(); j=0; }
+				if (nl && (++j >= nl) ) { Serial.println(); j=0; }
 				pp++;
 	}
 }
-
-void ShowBufferHexDumpDebugSerial(uint8_t* bloc, uint16_t sz,uint8_t nl)
-{
-	uint8_t j=0;
-	uint8_t * pp = bloc;
-	for (uint16_t i=0; i != sz; i++) {
-        if ( *pp < 0x10 ) DEBUG_SERIAL.print("0");
-        DEBUG_SERIAL.print(*pp,HEX);
-				DEBUG_SERIAL.print(" ");
-				if (nl && (++j > nl) ) { DEBUG_SERIAL.println(); j=0; }
-				pp++;
-	}
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Get an Int8 From a hex char.  letters are minus.
@@ -149,9 +163,113 @@ uint16_t GetInt16FromHex4Bin(char * buff)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// SerialPrintf : a light printf like to Serial.
+// %%  : %
+// %n  : new line
+// %s  : strings
+// %m  : string minor case
+// %M  : string major case
+// %y  : string beautify (fist letter major case)
+// %c  : character
+// %x  : hexa
+// %d  : integer
+// %b  : binary
+// %(n)s : print n char from string or char array
+// %(nn)d/x/b : pad space left until size n
+// %(0n)d/x/b : pad 0 left untile size n (nb for b : n=32 bits max).
+///////////////////////////////////////////////////////////////////////////////
+#define _PRINT_OUT Serial.print
+void SerialPrintf(const char *format, ...)
+{
+  va_list varg;
+  va_start(varg, format);
+
+  while ( *format != 0 ) {
+    if (*format == '%') {
+      format++;
+      if (*format == '%') _PRINT_OUT(*format);
+      else if (*format == 'b') _PRINT_OUT(va_arg(varg, long),BIN); // Binary
+      else if (*format == 'c') _PRINT_OUT((char)va_arg(varg, int)); // Char (must be casted to int)
+      else if (*format == 'd') _PRINT_OUT(va_arg(varg, long ));  // long int
+      else if (*format == 'u') _PRINT_OUT(va_arg(varg, unsigned long));  // u long int
+      else if (*format == 'x') _PRINT_OUT(va_arg(varg, long),HEX);  // hexa
+			else if (*format == 's' || *format == 'M' || *format == 'm' || *format == 'y') {
+				char * str=va_arg(varg, char*);
+				uint16_t i = 0;
+				while (*str) {
+						char c = *str;
+						if ( c >= 'A' && c <= 'Z' ) {
+							if ( *format == 'm' || (*format == 'y' && i > 0) ) c +=  0x20;
+						} else
+						if ( c >= 'a' && c <= 'z') {
+							if ( *format == 'M' || (*format == 'y' && i == 0) ) c -=  0x20;
+						}
+						_PRINT_OUT(c); str++; i++;
+				}
+			}
+      else if (*format >= '0' && *format <= '9' ) {
+        char p =' ';
+        if ( *format == '0') { format++; p = '0';}
+        if ( *format >='1' && *format <= '9' ) {
+          uint8_t pad = *format - '0';
+          format++;
+          if ( *format >='0' && *format <= '9' ) pad = pad*10 + *(format++) - '0';
+					if ( *format == 'c' ) {
+						while (--pad) _PRINT_OUT(p);
+						_PRINT_OUT((char)va_arg(varg, int));
+					}
+          else if ( *format == 's' || *format == 'M' || *format == 'm' || *format == 'y') {
+            char * str=va_arg(varg, char*);
+						uint16_t i = 0;
+						while (pad--) {
+								if (*str) {
+									char c = *str;
+									if ( c >= 'A' && c <= 'Z' ) {
+										if ( *format == 'm' || (*format == 'y' && i > 0) ) c +=  0x20;
+									} else
+									if ( c >= 'a' && c <= 'z') {
+										if ( *format == 'M' || (*format == 'y' && i == 0) ) c -=  0x20;
+									}
+									_PRINT_OUT(c); str++; i++;
+								}
+								else break;
+						}
+					}
+          else {
+            uint8_t  base = 0;
+            if ( *format == 'd' ) base = 10;
+            else if ( *format =='x' ) base = 16;
+            else if ( *format =='b' ) {
+                base = 2;
+                if ( pad > 32 ) pad = 8; // 32 bits max
+            }
+            if (base) {
+							int value = va_arg(varg, long);
+              uint32_t pw   = base;
+              while (pad--) {
+                if ( value < (int)pw ) while (pad) { _PRINT_OUT(p);pad--;}
+                else pw *= base;
+              }
+              if (base == 16) _PRINT_OUT(value,HEX);
+              else if (base == 2) _PRINT_OUT(value,BIN);
+              else _PRINT_OUT(value);
+            }
+          }
+        } else return;
+      }
+      else if (*format == 'n') Serial.println(); // new line
+      else return;
+    } else Serial.print(*format);
+    format++;
+  }
+  va_end(varg);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // A Pow function to not use the fat float math library one
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t PowInt(uint8_t p,uint8_t n) {
+uint16_t PowInt(uint8_t p,uint8_t n)
+{
 
   if (n == 0) return 1;
   uint16_t pow = 1;
@@ -163,7 +281,7 @@ uint16_t PowInt(uint8_t p,uint8_t n) {
 ///////////////////////////////////////////////////////////////////////////////
 // USB serial get a number of N digit (long)
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t AsknNumber(uint8_t n)
+uint16_t AsknNumber(uint8_t n,boolean nl)
 {
 	uint16_t v=0;
 	uint8_t choice;
@@ -171,6 +289,7 @@ uint16_t AsknNumber(uint8_t n)
 		v += ( (choice = AskDigit() ) - '0' )*PowInt(10,n);
 		Serial.print(choice - '0');
 	}
+  if (nl) Serial.println();
 	return v;
 }
 
@@ -201,7 +320,6 @@ char AskChar()
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t AsknHexChar(char *buff, uint8_t len,char exitchar,char sepa)
 {
-
 	uint8_t i = 0, c = 0;
 
 	while ( i < len ) {
@@ -218,153 +336,213 @@ uint8_t AsknHexChar(char *buff, uint8_t len,char exitchar,char sepa)
 ///////////////////////////////////////////////////////////////////////////////
 // Get a choice from a question
 ///////////////////////////////////////////////////////////////////////////////
-char AskChoice(const char * qLabel, const char * choices)
+char AskChoice(const char * qLabel, const char * choices,boolean nl)
 {
 	char c;
 	const char * yn = "yn";
 	const char * ch;
 
 	if ( *choices == 0 ) ch = yn; else ch = choices;
-	Serial.print(qLabel);
-	Serial.print(" (");
-	Serial.print(ch);
-	Serial.print(") ? ");
-
+	SerialPrintf("%s (%s) ? ",qLabel,ch);
 	while (1) {
 		c = AskChar();
 		uint8_t i=0;
 		while (ch[i] )
-				if ( c == ch[i++] ) { Serial.write(c); return c; }
+				if ( c == ch[i++] ) {
+            Serial.write(c);
+            if (nl) Serial.println();
+            return c;
+        }
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Show a 16 bits mask value with "X" and "."
+///////////////////////////////////////////////////////////////////////////////
+void ShowMask16(uint16_t bitMsk,uint8_t maxValue)
+{
+  // IN targets ports
+  for ( uint8_t p =0; p != 16 ; p++) {
+        if (p >= maxValue ) {
+          Serial.print(" ");
+        } else {
+            if ( bitMsk & ( 1 << p) ) Serial.print("X");
+            else   Serial.print(".");
+        }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Browse pipelines
+///////////////////////////////////////////////////////////////////////////////
+void ShowPipelineSlotBrowser(boolean mustLoop)
+{
+  while (1) {
+    SerialPrintf("Enter %s %s 1-8, or 0 to exit :",str_PIPELINE,str_SLOT);
+    uint8_t choice = AsknNumber(1);
+    if ( choice == 0 ) break;
+    if ( choice >= 1 && choice <= TRANS_PIPELINE_SLOT_SIZE ) {
+      ShowPipelineSlot(choice);
+      Serial.println();
+      if (!mustLoop) break;
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Show a routing table line
 ///////////////////////////////////////////////////////////////////////////////
-void ShowMidiRoutingLine(uint8_t port,uint8_t ruleType, void *anyRule)
+void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
 {
+  uint8_t attachedSlot = 0;
+  uint16_t cbInTgMsk =0;
+  uint16_t jkOutTgMsk =0;
+  uint16_t vrInTgMsk =0;
 
-	uint8_t  maxPorts = 0;
-	uint8_t  filterMsk = 0;
-	uint16_t cableInTargetsMsk = 0;
-	uint16_t jackOutTargetsMsk = 0 ;
-
-	if (ruleType == USBCABLE_RULE || ruleType == SERIAL_RULE ) {
-			maxPorts = ( ruleType == USBCABLE_RULE ? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT );
-			filterMsk = ((midiRoutingRule_t *)anyRule)->filterMsk;
-			cableInTargetsMsk = ((midiRoutingRule_t *)anyRule)->cableInTargetsMsk;
-			jackOutTargetsMsk = ((midiRoutingRule_t *)anyRule)->jackOutTargetsMsk;
-	}	else if (ruleType == INTELLITHRU_RULE ) {
-			maxPorts = SERIAL_INTERFACE_COUNT;
-			filterMsk = ((midiRoutingRuleJack_t *)anyRule)->filterMsk;
-			jackOutTargetsMsk = ((midiRoutingRuleJack_t *)anyRule)->jackOutTargetsMsk;
-	}
+	if (portType == PORT_TYPE_CABLE ) {
+    attachedSlot = EE_Prm.rtRulesCable[port].slot;
+    cbInTgMsk    = EE_Prm.rtRulesCable[port].cbInTgMsk;
+    jkOutTgMsk   = EE_Prm.rtRulesCable[port].jkOutTgMsk;
+    vrInTgMsk   = EE_Prm.rtRulesCable[port].vrInTgMsk;
+  } else
+  if ( portType == PORT_TYPE_JACK ) {
+    attachedSlot = EE_Prm.rtRulesJack[port].slot;
+    cbInTgMsk    = EE_Prm.rtRulesJack[port].cbInTgMsk;
+    jkOutTgMsk   = EE_Prm.rtRulesJack[port].jkOutTgMsk;
+    vrInTgMsk   = EE_Prm.rtRulesJack[port].vrInTgMsk;
+  } else
+  if (portType == PORT_TYPE_VIRTUAL ) {
+    attachedSlot = EE_Prm.rtRulesVirtual[port].slot;
+    cbInTgMsk    = EE_Prm.rtRulesVirtual[port].cbInTgMsk;
+    jkOutTgMsk   = EE_Prm.rtRulesVirtual[port].jkOutTgMsk;
+  }
   else return;
 
-
-	// No display if port is not exsiting or not concerned by IntelliThru
-	if ( port >= maxPorts ) return;
-	if (ruleType == INTELLITHRU_RULE && !(EEPROM_Params.intelliThruJackInMsk & (1<< port)) ) return;
-
 	// print a full new line
-	Serial.print("|");
-	Serial.print(port+1);
-	Serial.print( port+1 > 9 ? "":" ");
-	Serial.print("|  ");
+  // Port
+  SerialPrintf("| %2d |    ",port+1);
 
-	// Filters
-	for ( uint8_t f=0; f != 4 ; f++) {
-		 if ( ( filterMsk & ( 1 << f) )  )
-			 Serial.print("X  ");
-		 else Serial.print(".  ");
-	}
+  if ( attachedSlot)
+    Serial.print(attachedSlot);
+  else
+    Serial.print(".");
+  Serial.print("     | ");
 
-	// Cable In (but Midi Thru mode)
-	Serial.print("| ");
-	if (ruleType != INTELLITHRU_RULE) {
-		for ( uint8_t cin=0; cin != 16 ; cin++) {
-					if (cin >= USBCABLE_INTERFACE_MAX ) {
-						Serial.print(" ");
-					} else {
-							if ( cableInTargetsMsk & ( 1 << cin) )
-									Serial.print("X");
-							else Serial.print(".");
-					}
+	// Cable IN targets ports
+  ShowMask16(cbInTgMsk,USBCABLE_INTERFACE_MAX);
+  Serial.print(" | ");
+
+  // Jack Out targets ports
+  ShowMask16(jkOutTgMsk,SERIAL_INTERFACE_COUNT);
+  Serial.print(" | ");
+
+	// Clock attached to virtual ports
+	if ( portType == PORT_TYPE_VIRTUAL) {
+		if (port < MIDI_CLOCKGEN_MAX ) {
+			uint16_t bpm = EE_Prm.bpmClocks[port].bpm/10;
+			uint16_t bpmDec = EE_Prm.bpmClocks[port].bpm - bpm*10 ;
+			SerialPrintf(" |  %c  %3d.%d    %c    |",EE_Prm.bpmClocks[port].mtc ? 'X':'.',bpm,bpmDec,EE_Prm.bpmClocks[port].enabled ? 'X':'.');
 		}
-	}	else Serial.print("     (N/A)      "); // IntelliThru
-
-	// Jack Out
-	Serial.print(" | ");
-	for ( uint8_t jk=0; jk != 16 ; jk++) {
-					if (jk >= SERIAL_INTERFACE_COUNT ) {
-						Serial.print(" ");
-					} else
-					if ( jackOutTargetsMsk & ( 1 << jk) )
-									Serial.print("X");
-				  else Serial.print(".");
 	}
-	Serial.println(" |");
+	else {
+			// virtual Out targets ports if not a virtual port
+		  ShowMask16(vrInTgMsk,VIRTUAL_INTERFACE_MAX);
+		  Serial.print(" |");
 
+			// Ithru if jack serial line
+	    if ( portType == PORT_TYPE_JACK ) {
+		    // IThru mask
+		    Serial.print("    ");
+		    if ( EE_Prm.ithruJackInMsk & ( 1 << port) )
+		      Serial.print("X");
+		    else
+		      Serial.print(".");
+
+		    // pipeLine slot
+		    Serial.print("    |    ");
+
+		    if (  EE_Prm.rtRulesIthru[port].slot)
+		      Serial.print( EE_Prm.rtRulesIthru[port].slot);
+		    else
+		      Serial.print(".");
+		    Serial.print("   | ");
+
+		    // Ithu Out targets ports
+		    ShowMask16(EE_Prm.rtRulesIthru[port].jkOutTgMsk,SERIAL_INTERFACE_COUNT);
+		    Serial.print(" | ");
+		    ShowMask16(EE_Prm.rtRulesIthru[port].vrInTgMsk,VIRTUAL_INTERFACE_MAX);
+		    Serial.print(" |");
+			}
+  }
+
+  Serial.println();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Show the midi routing map
+// Show the midi routing map for a specific port type
 ///////////////////////////////////////////////////////////////////////////////
-void ShowMidiRouting(uint8_t ruleType)
+void ShowMidiRouting(uint8_t portType)
 {
 	uint8_t maxPorts = 0;
 
- 	// Cable
-	if (ruleType == USBCABLE_RULE) {
-			Serial.print("USB MIDI CABLE OUT ROUTING");
+  // Cable
+	if (portType == PORT_TYPE_CABLE) {
+      SerialPrintf("%M %M",str_CABLE,str_OUT);
 			maxPorts = USBCABLE_INTERFACE_MAX;
 	}
-
 	// Serial
 	else
-	if (ruleType == SERIAL_RULE) {
-			Serial.print("MIDI IN JACK ROUTING ");
-			maxPorts = SERIAL_INTERFACE_COUNT;
-
-	}
-  else
-	// IntelliThru
-	if (ruleType == INTELLITHRU_RULE) {
-			Serial.print("MIDI IN JACK INTELLITHRU ROUTING ");
+	if (portType == PORT_TYPE_JACK) {
+      SerialPrintf("%M %M",str_JACK,str_IN);
 			maxPorts = SERIAL_INTERFACE_COUNT;
 	}
-	else return;
+  // Virtual
+	else
+	if (portType == PORT_TYPE_VIRTUAL) {
+      SerialPrintf("%M %M",str_VIRTUAL,str_IN);
+			maxPorts = VIRTUAL_INTERFACE_MAX;
+	}  else return;
 
-	Serial.print(" (");Serial.print(maxPorts);
-	Serial.println(" port(s) found)");
+  SerialPrintf(" %M (%d %s(s) found)%n",str_ROUTING,maxPorts,str_PORT);
+  Serial.println();
 
-	Serial.println();
-	Serial.print("|");
-	Serial.print(ruleType == USBCABLE_RULE ? "Cb":"Jk");
-	Serial.println("| Msg Filter   | Cable IN 1111111 | Jack OUT 1111111 |");
-	Serial.println("|  | Ch Sc Rt Sx  | 1234567890123456 | 1234567890123456 |");
+	Serial.print("| ");
+  if (portType == PORT_TYPE_CABLE) Serial.print("Cb");
+  else if (portType == PORT_TYPE_VIRTUAL) Serial.print("Vr");
+  else if (portType == PORT_TYPE_JACK) Serial.print("Jk");
+  else return;
 
-	for (uint8_t p=0; p != maxPorts ; p++) {
+  SerialPrintf(" | %y",str_PIPELINE);
+	SerialPrintf(" | %y %M %s",str_CABLE,str_IN,str_71DIGITS);
+  SerialPrintf(" | %y %M %s",str_JACK,str_OUT,str_71DIGITS);
 
-		void *anyRule;
-
-		if (ruleType == USBCABLE_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesCable[p];
-		else if (ruleType == SERIAL_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesSerial[p];
-		else if (ruleType == INTELLITHRU_RULE) anyRule = (void *)&EEPROM_Params.midiRoutingRulesIntelliThru[p];
-		else return;
-
-		ShowMidiRoutingLine(p,ruleType, anyRule);
-
-	} // for p
-
-	Serial.println();
-	if (ruleType == INTELLITHRU_RULE) {
-		Serial.print("IntelliThru mode is ");
-		Serial.println(EEPROM_Params.intelliThruJackInMsk ? "active." : "inactive.");
-		Serial.print("USB sleeping detection time :");
-    Serial.print(EEPROM_Params.intelliThruDelayPeriod*15);Serial.println("s");
+	// Show clocks attached to virtual ports
+	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |<-|  Clock Generator ");
+  else {
+  	SerialPrintf(" | %y %M %s",str_VIRT,str_IN,str_71DIGITS);
+		if ( portType == PORT_TYPE_JACK) {
+	    SerialPrintf(" |    <-- %M -->  %y %M  %s",str_ITHRU,str_JACK,str_OUT,str_71DIGITS);
+	    SerialPrintf(" | %y %M %s",str_VIRT,str_IN,str_71DIGITS);
+  	}
 	}
+	Serial.println(" |");
 
+	// Header line 2
+  SerialPrintf("|    |   %y   | %s | %s",str_SLOT,str_16DIGITS,str_16DIGITS);
+	if ( portType == PORT_TYPE_VIRTUAL) SerialPrintf(" |  | MTC  Bpm  %y",str_ENABLED);
+	else {
+   	SerialPrintf(" | %s",str_16DIGITS);
+ 	  if ( portType == PORT_TYPE_JACK)
+    		SerialPrintf(" | %y |  %y  | %s | %s",str_ENABLED,str_SLOT,str_16DIGITS,str_16DIGITS);
+  }
+  Serial.println(" |");
+
+	for (uint8_t p=0; p != maxPorts ; p++) ShowMidiRoutingLine(p,portType);
+	Serial.println();
+	if ( portType == PORT_TYPE_JACK) {
+		SerialPrintf("%M mode is %s.%n",str_ITHRU,EE_Prm.ithruJackInMsk ? str_ENABLED:str_DISABLED);
+		SerialPrintf("%s idle detection time :%ds%n",str_USB_M,EE_Prm.ithruUSBIdleTimePeriod*15);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -372,12 +550,11 @@ void ShowMidiRouting(uint8_t ruleType)
 ///////////////////////////////////////////////////////////////////////////////
 void ShowMidiKliKHeader()
 {
-  Serial.print("USBMIDIKLIK 4x4 - ");
-	Serial.print(HARDWARE_TYPE);
-	Serial.print(" - V");
-	Serial.print(VERSION_MAJOR);Serial.print(".");Serial.println(VERSION_MINOR);
-	Serial.println("(c) TheKikGen Labs");
-	Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
+  SerialPrintf("USBMIDIKLIK 4x4 - %s",HARDWARE_TYPE);
+	if ( IS_BUS_E && IS_MASTER  ) SerialPrintf(" (%s ON BUS)",str_MASTER_M );
+	else if ( IS_BUS_E && IS_SLAVE ) SerialPrintf(" (%s %d ON BUS)",str_SLAVE_M,EE_Prm.I2C_DeviceId );
+  SerialPrintf("%nV%d.%d - Build %s - (c) TheKikGen Labs%n",VERSION_MAJOR,VERSION_MINOR,(char *)EE_Prm.TimestampedVersion);
+  Serial.println("https://github.com/TheKikGen/USBMidiKliK4x4");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -385,230 +562,174 @@ void ShowMidiKliKHeader()
 ///////////////////////////////////////////////////////////////////////////////
 void ShowGlobalSettings()
 {
+
 	uint8_t i;
-	Serial.println("GLOBAL SETTINGS");
+	SerialPrintf("GLOBAL %s%n%n",str_SETTINGS_M);
+  SerialPrintf("Hardware type       : %s%n",HARDWARE_TYPE);
+	SerialPrintf("MCU Flash size      : %dK%n",*(uint16_t *)0x1FFFF7E0);
+	SerialPrintf("Firmware version    : %d.%d - Build %s%n",EE_Prm.majorVersion, EE_Prm.minorVersion,(char *)EE_Prm.TimestampedVersion);
+	SerialPrintf("Magic number        : %3s%d%n",EE_Prm.signature,EE_Prm.prmVersion);
+	SerialPrintf("Sysex header        : ");
+	for (i=0; i != sizeof(sysExInternalHeader); i++) { SerialPrintf("%02x ",sysExInternalHeader[i]);}
+	  SerialPrintf("%n%s VID - PID       : %04x - %04x%n",str_USB_M,EE_Prm.vendorID,EE_Prm.productID);
+	SerialPrintf("%s Product string  : ",str_USB_M);
+	Serial.write(EE_Prm.productString, sizeof(EE_Prm.productString));
 	Serial.println();
-	Serial.print("Firmware version    : ");
-	Serial.print(EEPROM_Params.majorVersion);Serial.print(".");
-	Serial.println(EEPROM_Params.minorVersion);
-	Serial.print("Magic number        : ");
-	Serial.write(EEPROM_Params.signature , sizeof(EEPROM_Params.signature));
-	Serial.println(EEPROM_Params.prmVersion);
+  // Midi ports
+  SerialPrintf("%M %s(s) number : %y:%d - %y:%d - %y:%d%n",str_MIDI,str_PORT,str_CABLE,USBCABLE_INTERFACE_MAX,str_JACK,SERIAL_INTERFACE_COUNT,str_VIRTUAL,VIRTUAL_INTERFACE_MAX);
+  // Bus Mode
+  SerialPrintf("%nI2C Bus mode        : %M%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED:str_ENABLED);
+	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,IS_MASTER ? str_MASTER:str_SLAVE);
 
-	Serial.print("Build               : ");
-	Serial.println( (char *)EEPROM_Params.TimestampedVersion);
-
-	Serial.print("Sysex header        : ");
-	for (i=0; i != sizeof(sysExInternalHeader); i++) {
-			Serial.print(sysExInternalHeader[i],HEX);Serial.print(" ");
-	}
-	Serial.println();
-	Serial.print("Next BootMode       : ");
-	Serial.println(EEPROM_Params.nextBootMode);
-
-	Serial.print("Debug Mode          : ");
-	Serial.println(EEPROM_Params.debugMode ? "ENABLED":"DISABLED");
-
-	Serial.print("Hardware type       : ");
-	Serial.println(HARDWARE_TYPE);
-
-	Serial.print("EEPROM param. size  : ");
-	Serial.println(sizeof(EEPROM_Params_t));
-
-	Serial.print("I2C Bus mode        : ");
-	if ( EEPROM_Params.I2C_BusModeState == B_DISABLED )
-			Serial.println("DISABLED");
-  else
-			Serial.println("ENABLED");
-
-	Serial.print("I2C Device ID       : ");
-	Serial.print(EEPROM_Params.I2C_DeviceId);
-	if ( EEPROM_Params.I2C_DeviceId == B_MASTERID )
-			Serial.print(" (master)");
-	else
-			Serial.print(" (slave)");
-	Serial.println();
-
-	Serial.print("MIDI USB ports      : ");
-	Serial.println(USBCABLE_INTERFACE_MAX);
-
-	Serial.print("MIDI serial ports   : ");
-	Serial.println(SERIAL_INTERFACE_COUNT);
-
-	Serial.print("USB VID - PID       : ");
-	Serial.print( EEPROM_Params.vendorID,HEX);
-	Serial.print(" - ");
-	Serial.println( EEPROM_Params.productID,HEX);
-
-	Serial.print("USB Product string  : ");
-	Serial.write(EEPROM_Params.productString, sizeof(EEPROM_Params.productString));
-	Serial.println();
+	SerialPrintf("EEPROM param. size  : %d / %d (%d %%)%n",sizeof(EEPROM_Prm_t),EE_CAPACITY,((int)sizeof(EEPROM_Prm_t)*100) / ((int)EE_CAPACITY));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Setup a Midi routing target on screen
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t AskMidiRoutingTargets(uint8_t ruleType,uint8_t ruleTypeOut, uint8_t port)
+uint16_t AskMidiRoutingTargets(uint8_t portType,uint8_t portTypeOut, uint8_t port)
 {
 	uint16_t targetsMsk = 0;
-	uint8_t  portMax = (ruleTypeOut == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
-	uint8_t choice;
+	uint8_t  portMax;
 
-	if (ruleType == INTELLITHRU_RULE && ruleTypeOut == USBCABLE_RULE ) return 0;
+  if      (portTypeOut == PORT_TYPE_CABLE) portMax = USBCABLE_INTERFACE_MAX;
+  else if (portTypeOut == PORT_TYPE_JACK ) portMax = SERIAL_INTERFACE_COUNT;
+  else if (portTypeOut == PORT_TYPE_VIRTUAL) portMax = VIRTUAL_INTERFACE_MAX;
+  else return 0;
 
+  char choice;
 	for ( uint8_t i=0 ; i != portMax  ; i++ ){
 		Serial.print("Route ");
-		Serial.print(ruleType == USBCABLE_RULE ? "Cable OUT#":"Jack IN#");
-		if (port+1 < 10) Serial.print("0");
-		Serial.print(port+1);
-		Serial.print(" to ");
-		Serial.print(ruleTypeOut == USBCABLE_RULE ? "Cable IN#":"Jack OUT#");
-		if (i+1 < 10) Serial.print("0");
-		Serial.print(i+1);
-		choice = AskChoice("  (x to exit)","ynx");
-		if (choice == 'x') {Serial.println(); break;}
+    if (portType == PORT_TYPE_CABLE ) SerialPrintf("%s %M %s",str_CABLE,str_OUT,str_PORT);
+    else if (portType == PORT_TYPE_JACK ) SerialPrintf("%s %M %s",str_JACK,str_IN,str_PORT);
+    else if (portType == PORT_TYPE_VIRTUAL ) SerialPrintf("%s %M %s",str_VIRTUAL,str_IN,str_PORT);
+    else return 0;
+    SerialPrintf("# %02d to ",port+1);
+
+    if (portTypeOut == PORT_TYPE_CABLE ) SerialPrintf("%s %M %s",str_CABLE,str_IN,str_PORT);
+    else if (portTypeOut == PORT_TYPE_JACK ) SerialPrintf("%s %M %s",str_JACK,str_OUT,str_PORT);
+    else if (portTypeOut == PORT_TYPE_VIRTUAL ) SerialPrintf("%s %M %s",str_VIRTUAL,str_IN,str_PORT);
+    else return 0;
+    SerialPrintf("# %02d",i+1);
+
+		choice = AskChoice(" (x to exit)","ynx");
+		if (choice == 'x') break;
 		else if ( choice == 'y') targetsMsk |= (1 << i);
-		Serial.println();
 	}
 	return targetsMsk;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Setup a Midi routing target on screen
+// Setup a Midi routing rule on screen
 ///////////////////////////////////////////////////////////////////////////////
-void AskMidiRouting(uint8_t ruleType)
+void AskMidiRouting(uint8_t portType)
 {
-	uint8_t  portMax = (ruleType == USBCABLE_RULE? USBCABLE_INTERFACE_MAX:SERIAL_INTERFACE_COUNT);
-	uint8_t  choice;
+	uint8_t  portMax;
+  uint8_t  choice;
+  uint16_t cTargets=0;
+  uint16_t jTargets=0;
+  uint16_t vTargets=0;
+  uint8_t  port =0;
+  uint8_t  attachedSlot=0;
 
-	Serial.print("-- Set ");
-	Serial.print(ruleType == USBCABLE_RULE ? "USB Cable OUT":"Jack IN");
-	if (ruleType == INTELLITHRU_RULE ) Serial.print(" IntelliThru ");
-	Serial.println(" routing --");
+  if  (portType != PORT_TYPE_CABLE && portType != PORT_TYPE_JACK && portType != PORT_TYPE_ITHRU && portType != PORT_TYPE_VIRTUAL) return ;
 
-	Serial.print("Enter ");
-	Serial.print(ruleType == USBCABLE_RULE ? "Cable OUT":"Jack IN");
-	Serial.print (" # (01-");
-	Serial.print( portMax > 9 ? "":"0");
-	Serial.print( portMax);
-	Serial.print(" / 00 to exit) :");
+  if  (portType == PORT_TYPE_CABLE) {
+    portMax = USBCABLE_INTERFACE_MAX;
+    SerialPrintf("%M %M",str_CABLE,str_OUT);
+  }
+  else if (portType == PORT_TYPE_JACK || portType == PORT_TYPE_ITHRU) {
+    portMax = SERIAL_INTERFACE_COUNT;
+    SerialPrintf("%M %M %M",str_JACK,str_IN,portType == PORT_TYPE_ITHRU ? str_ITHRU:"");
+  }
+  else if (portType == PORT_TYPE_VIRTUAL) {
+    portMax = VIRTUAL_INTERFACE_MAX;
+    SerialPrintf("%M %M",str_VIRTUAL,str_IN);
+  }
+  else return ;
+
+	SerialPrintf (" %M - Enter %s# (01-%02d) / 00 to exit) :",str_ROUTING,str_PORT,portMax);
 	while (1) {
 		choice = AsknNumber(2);
-		Serial.println();
 		if ( choice > 0 && choice > portMax) {
-			Serial.print("# error. Please try again :");
+			SerialPrintf("%s. %s :",str_ERROR_B,str_TRYAGAIN_B);
 		} else break;
 	}
+  if (choice == 0) return;
+  port =  choice - 1;
+  Serial.println();
 
-	if (choice > 0) {
-		uint8_t port =  choice - 1;
-		Serial.println();
+  attachedSlot = (portType == PORT_TYPE_CABLE) ? EE_Prm.rtRulesCable[port].slot :
+                  (portType == PORT_TYPE_JACK) ? EE_Prm.rtRulesJack[port].slot:
+                   (portType == PORT_TYPE_VIRTUAL) ? EE_Prm.rtRulesVirtual[port].slot:
+                    (portType == PORT_TYPE_ITHRU)  ? EE_Prm.rtRulesIthru[port].slot:0;
 
-		if (ruleType == INTELLITHRU_RULE ) {
-			Serial.print("Jack #");
-			Serial.print( port+1 > 9 ? "":"0");Serial.print(port+1);
-			if ( AskChoice(" : enable thru mode routing","") != 'y') {
-				Serial.println();
-				Serial.print("Jack IN #");Serial.print(port+1);
-				Serial.println(" disabled.");
-				EEPROM_Params.intelliThruJackInMsk &= ~(1 << port);
-				return;
-			}
-			EEPROM_Params.intelliThruJackInMsk |= (1 << port);
-			Serial.println();
-			if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk )
-			{
-				if ( AskChoice("Keep existing Midi routing & filtering","") == 'y') {
-					Serial.println();
-					return;
-				}
-				Serial.println();
-			}
-			Serial.println();
-		}
+  // Slot
+  SerialPrintf("Enter %s %s 0-8, (0 = no slot) [%d]:",str_PIPELINE,str_SLOT,attachedSlot);
+  while (1) {
+    attachedSlot = AsknNumber(1);
+    if ( attachedSlot == 0 || attachedSlot <= TRANS_PIPELINE_SLOT_SIZE ) break;
+    SerialPrintf("%s. %s :",str_ERROR_B,str_TRYAGAIN_B);
+  }
+  // Targets
 
-		// Filters
-		uint8_t flt = AskMidiFilter(ruleType,port);
-		if ( flt == 0 ) {
-			Serial.println("No filters set. No change made.");
-			return;
-		}
-		Serial.println();
+  Serial.println();
+  if (portType != PORT_TYPE_ITHRU) {
+      cTargets = AskMidiRoutingTargets(portType,PORT_TYPE_CABLE,port);
+      Serial.println();
+      jTargets = AskMidiRoutingTargets(portType,PORT_TYPE_JACK,port);
+      Serial.println();
+			if (portType != PORT_TYPE_VIRTUAL)
+      		vTargets = AskMidiRoutingTargets(portType,PORT_TYPE_VIRTUAL,port);
+  } else {
 
-		uint16_t cTargets=0;
-		uint16_t jTargets=0;
+      if ( EE_Prm.rtRulesIthru[port].jkOutTgMsk ||
+          EE_Prm.rtRulesIthru[port].vrInTgMsk) {
+          // Enable of disable an existing ITHRU routing
+          SerialPrintf("Keep existing %s",str_ROUTING);
+          if (AskChoice("","") == 'y') {
+              SerialPrintf("%y",(EE_Prm.ithruJackInMsk & (1 << port) ) ? str_DISABLE:str_ENABLE);
+              SerialPrintf(" thru mode %s",str_ROUTING);
+              if (AskChoice("","") == 'y') {
+                EE_Prm.ithruJackInMsk ^= (1 << port);
+                SerialPrintf("%y %M %s.%n",str_JACK,str_IN,(EE_Prm.ithruJackInMsk & (1 << port)) ? str_ENABLED:str_DISABLED);
+              }
+              return;
+          }
+      }
+      jTargets = AskMidiRoutingTargets(PORT_TYPE_JACK,PORT_TYPE_JACK,port);
+      Serial.println();
+      vTargets = AskMidiRoutingTargets(PORT_TYPE_JACK,PORT_TYPE_VIRTUAL,port);
+  }
 
-		if (ruleType != INTELLITHRU_RULE ) {
-			// Cable
-			cTargets = AskMidiRoutingTargets(ruleType,USBCABLE_RULE,port);
-			Serial.println();
-		}
 
-		// Midi jacks
-		jTargets = AskMidiRoutingTargets(ruleType,SERIAL_RULE,port);
+  Serial.println();
 
-		if ( jTargets + cTargets == 0 ) {
-			Serial.println("No targets set. No change made.");
-			return;
-		}
-
-		if (ruleType == USBCABLE_RULE ) {
-			EEPROM_Params.midiRoutingRulesCable[port].filterMsk = flt;
-			EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk = cTargets;
-			EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk = jTargets ;
-		} else
-		if (ruleType == SERIAL_RULE ) {
-			EEPROM_Params.midiRoutingRulesSerial[port].filterMsk = flt;
-			EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk = cTargets;
-			EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk = jTargets ;
-		} else
-		if (ruleType == INTELLITHRU_RULE ) {
-			EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk = flt;
-			EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk = jTargets ;
-		}
-
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Setup a Midi filter routing  on screen
-///////////////////////////////////////////////////////////////////////////////
-uint8_t AskMidiFilter(uint8_t ruleType, uint8_t port)
-{
-	uint8_t flt = 0;
-
-	Serial.print("Set filter Midi messages for ");
-
-	 if (ruleType == USBCABLE_RULE ) {
-			 Serial.print("cable out #");
-	 }
-	 else
-	 if (ruleType == SERIAL_RULE ||  ruleType == INTELLITHRU_RULE  ) {
-			 Serial.print("MIDI in jack #");
-	 }
-	 else return 0;
-
-	if (port+1 < 10) Serial.print ("0");
-	Serial.print(port+1);
-  Serial.println(" :");
-
-	if ( AskChoice("Channel Voice   ","") == 'y')
-			flt |= midiXparser::channelVoiceMsgTypeMsk;
-	Serial.println();
-
-	if ( AskChoice("System Common   ","") == 'y')
-			flt |= midiXparser::systemCommonMsgTypeMsk;
-	Serial.println();
-
-	if ( AskChoice("Realtime        ","") == 'y' )
-			flt |= midiXparser::realTimeMsgTypeMsk;
-	Serial.println();
-
-	if ( AskChoice("System Exclusive","") == 'y')
-			flt |= midiXparser::sysExMsgTypeMsk;
-	Serial.println();
-
-	return flt;
+	if (portType == PORT_TYPE_CABLE ) {
+			EE_Prm.rtRulesCable[port].slot = attachedSlot;
+	    EE_Prm.rtRulesCable[port].cbInTgMsk = cTargets;
+	    EE_Prm.rtRulesCable[port].jkOutTgMsk = jTargets ;
+      EE_Prm.rtRulesCable[port].vrInTgMsk = vTargets ;
+  }
+	else if (portType == PORT_TYPE_JACK ) {
+			EE_Prm.rtRulesJack[port].slot = attachedSlot;
+	    EE_Prm.rtRulesJack[port].cbInTgMsk = cTargets;
+	    EE_Prm.rtRulesJack[port].jkOutTgMsk = jTargets ;
+      EE_Prm.rtRulesJack[port].vrInTgMsk = vTargets ;
+  }
+	else if (portType == PORT_TYPE_VIRTUAL ) {
+      EE_Prm.rtRulesVirtual[port].slot = attachedSlot;
+      EE_Prm.rtRulesVirtual[port].cbInTgMsk = cTargets;
+      EE_Prm.rtRulesVirtual[port].jkOutTgMsk = jTargets ;
+  }
+  else if (portType == PORT_TYPE_ITHRU ) {
+      EE_Prm.rtRulesIthru[port].slot = attachedSlot;
+      EE_Prm.rtRulesIthru[port].jkOutTgMsk = jTargets ;
+      EE_Prm.rtRulesIthru[port].vrInTgMsk = vTargets ;
+      if ( jTargets + vTargets == 0 ) {
+          EE_Prm.ithruJackInMsk &= ~(1 << port); // Disable
+      } else EE_Prm.ithruJackInMsk |= (1 << port); // enable Ithru for this port
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -628,10 +749,9 @@ void AskProductString()
 		}
 	}
 	if ( i > 0 ) {
-		memset(EEPROM_Params.productString,0,sizeof(EEPROM_Params.productString) );
-		memcpy(EEPROM_Params.productString,buff,i);
+		memset(EE_Prm.productString,0,sizeof(EE_Prm.productString) );
+		memcpy(EE_Prm.productString,buff,i);
 	}
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -642,16 +762,17 @@ void AskVIDPID()
 	char buff [5];
 	Serial.println("Enter VID - PID, in hex (0-9,a-f) :");
 	AsknHexChar( (char *) buff, 4, 0, 0);
-	EEPROM_Params.vendorID  = GetInt16FromHex4Bin((char*)buff);
+	EE_Prm.vendorID  = GetInt16FromHex4Bin((char*)buff);
 	Serial.print("-");
 	AsknHexChar( (char * ) buff, 4, 0, 0);
-	EEPROM_Params.productID = GetInt16FromHex4Bin((char*)buff);
+	EE_Prm.productID = GetInt16FromHex4Bin((char*)buff);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Show menu items with columns
 ///////////////////////////////////////////////////////////////////////////////
-void MenuItems( const char * menuItems[]) {
+void MenuItems( const char * menuItems[])
+{
   uint8_t c = 0;
   uint8_t l = 0;
   uint8_t nb = 0;
@@ -695,31 +816,37 @@ void ShowConfigMenu()
 	char choice=0;
 	uint8_t i;
   boolean showMenu = true;
-  static const char * configMenu[] = {
-  "0View global settings",
-  "1View midi routing",
+  static const char * configMenu[] =
+  {
+  "0Show global settings",
+  "1Show midi routing",
   "2Usb VID PID",
   "3Usb product string",
   "4Cable OUT routing",
   "5Jack IN routing",
-  "6IntelliThru routing",
-  "7IntelliThru timeout",
+  "6IThru routing",
+  "7USB idle time",
+  "vVirtual IN routing",
+  "pShow pipeline",
+	"cMidi clock",
   "8Toggle bus mode",
   "9Set device Id",
   "aShow active devices",
   "dSYSEX settings dump",
   ".",
-  ".",
   "eReload settings",
   "fFactory settings",
-  "rFactory routing",
+  "rReset routing",
   "sSave settings",
-  "zDebug on Serial3",
+	"zUpdate Mode",
   "xExit",
+  "!Dump EEPROM",
+  ":Dump Flash memory",
+  "/Format EEPROM",
   ""
   };
 	for ( ;; )
-	{
+  {
 		if (showMenu) {
       Serial.println();
   		ShowMidiKliKHeader();
@@ -733,8 +860,8 @@ void ShowConfigMenu()
     Serial.println();
 
 		switch (choice)
-		{
-			// Show global settings
+    {
+      // Show global settings
 			case '0':
 				ShowGlobalSettings();
 				Serial.println();
@@ -743,12 +870,12 @@ void ShowConfigMenu()
 
 			// Show midi routing
 			case '1':
-			  ShowMidiRouting(USBCABLE_RULE);
+        ShowMidiRouting(PORT_TYPE_VIRTUAL);
+        Serial.println();
+        ShowMidiRouting(PORT_TYPE_CABLE);
 				Serial.println();
-			  ShowMidiRouting(SERIAL_RULE);
-				Serial.println();
-			  ShowMidiRouting(INTELLITHRU_RULE);
-				Serial.println();
+			  ShowMidiRouting(PORT_TYPE_JACK);
+        Serial.println();
 	      showMenu = false;
 			  break;
 
@@ -768,79 +895,62 @@ void ShowConfigMenu()
 
 			// Cables midi routing
 			case '4':
-				AskMidiRouting(USBCABLE_RULE);
+				AskMidiRouting(PORT_TYPE_CABLE);
 				Serial.println();
 				break;
 
 			// Jack IN midi routing
 			case '5':
-				AskMidiRouting(SERIAL_RULE);
+				AskMidiRouting(PORT_TYPE_JACK);
 				Serial.println();
 				break;
 
 			// IntelliThru IN midi routing
 			case '6':
-				AskMidiRouting(INTELLITHRU_RULE);
+				AskMidiRouting(PORT_TYPE_ITHRU);
 				Serial.println();
 				break;
 
 			// USB Timeout <number of 15s periods 1-127>
 			case '7':
-				Serial.println("Nb of 15s periods (001-127 / 000 to exit) :");
-				i = AsknNumber(3);
+				Serial.print("15s periods nb (001-127 / 000 to exit) :");
+				i = AsknNumber(3,false);
 				if (i == 0 || i >127 )
-					Serial.println(". Error. No change made.");
+          SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
 				else {
-					EEPROM_Params.intelliThruDelayPeriod = i;
-					Serial.print(" <= Delay set to ");Serial.print(i*15);Serial.println("s");
+					EE_Prm.ithruUSBIdleTimePeriod = i;
+					SerialPrintf(" <= %s idle time set to %ds%n",str_USB_M,i*15);
 				}
 				Serial.println();
 				showMenu = false;
 				break;
 
 				// Enable Bus mode
-			 case '8':
-					if ( AskChoice("Enable bus mode","") == 'y' ) {
-						EEPROM_Params.I2C_BusModeState = B_ENABLED;
-						Serial.println();
-						Serial.println("Bus mode enabled.");
-						Serial.println();
-					} else {
-						EEPROM_Params.I2C_BusModeState = B_DISABLED;
-						Serial.println();
-						Serial.println("Bus mode disabled.");
-						Serial.println();
-					}
-				  showMenu = false;
-					break;
+			case '8':
+        SerialPrintf("%y bus mode",(EE_Prm.I2C_BusModeState == B_ENABLED)?str_DISABLE:str_ENABLE);
+        if (AskChoice("","") == 'y' ) {
+					EE_Prm.I2C_BusModeState = (EE_Prm.I2C_BusModeState == B_ENABLED)? B_DISABLED:B_ENABLED ;
+          SerialPrintf("%s !%n",str_DONE_B);
+				}
+			  showMenu = false;
+				break;
 
 				// Set device ID.
-			 case '9':
-			 			Serial.print("Device ID ( ");
-						Serial.print(B_MASTERID < 9 ? "0": "");
-						Serial.print(B_MASTERID);
-						Serial.print(":Master, Slaves ");
-						Serial.print(B_SLAVE_DEVICE_BASE_ADDR < 9 ? "0": "");
-						Serial.print(B_SLAVE_DEVICE_BASE_ADDR);
-						Serial.print("-");
-						Serial.print(B_SLAVE_DEVICE_LAST_ADDR < 9 ? "0": "");
-						Serial.print(B_SLAVE_DEVICE_LAST_ADDR);
-						Serial.print(") :");
-						while (1) {
-							i = AsknNumber(2);
-							if ( i != B_MASTERID ) {
-								if ( i > B_SLAVE_DEVICE_LAST_ADDR || i < B_SLAVE_DEVICE_BASE_ADDR ) {
-										Serial.println();
-										Serial.print("Id error. Try again :");
-								} else break;
-							} else break;
-						}
-						EEPROM_Params.I2C_DeviceId = i;
-						Serial.println();
-						Serial.println();
-						showMenu = false;
+			case '9':
+	 			SerialPrintf("%s ( %02d:%y, %ys %02d-%02d ) :",str_DEVICE_ID_B,B_MASTERID,str_MASTER,str_SLAVE,B_SLAVE_DEVICE_BASE_ADDR,B_SLAVE_DEVICE_LAST_ADDR);
+				while (1) {
+					i = AsknNumber(2);
+					if ( i != B_MASTERID ) {
+						if ( i > B_SLAVE_DEVICE_LAST_ADDR || i < B_SLAVE_DEVICE_BASE_ADDR ) {
+								SerialPrintf("%s. %s :",str_ERROR_B,str_TRYAGAIN_B);
+						} else break;
+					} else break;
+				}
+				EE_Prm.I2C_DeviceId = i;
+				Serial.println();
+				showMenu = false;
 
-					break;
+		    break;
 
 			// Show active devices on the I2C Bus
 			case 'a':
@@ -850,81 +960,136 @@ void ShowConfigMenu()
 				showMenu = false;
 				break;
 
+			// Set a midi clock
+			case 'c':
+			  {
+					SerialPrintf("Clock # (01-%02d / 00 to exit) :",MIDI_CLOCKGEN_MAX);
+					while (1) {
+						i = AsknNumber(2);
+						if ( i == 0 ) break;
+						if ( i > VIRTUAL_INTERFACE_MAX) SerialPrintf("%n%s. %s :",str_ERROR_B,str_TRYAGAIN_B);
+						else break;
+					}
+					if ( i > 0 ) {
+							--i;
+							if (AskChoice("Send Midi Time Clock","") == 'y' ) EE_Prm.bpmClocks[i].mtc = true;
+							else EE_Prm.bpmClocks[i].mtc = false;
+							if (AskChoice("Disable midi clock","") == 'y' ) {
+								if ( !SetMidiEnableClock(i,false) ) SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
+							} else {
+								Serial.print("Enter BPM (10.0-300) :");
+								uint16_t bpm1 = AsknNumber(3,false);
+								Serial.print(".");
+								uint8_t bpm2 = AsknNumber(1,false);
+							  bpm1 = bpm1 * 10 + bpm2;
+
+								if ( !SetMidiBpmClock(i, bpm1) || !SetMidiEnableClock(i,true) ) SerialPrintf(". %s. %y.%n",str_ERROR_B,str_NO_CHG_MADE);
+							}
+					}
+					Serial.println();
+					showMenu = false;
+			  }
+				break;
+
+
       // Sysex config dump
-  			case 'd':
-          SysexInternalDumpToStream(0);
+			case 'd':
+          SysexInternal_DumpConfToStream(2);
           Serial.println();
         break;
 
 			// Reload the EEPROM parameters structure
 			case 'e':
-				if ( AskChoice("Reload previous settings ","") == 'y' ) {
-					EEPROM_ParamsInit();
-          Serial.println();
-					Serial.println("Settings reloaded.");
-					Serial.println();
+        SerialPrintf("Reload %s",str_SETTINGS);
+        if (AskChoice("","") == 'y' ) {
+					EE_PrmInit();
+          SerialPrintf("%s !%n",str_DONE_B);
 				}
 				showMenu = false;
 				break;
 
 			// Restore factory settings
 			case 'f':
-				if ( AskChoice("Restore factory settings","") == 'y' ) {
-          Serial.println();
-					if ( AskChoice("All settings will be erased. Sure","") == 'y' ) {
-						EEPROM_ParamsInit(true);
-            Serial.println();
-						Serial.println("Factory settings restored.");
+        SerialPrintf("Restore factory %s",str_SETTINGS);
+        if (AskChoice("","") == 'y' ) {
+          if (AskChoice("Sure","") == 'y' ) {
+						EE_PrmInit(true);
+            SerialPrintf("%s !%n",str_DONE_B);
 					}
           Serial.println();
 				}
 				showMenu = false;
 				break;
 
+      // Show pipeline
+			case 'p':
+        ShowPipelineSlotBrowser();
+				showMenu = false;
+				break;
+
 			// Default midi routing
 			case 'r':
-				if ( AskChoice("Reset Midi routing to default","") == 'y')
+        if (AskChoice("Reload default routing","") == 'y') {
 					ResetMidiRoutingRules(ROUTING_RESET_ALL);
-					Serial.println();
-					showMenu = false;
+          SerialPrintf("%s !%n",str_DONE_B);
+        }
+				Serial.println();
+				showMenu = false;
 				break;
 
 			// Save & quit
 			case 's':
 				ShowGlobalSettings();
 				Serial.println();
-				if ( AskChoice("Save settings","") == 'y' ) {
-					Serial.println();
-					//Goto midi mode at the next boot
-					EEPROM_Params.nextBootMode = bootModeMidi;
-					EEPROM_ParamsSave();
+        SerialPrintf("Save %s",str_SETTINGS);
+        if (AskChoice("","") == 'y' ) {
+					EE_PrmSave();
 					delay(100);
+          SerialPrintf("%s !%n",str_DONE_B);
 					showMenu = false;
 				}
 				break;
 
-        // debug Mode
-  			case 'z':
-        #ifdef DEBUG_MODE
-        if ( AskChoice("Enable debug mode.","") == 'y' ) {
-          EEPROM_Params.debugMode = true;
-          Serial.println();
-          Serial.println("Debug mode enabled. Master:Serial3, Slave:UsbSerial. 115200 bauds.");
-          Serial.println();
-        } else {
-          EEPROM_Params.debugMode = false;
-          Serial.println();
-          Serial.println("Debug mode disabled.");
-          Serial.println();
-        }
-        #else
-          Serial.println("Not available.");
-          Serial.println();
-        #endif
-				showMenu = false;
+      // Virtual In midi routing
+			case 'v':
+  				AskMidiRouting(PORT_TYPE_VIRTUAL);
+  				Serial.println();
+  				break;
+
+      // Dump EEPROM
+      case '!':
+        EEPROM_FlashMemoryDump(EE_PAGE_BASE,EE_NBPAGE);
         break;
 
-			// Abort
+      // Navigate EEPROM
+      case ':':
+        {
+            char c;
+            uint16_t p=0;
+            do {
+              EEPROM_FlashMemoryDump(p,1);
+              c = AskChoice("v/b to navigate or e(x)it","vbx");
+              if (c == 'v' && p > 0) p--;
+              else if ( c == 'b' && p < (EE_FLASH_SIZEK*1024 / EE_PAGE_SIZE -1 ) ) p++;
+            }  while ( c != 'x');
+        break;
+        }
+
+      // Format EEPROM
+      case '/':
+        if ( AskChoice("Format EEPROM, Sure","") == 'y' )
+          EEPROM_Format();
+        break;
+
+      // Update Mode
+      case 'z':
+					if (AskChoice("Reboot to update mode","") == 'y' ) {
+						SetBootMagicWord(BOOT_BTL_MAGIC);
+						nvic_sys_reset();
+					}
+					break;
+
+			// Exit
 			case 'x':
 				if ( AskChoice("Exit","") == 'y' ) {
             Serial.println();
@@ -932,6 +1097,7 @@ void ShowConfigMenu()
 						nvic_sys_reset();
 				}
 				break;
-		}
-	}
+
+    } // Switch
+  } // for
 }

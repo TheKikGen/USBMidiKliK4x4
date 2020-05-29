@@ -1,0 +1,267 @@
+USBMIDIKLIK 4X4 - SYSEX IMPLEMENTATION - V2.1
+(c) TheKikGen Labs - 2020.
+
+All values are hexadecimal.
+
+-------------------------------------------------------------------------------
+
+USBMIDIKLIK 4X4 SYSEX HEADER : F0 77 77 78
+
+-------------------------------------------------------------------------------
+
+SYSEX FUNCTIONS OVERVIEW
+
+FN Description / sub command
+
+05 Configuration sysex dump
+06 Global functions
+    00 Hardware reset
+    01 Identity request
+    02 Sysex acknowledgment toggle
+    03 Sysex acknowledgment
+    04 Factory settings
+    05 Clear all (midi, Ithru routing rules and pipelines..)
+    06 Save settings to flash memory
+    08 Reboot in configuration mode
+    09 Reboot in update mode
+0B USB device settings
+    00 Set USB product string
+    01 Set USB vendor id and product id
+0C Midi Clock settings
+    00 Enable/disable midi clock
+    01 Set midi clock bpm
+    02 Enable/disable Midi Time Clock
+0E Intelligent thru mode settings
+    00 Reset to default
+    01 Disable
+    02 set USB idle
+    03 Set jack routing
+0F Midi routing settings
+    00 Reset to default
+    01 set midi port routing
+10 Bus mode settings
+    00 Enable bus mode
+    01 Set device Id
+11 Midi transformation pipelines settings
+   Slot operations
+    00 00 Copy slot
+    00 01 Clear slot
+    00 02 Attach/detach port to slot
+   Pipe operations
+    01 00 Add pipe
+    01 01 Insert pipe
+    01 02 Replace pipe
+    01 03 Clear pipe by index
+    01 04 Clear pipe by id
+    01 05 pipe bypass
+-------------------------------------------------------------------------------
+
+SYSEX MESSAGES
+
+-------------------------------------------------------------------------------
+05 Configuration sysex dump
+F0 77 77 78 05 <dump address:nn nn nn nn> F7
+
+-------------------------------------------------------------
+| Dump data             | Dump address
+-------------------------------------------------------------
+| All                   | 7F 00 00 00
+| USB device settings   | 0B 00 00 00
+| Midi clock settings   | 0C <clock#:0-8> 00 00
+| USB Idle              | 0E 02 00 00
+| IThru routing         | 0E 03 <Jack In> 00
+| In port midi routing  | 0F 01 <in port type:0-2> <in port>
+| Bus mode settings     | 10 00 00 00
+| In port attached slot | 11 00 <in port type:0-3> <in port>
+| Pipes in slot         | 11 01 <slot> <pipe index>
+-------------------------------------------------------------
+Clock #: 0-8    in port: 0-F
+port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
+
+-------------------------------------------------------------------------------
+06 Global functions
+
+06 00 Hardware reset
+F0 77 77 78 06 0A F7
+
+06 01 Identity request
+F0 77 77 78 06 01 F7
+
+06 02 Sysex acknowledgment toggle (on/off)
+F0 77 77 78 06 02 F7
+
+06 03 Sysex acknowledgment (received/never interpreted)
+F0 77 77 78 06 03 <ack> F7
+
+06 04 Factory settings
+F0 77 77 78 06 04 F7
+The device will reboot after the command.
+
+06 05 Clear all (midi, Ithru routing rules and pipelines..)
+F0 77 77 78 06 05 F7
+
+06 06 Save settings to flash memory
+F0 77 77 78 06 06 F7
+
+06 08 Reboot in configuration mode
+F0 77 77 78 06 08 F7
+
+06 09 Reboot in update mode
+F0 77 77 78 06 09 F7
+
+-------------------------------------------------------------------------------
+0B USB device settings
+
+0B 00 Set USB product string
+F0 77 77 78 0B 00 <usb product string not accentuated> F7
+
+0B 01 Set USB vendor ID and product ID
+F0 77 77 78 0B 01 <vendor id:nn nn nn nn> <product id:nn nn nn nn> F7
+
+-------------------------------------------------------------------------------
+0C Midi Clock settings
+
+0C 00 Enable/disable midi clock
+F0 77 77 78 0C 00 <clock #:0-3> <disable:0 enabled:1> F7
+
+0C 01 Set midi clock bpm
+F0 77 77 78 0C 01 <clock #:0-3> <bpm: msbn lsbn1 lsbn2> F7
+Each 4 bits hex digit nibble must be serialized from the MSB to the LSB.
+Bpm value must be x 10, and between 100 (10 bpm) and 3000 (300 bpm)
+
+0C 02 Enable/disable Midi Time Clock
+F0 77 77 78 0C 02 <clock #:0-3> <disable MTC:0 enabled MTC:1> F7
+
+If clock # = 7F, then all clocks are updated (MTC must be set individually).
+Due to the frequency of change, the clock state or BPM are not stored into
+the flash memory after the execution of the sysex command.
+However, the global function "Save settings" (06) can be used to save clocks.
+
+-------------------------------------------------------------------------------
+0E Intelligent thru
+
+0E 00 Reset to default
+F0 77 77 78 0E 00 F7
+
+0E 01 Disable all
+F0 77 77 78 0E 01 F7
+
+0E 02 Set USB idle
+F0 77 77 78 0E 02 < Number of 15s periods: 00-7F > F7
+
+0E 03 Set jack routing
+F0 77 77 78 0E 03 <JackIn port > [<out port type> [<out ports list: nn...nn>] ] F7
+Allowed port type : jack=1 | virtual=2   port:0-F  out port type/ports list are optional.
+If only jackin is passed, this toggle on/off IThru if output ports exist.
+If no out ports list passed, the entire out type will be cleared.
+
+-------------------------------------------------------------------------------
+0F Midi routing
+
+0F 00 Reset to default
+F0 77 77 78 0F 00 F7
+
+0F 01 Set midi port routing
+F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
+port type : cable = 0 |jack=1 | virtual=2   port : 0-F out ports list is optional
+A virtual port can't be routed to another virtual port.
+
+-------------------------------------------------------------------------------
+10 Bus mode
+
+10 00 Enable/disable bus mode
+F0 77 77 78 10 00 < enable:1 | disable:0 > F7
+The device will reboot after the command if bus state changed.
+
+10 01 Set device ID
+F0 77 77 78 10 01 < deviceid:04-08 > F7
+deviceid must be set to 4 when master.
+The device will reboot after the command if id changed.
+
+-------------------------------------------------------------------------------
+11 Transformation pipelines
+
+00 Slot operation
+-----------------
+11 00 00 slot copy
+F0 77 77 78 11 00 00 < src slot:01-08 > < dest slot: 01-08 > F7
+
+11 00 01 clear slot
+F0 77 77 78 11 00 01 < slot: 01-08 | All slot:7F > F7
+
+11 00 02 Attach/detach port to slot
+F0 77 77 78 11 00 02 < in port type> < in port: 0-F> <slot: 0-8> F7
+port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
+When slot = 0, the port is considered as detached from any slot.
+
+01 Pipe operation
+-----------------
+11 01 00 add pipe
+F0 77 77 78 11 01 00 <slot:1-8> <pipe id: nn> <prm: nn nn nn nn > F7
+
+11 01 01 insert pipe at
+F0 77 77 78 11 01 01 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
+
+11 01 02 replace pipe
+F0 77 77 78 11 01 02 <slot:1-8> <pipe idx:nn> <pipe id:nn> <prm:nn nn nn nn > F7
+
+11 01 03 clear pipe index
+F0 77 77 78 11 01 03 <slot:1-8> <pipe idx:nn> F7
+
+11 01 04 clear first pipe id
+F0 77 77 78 11 01 04 <slot:1-8> <pipe id:nn> F7
+
+11 01 05 pipe bypass index
+F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass:0 | bypass:1> F7
+
+-----------------------------------------------------------------------------------------------
+| PipeID  |        par1        |        par2        |        par3        |         par4       |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| MSGFLTR |     inclusive      | bits mask.         |     00 (unused)    |     00 (unused)    |
+|   00    |     filter:0       |  ch voice:0001 (1) |                    |                    |
+|         |                    |  Sys.cmn :0010 (2) |                    |                    |
+|         |                    |  realtime:0100 (4) |                    |                    |
+|         |                    |  sysex   :1000 (8) |                    |                    |
+|         |   MidiStatus       |   include:0        | status1:80-FF      OR  status2:80-FF    |
+|         |  dble filter:1     |   exclude:1        | (sysex not allowed)|  if par4 unused:0  |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| NOTECHG |    transpose+:0    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+|   01    |    transpose-:1    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CHANMAP |    channel map:0   | srce ch:0-F|any:7F |      dst ch:0-F    |     00 (unused)    |
+|   02    | ch map to port:1   |   source ch:0-F    |   midi port:0-F    |     00 (unused)    |
+|         | ch rotat.offset:2  |   ch offset:0-F    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VELOCHG |     include:0      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+|   03    |     exclude:1      | from vl value:0-7F | to vl value:0-7F   |     00 (unused)    |
+|         |       fixed:2      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |         add:3      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |         sub:4      |     value:0-7F     |     00 (unused)    |     00 (unused)    |
+|         |        half:5      |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CCCHANG |         map:0      |    src cc :0-7F    |    dest cc:00-7F   |     00 (unused)    |
+|   04    |     include:1      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+|         |     exclude:2      | from cc value:0-7F |  to cc value:0-7F  |     00 (unused)    |
+|         |      invert:3      |    src cc :0-7F    |     00 (unused)    |     00 (unused)    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| CLKDIVD |     ratio:2-10     |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|   05    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| LOOPBCK |   dest port type.  |  inclusive filter  |      port:0-F      |     00 (unused)    |
+|   06    |      cbl out:0     |     bits mask      |                    |                    |
+|         |        jk in:1     |   (see MSGFLTR)    |                    |                    |
+|         |      virt.in:2     |                    |                    |                    |
+|         |       no chg:3     |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| SLOTCHN |     slot:1-8       |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|   07    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| KBSPLIT |  split note: 0-7F  |     midi ch:0-F    |     no change:0    |     00 (unused)    |
+|   08    |                    |                    |    transpose+:1    |   semitone:00-7F   |
+|         |                    |                    |    transpose-:2    |   semitone:00-7F   |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VLSPLIT | split veloc.: 0-7F |     midi ch:0-F    |       nochg:0      |     00 (unused)    |
+|   09    |                    |                    |       fixed:1      |     value:0-7F     |
+|         |                    |                    |         add:2      |     value:0-7F     |
+|         |                    |                    |         sub:3      |     value:0-7F     |
+-----------------------------------------------------------------------------------------------

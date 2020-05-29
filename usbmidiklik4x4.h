@@ -47,83 +47,151 @@ __ __| |           |  /_) |     ___|             |           |
 #define _USBMIDIKLIK4X4_H_
 #pragma once
 
+#define __O_SMALL __attribute__((optimize("-Os")))
+
 #include "usb_midi_device.h"
 #include "hardware_config.h"
 
-// Comment this to remove all debug instructions from the compilation.
+// Millisec all purpose Timer (LED off notably)
+#define TIMER_MILLIS_RATE_MICROS 1000
+// LED ON duration in loop count. NB : 255 tick max * TIMER2_RATE_MICROS
+#define LED_TICK_COUNT 5
+// LED ON recovery time in msec when no dedicated LED for CONNECT USB
+#define LED_CONNECT_USB_RECOVER_TIME_MILLIS 500
 
-//#define DEBUG_MODE
+// Sysex internal buffer size
+#define GLOBAL_DATA_BUFF_SIZE 64
 
-// Timer for attachCompare1Interrupt
-#define TIMER2_RATE_MICROS 1000
+// Default is stm32duino bootloader.
+#define HID_BOOTLOADER
 
-// Sysex used to set some parameters of the interface.
-// Be aware that the 0x77 manufacturer id is reserved in the MIDI standard (but not used)
-// The second byte is usually an id number or a func code + the midi channel (forced to 0x77 here)
-// The Third is the product id
-#define SYSEX_MANUFACTURER_ID 0x77
-// UsbMidiKlik multi-port interface STM32F103 family
-#define SYSEX_PRODUCT_FAMILY 0x0,0x01
-#define SYSEX_MODEL_NUMBER 0x00,0x78
-#define SYSEX_INTERNAL_HEADER 0xF0,SYSEX_MANUFACTURER_ID,0x77,0x78,
-#define SYSEX_INTERNAL_ACK 0x7F
-#define SYSEX_INTERNAL_IDENTITY_RQ_REPLY 0xF0,0x7E,0x7F,0x06,0x02,\
-        SYSEX_MANUFACTURER_ID,SYSEX_PRODUCT_FAMILY,SYSEX_MODEL_NUMBER,VERSION_MAJOR,VERSION_MINOR,0x00,0X00,0xF7
-#define SYSEX_INTERNAL_BUFF_SIZE 64
+// Boot modes magic words
+#ifdef HID_BOOTLOADER
+  #define BOOT_BTL_MAGIC        0x424C
+  #define BOOT_BTL_MAGIC_NOWAIT 0x0000
+  #define BOOT_BTL_REGISTER     DR10
+#else
+  #define BOOT_BTL_MAGIC        0x424C
+  #define BOOT_BTL_MAGIC_NOWAIT 0x424D
+  #define BOOT_BTL_REGISTER     DR10
+#endif
 
-// LED light duration in milliseconds
-#define LED_PULSE_MILLIS  5
+// Configuration mode magic word.
+#define BOOT_CONFIG_MAGIC 0x3012
+#define BOOT_MIDI_MAGIC   0x0000
+#define BOOT_REGISTER     DR5
 
-// Boot modes
-enum nextBootMode {
-    bootModeMidi   = 0,
-    bootModeConfigMenu = 2,
-};
+// LED Tick
+typedef struct {
+    uint8_t pin;
+    uint8_t tick;
+} __packed LEDTick_t;
+
+// Process functions vector
+typedef void(*procVectorFn_t)();
 
 ///////////////////////////////////////////////////////////////////////////////
-// ROUTING RULES
+// ROUTING RULES & TRANSFORMATION PIPELINES
 ///////////////////////////////////////////////////////////////////////////////
 
 // Default number of 15 secs periods to start after USB midi inactivity
 // Can be changed by SYSEX
-#define DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD 2
+#define DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD 2
 
-enum MidiRoutingDirection {
-  FROM_SERIAL,
-  FROM_USB,
-  TO_SERIAL,
-  TO_USB,
-} ;
+// Size of a pipeline (number of pipes)
+#define TRANS_PIPELINE_SIZE 8
 
-enum MidiRoutingRuleType {
-  SERIAL_RULE,
-  USBCABLE_RULE,INTELLITHRU_RULE
-};
+// Number of pipelines slots
+#define TRANS_PIPELINE_SLOT_SIZE 8
 
-enum MidiRoutingReset {
-  ROUTING_RESET_ALL,
-  ROUTING_RESET_MIDIUSB,
-  ROUTING_RESET_INTELLITHRU,
-  ROUTING_INTELLITHRU_OFF
-};
+// Number of virtual interface ports
+#define VIRTUAL_INTERFACE_MAX 8
 
-// Routing rules structures
+// Empty pipe (nb : below 0x80 - 7 bits value)
+#define FN_TRANSPIPE_NOPIPE 0x7F
+
+// Port types
+#define PORT_TYPE_CABLE 0
+#define PORT_TYPE_JACK 1
+#define PORT_TYPE_VIRTUAL 2
+#define PORT_TYPE_ITHRU 3
+
+// Routing reset modes
+#define ROUTING_RESET_ALL 0
+#define ROUTING_RESET_MIDIUSB 1
+#define ROUTING_RESET_INTELLITHRU 2
+#define ROUTING_CLEAR_ALL 3
+
+// Transformation pipe
 typedef struct {
-      uint8_t  filterMsk;
-      uint16_t cableInTargetsMsk;
-      uint16_t jackOutTargetsMsk;
-} __packed midiRoutingRule_t;
+    uint8_t pId;    // FN_TRANSPIPE_NOPIPE means no pipe
+    uint8_t byPass; // 1 = byPass. 0 = execute
+    uint8_t par1;
+    uint8_t par2;
+    uint8_t par3;
+    uint8_t par4;
+} __packed transPipe_t;
 
+// Transformation pipeline
 typedef struct {
-      uint8_t  filterMsk;
-      uint16_t jackOutTargetsMsk;
-} __packed midiRoutingRuleJack_t;
+    transPipe_t pipeline[TRANS_PIPELINE_SIZE];
+} __packed transPipeline_t;
+
+
+// Routing & transformation rules structures
+typedef struct {
+      uint8_t  slot;
+      uint16_t cbInTgMsk;
+      uint16_t jkOutTgMsk;
+      uint16_t vrInTgMsk;
+} __packed routingRule_t;
+
+// Routing structure used for IThru and Virtual IN
+typedef struct {
+      uint8_t  slot;
+      union {
+        uint16_t cbInTgMsk;
+        uint16_t vrInTgMsk;
+      };
+      uint16_t jkOutTgMsk;
+} __packed routingRuleAlt_t;
 
 // Use this structure to send and receive packet to/from USB /serial/BUS
 typedef union  {
     uint32_t i;
     uint8_t  packet[4];
 } __packed midiPacket_t;
+
+// MIDI CLOCK GENERATOR MANAGEMENT
+// Compute a BPM where BPM is x 10 to manage half bpm.
+// i.e. 1205 means 120.5 BPM
+#define MIDI_CLOCKGEN_MAX VIRTUAL_INTERFACE_MAX/2
+//# 1205 BPM means 120.5
+#define DEFAULT_BPM 1200
+#define MAX_BPM 3000
+#define MIN_BPM 100
+// MIDI TIME CODE
+#define MTC_FPS 30
+// SMPTE type  : 0 = 24 fps, 1 = 25 fps, 2 = 30 fps (Drop-Frame), 3 = 30 fps
+#define MTC_SMPTE_TYPE 3
+#define MTC_FRAME_TICK 1000000 / MTC_FPS
+
+// midi Bpm Clock type. Overflow value is stored in tick.
+// When mtc is true, a MIDI TIME CODE is sent
+typedef struct {
+  boolean   enabled;
+  boolean   mtc;
+  uint16_t  bpm;
+} __packed bpmClock_t;
+
+typedef struct {
+    unsigned long tickBpm;
+    unsigned long nextBpmTick;
+} __packed bpmTick_t;
+
+///////////////////////////////////////////////////////////////////////////////
+// BUS MODE
+///////////////////////////////////////////////////////////////////////////////
 
 // Specific midi packet for master on BUS.
 // packed clause is mandatory to reflect the real size!!!
@@ -135,9 +203,17 @@ typedef union {
   uint8_t packet[5];
 } __packed masterMidiPacket_t;
 
-///////////////////////////////////////////////////////////////////////////////
-// BUS MODE
-///////////////////////////////////////////////////////////////////////////////
+// I2C Bulk data transfer packet. 19 bytes.
+// Size is data size >0 and <= 16
+// Checksum is a xor of all 16 data bytes
+typedef struct {
+    uint8_t size;
+    uint8_t data[16];
+    uint8_t cksum;
+} __packed I2C_bulkDataPacket_t;
+
+#define I2C_LED_TIMER_MILLIS 500
+
 #define PIN_SDA PB7
 #define PIN_SCL PB6
 
@@ -153,7 +229,6 @@ typedef union {
 #define B_DISABLED 0
 #define B_ENABLED 1
 #define B_FREQ 400000
-#define B_MASTER_READY_TIMEOUT 10000
 
 // Bus commands
 enum BusCommand {
@@ -170,8 +245,6 @@ enum BusCommand {
   B_CMD_HARDWARE_RESET,
   B_CMD_START_SYNC,
   B_CMD_END_SYNC,
-  B_CMD_DEBUG_MODE_ENABLED,
-  B_CMD_DEBUG_MODE_DISABLED,
 } ;
 // Corresponding "requestFrom" answer bytes size without command
 uint8_t static const BusCommandRequestSize[]= {
@@ -188,17 +261,17 @@ uint8_t static const BusCommandRequestSize[]= {
   0,                         // B_CMD_B_CMD_HARDWARE_RESET
   0,                         // B_CMD_START_SYNC,
   0,                         // B_CMD_END_SYNC,
-  0,                         // B_CMD_DEBUG_MODE_ENABLED
-  0,                         // B_CMD_DEBUG_MODE_DISABLED
 };
 
 // Bus data types for transfers
 enum BusDataType {
-  B_DTYPE_MIDI_ROUTING_RULES_CABLE,
-  B_DTYPE_MIDI_ROUTING_RULES_SERIAL,
-  B_DTYPE_MIDI_ROUTING_RULES_INTELLITHRU,
-  B_DTYPE_MIDI_ROUTING_INTELLITHRU_JACKIN_MSK,
-  B_DTYPE_MIDI_ROUTING_INTELLITHRU_DELAY_PERIOD,
+  B_DTYPE_ROUTING_RULE,
+  B_DTYPE_ROUTING_RULE_ALT,
+  B_DTYPE_BPM_CLOCK,
+  B_DTYPE_MIDI_TRANSPIPE,
+  B_DTYPE_ROUTING_ITHRU_JACKIN_MSK,
+  B_DTYPE_ROUTING_ITHRU_USB_IDLE_TIME_PERIOD,
+  B_DTYPE_BULK_DATA,
 };
 
 enum BusDeviceSate {
@@ -215,8 +288,8 @@ enum BusDeviceSate {
 // Changing the version will cause a new initialization in CheckEEPROM();.
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
-#define EE_SIGNATURE "MDK"
-#define EE_PRMVER 20
+#define EE_SIGNATURE "UMK"
+#define EE_PRMVER 27
 
 typedef struct {
         uint8_t         signature[3];
@@ -225,9 +298,6 @@ typedef struct {
         uint8_t         minorVersion;
         uint8_t         prmVersion;
         uint8_t         TimestampedVersion[14];
-        uint8_t         nextBootMode;
-        boolean         debugMode;
-
 
         // I2C device
         uint8_t         I2C_DeviceId;
@@ -239,39 +309,74 @@ typedef struct {
         // Storage space is set to the max i.e. INTERFACE_MAX for all
         // To allow dynamic change of bus mode.
 
-        midiRoutingRule_t midiRoutingRulesCable[USBCABLE_INTERFACE_MAX];
-        midiRoutingRule_t midiRoutingRulesSerial[B_SERIAL_INTERFACE_MAX];
+        routingRule_t rtRulesCable[USBCABLE_INTERFACE_MAX];
+        routingRule_t rtRulesJack[B_SERIAL_INTERFACE_MAX];
 
-        // IntelliThru
-        midiRoutingRuleJack_t midiRoutingRulesIntelliThru[B_SERIAL_INTERFACE_MAX];
-        uint16_t          intelliThruJackInMsk;
-        uint8_t           intelliThruDelayPeriod; // 1 to 255 periods of 15s.
+        // Virtual routing rules : cable and jack only
+        routingRuleAlt_t rtRulesVirtual[VIRTUAL_INTERFACE_MAX];
+
+        // IntelliThru routing rules jack and virtual in only
+        routingRuleAlt_t rtRulesIthru[B_SERIAL_INTERFACE_MAX];
+        uint16_t         ithruJackInMsk;
+        uint8_t          ithruUSBIdleTimePeriod; // 1 to 255 periods of 15s.
+
+        // Transformation pipelines slots.
+        transPipeline_t pipelineSlot[TRANS_PIPELINE_SLOT_SIZE];
+
+        // Midiclock virtuals
+        bpmClock_t  bpmClocks[MIDI_CLOCKGEN_MAX] ;
 
         uint16_t        vendorID;
         uint16_t        productID;
         uint8_t         productString[USB_MIDI_PRODUCT_STRING_SIZE+1]; // Unicode string - defined in usb_midi_device.h
-} __packed EEPROM_Params_t;
 
+} __packed EEPROM_Prm_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS PROTOTYPES
 ///////////////////////////////////////////////////////////////////////////////
-void Timer2Handler(void);
-void FlashAllLeds(uint8_t);
-void SerialMidi_SendMsg(uint8_t *, uint8_t);
-void SerialMidi_SendPacket(midiPacket_t *, uint8_t );
-void SerialMidi_RouteMsg( uint8_t, midiXparser*  );
-void SerialMidi_RouteSysEx( uint8_t , midiXparser* );
-void SysExInternalParse(uint8_t, midiPacket_t *);
-void RoutePacketToTarget(uint8_t , midiPacket_t *);
-void ResetMidiRoutingRules(uint8_t);
-uint8_t SysexInternalDumpConf(uint32_t , uint8_t ,uint8_t *) __attribute__((optimize("-Os")));
-void SysexInternalDumpToStream(uint8_t ) __attribute__((optimize("-Os")));
-void SysExSendMsgPacket(uint8_t *,uint16_t );
-void SysExInternalProcess(uint8_t);
-void CheckBootMode();
-void USBMidi_Init();
-void USBMidi_Process();
-void SerialMidi_Process();
+int     memcmpcpy ( void * , void * , size_t );
+void    TimerMillisHandler();
+void    LED_Init();
+void    LED_TurnOn(volatile LEDTick_t *);
+void    LED_TurnOff(volatile LEDTick_t *);
+boolean LED_Flash(volatile LEDTick_t *);
+void    LED_Update();
+void    FlashAllLeds(uint8_t);
+void    SerialMidi_SendMsg(uint8_t *, uint8_t);
+void    SerialMidi_SendPacket(midiPacket_t *, uint8_t );
+void    SerialMidi_RouteMsg( uint8_t, midiXparser*  );
+void    SerialMidi_RouteSysEx( uint8_t , midiXparser* );
+void    RoutePacketToTarget(uint8_t , midiPacket_t *);
+void    MidiClockGenerator();
+boolean SetMidiBpmClock(uint8_t, uint16_t);
+boolean SetMidiEnableClock(uint8_t , boolean );
+uint8_t MidiTimeCodeGetFrameByte();
+void    ResetMidiRoutingRules(uint8_t);
+boolean USBMidi_SendSysExPacket(uint8_t,const uint8_t *,uint16_t );
+uint16_t GetAndClearBootMagicWord();
+void    SetBootMagicWord(uint16_t);
+void    CheckBootMode();
+void    USBMidi_Init();
+void    USBMidi_Process();
+void    SerialMidi_Process();
+
+///////////////////////////////////////////////////////////////////////////////
+// EXTERNAL SHARED FUNCTIONS PROTOTYPES (MODULES)
+///////////////////////////////////////////////////////////////////////////////
+void __O_SMALL ShowBufferHexDump(uint8_t* , uint16_t, uint8_t nl=16 ) ;
+
+void I2C_SlavesRoutingSyncFromMaster();
+void __O_SMALL I2C_ShowActiveDevice() ;
+
+boolean TransPacketPipeline_ClearSlot(uint8_t);
+boolean TransPacketPipeline_CopySlot(uint8_t ,uint8_t ) ;
+boolean TransPacketPipeline_AttachPort(uint8_t ,uint8_t ,uint8_t );
+boolean TransPacketPipe_AddToSlot(uint8_t , transPipe_t *);
+boolean TransPacketPipe_InsertToSlot(uint8_t , uint8_t , transPipe_t *,boolean);
+boolean TransPacketPipe_ClearSlotIndexPid(uint8_t , boolean ,uint8_t);
+boolean TransPacketPipe_ByPass(uint8_t , uint8_t ,uint8_t);
+void __O_SMALL ShowPipelineSlot(uint8_t s)  ;
+void __O_SMALL SerialPrintf(const char *format, ...)  ;
 
 #endif

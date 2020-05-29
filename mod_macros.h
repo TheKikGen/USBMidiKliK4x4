@@ -48,50 +48,28 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 
 // Macro to flash LEDS IN
-#ifdef LEDS_MIDI
-  #define FLASH_LED_IN(thisLed) flashLED_IN[thisLed]->start()
-  #define FLASH_LED_OUT(thisLed) flashLED_OUT[thisLed]->start()
+#ifdef LED_MIDI_SIZE
+  #define FLASH_LED_IN(thisLed)  LED_Flash(thisLed < LED_MIDI_SIZE ? &LED_MidiInTick[thisLed]:&LED_ConnectTick)
+  #define FLASH_LED_OUT(thisLed) LED_Flash(thisLed < LED_MIDI_SIZE ? &LED_MidiOutTick[thisLed]:&LED_ConnectTick)
 #else
-  #define FLASH_LED_IN(thisLed) flashLED_CONNECT->start()
-  #define FLASH_LED_OUT(thisLed) flashLED_CONNECT->start()
+  #define FLASH_LED_IN(thisLed) LED_Flash(&LED_ConnectTick)
+  #define FLASH_LED_OUT(thisLed) LED_Flash(&LED_ConnectTick)
 #endif
 
-// Macro to compute the max serial port in bus mode or not.
-#define SERIAL_INTERFACE_COUNT (EEPROM_Params.I2C_BusModeState == B_ENABLED ? B_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
+// Add/Sub constraint used for uint (do not add ; at the end )
+#define CONSTRAINT_ADD(a,b,c) if ( (a + b) < c ) a += b; else a = c
+#define CONSTRAINT_SUB(a,b,c) if ( (a - b) > c ) a -= b; else a = c
 
-// Macro to compute if Master/Slave On Bus
-#define B_IS_MASTER (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId == B_MASTERID)
-#define B_IS_SLAVE (EEPROM_Params.I2C_BusModeState == B_ENABLED && EEPROM_Params.I2C_DeviceId != B_MASTERID)
+// Macro to compute the max serial port in bus mode or not.
+#define SERIAL_INTERFACE_COUNT (EE_Prm.I2C_BusModeState == B_ENABLED ? B_SERIAL_INTERFACE_MAX:SERIAL_INTERFACE_MAX)
+
+// Macro to compute if Master/Slave On Bus or not
+#define IS_MASTER (EE_Prm.I2C_DeviceId == B_MASTERID)
+#define IS_SLAVE (EE_Prm.I2C_DeviceId != B_MASTERID)
+#define IS_BUS_E (EE_Prm.I2C_BusModeState == B_ENABLED)
 
 // Macro to compute a device Id from a serial ports
 #define GET_DEVICEID_FROM_SERIALNO(s) ((s) / SERIAL_INTERFACE_MAX + B_MASTERID)
 
 // Macro to compute a "virtual bus serial port" from a local device and serial port
 #define GET_BUS_SERIALNO_FROM_LOCALDEV(d,s) ((s) + (d-B_MASTERID) * SERIAL_INTERFACE_MAX)
-
-// Macro for debugging purpose when MIDI active
-#define DEBUG_SERIAL Serial3
-#ifdef DEBUG_MODE
-  // Timer used to display debug msg and avoid com overflow
-  PulseOut I2C_DebugTimer(0xFF,1000);
-
-  #define DEBUG_PRINT(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val));} else {Serial.print((txt));Serial.print((val));}
-  #define DEBUG_PRINTLN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.println((val));} else {Serial.print((txt));Serial.println((val));}
-  #define DEBUG_PRINT_BIN(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),BIN);} else {Serial.print((txt));Serial.print((val),BIN);}
-  #define DEBUG_PRINT_HEX(txt,val) if (midiUSBLaunched) { DEBUG_SERIAL.print((txt));DEBUG_SERIAL.print((val),HEX);} else {Serial.print((txt));Serial.print((val),HEX);}
-  #define DEBUG_DUMP(buff,sz) if (midiUSBLaunched) { ShowBufferHexDumpDebugSerial(buff,sz);} else { ShowBufferHexDump(buff,sz);}
-  #define DEBUG_ASSERT(cond,txt,val) if ( (cond) ) { DEBUG_PRINTLN(txt,val) }
-  #define DEBUG_BEGIN if ( EEPROM_Params.debugMode) {
-  #define DEBUG_BEGIN_TIMER if ( EEPROM_Params.debugMode && I2C_DebugTimer.start() ) {
-  #define DEBUG_END }
-#else
-  #define DEBUG_PRINT(txt,val)
-  #define DEBUG_PRINTLN(txt,val)
-  #define DEBUG_PRINT_BIN(txt,val)
-  #define DEBUG_PRINT_HEX(txt,val)
-  #define DEBUG_DUMP(buff,sz)
-  #define DEBUG_ASSERT(cond,txt,val)
-  #define DEBUG_BEGIN
-  #define DEBUG_BEGIN_TIMER
-  #define DEBUG_END
-#endif

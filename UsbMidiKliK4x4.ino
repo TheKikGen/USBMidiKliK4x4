@@ -40,15 +40,19 @@ __ __| |           |  /_) |     ___|             |           |
   necessary for your intended use.  This program is distributed in the hope that
   it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
 */
 
 #include "build_number_defines.h"
 #include <string.h>
+#include <stdarg.h>
+
 #include <libmaple/nvic.h>
-#include <EEPROM.h>
+#include "libmaple/flash.h"
+#include "libmaple/pwr.h"
+#include "libmaple/rcc.h"
+#include "libmaple/bkp.h"
+
 #include <Wire_slave.h>
-#include <PulseOutManager.h>
 #include <midiXparser.h>
 #include "usbmidiklik4x4.h"
 #include "usb_midi.h"
@@ -59,74 +63,74 @@ __ __| |           |  /_) |     ___|             |           |
 ///////////////////////////////////////////////////////////////////////////////
 
 // EEPROMS parameters
-EEPROM_Params_t EEPROM_Params;
-// Timer
-HardwareTimer timer(2);
+EEPROM_Prm_t EE_Prm;
+
+// Default Boot modes magic word
+uint16_t bootMagicWord = BOOT_MIDI_MAGIC;
+
 // Serial interfaces Array
 HardwareSerial * serialHw[SERIAL_INTERFACE_MAX] = {SERIALS_PLIST};
-// Prepare LEDs pulse for Connect, MIDIN and MIDIOUT
-// From MIDI SERIAL point of view
-// Use a PulseOutManager factory to create the pulses
-PulseOutManager flashLEDManager;
-PulseOut* flashLED_CONNECT = flashLEDManager.factory(LED_CONNECT,LED_PULSE_MILLIS,LOW);
 
+// LED Management
+volatile LEDTick_t LED_ConnectTick= { LED_CONNECT,0};
+
+// LEDs ticks for Connect, MIDIN and MIDIOUT
 #ifdef HAS_MIDITECH_HARDWARE
   // LED must be declared in the same order as hardware serials
-  #define LEDS_MIDI
-  PulseOut* flashLED_IN[SERIAL_INTERFACE_MAX] =
-	{
-    flashLEDManager.factory(D4,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D5,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D6,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D7,LED_PULSE_MILLIS,LOW)
+  #define LED_MIDI_SIZE 4
+  volatile LEDTick_t LED_MidiInTick[LED_MIDI_SIZE] = {
+    {D4,0},{D5,0},{D6,0},{D7,0}
   };
-  PulseOut* flashLED_OUT[SERIAL_INTERFACE_MAX] =
-	{
-    flashLEDManager.factory(D36,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D37,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D16,LED_PULSE_MILLIS,LOW),
-    flashLEDManager.factory(D17,LED_PULSE_MILLIS,LOW)
+
+  volatile LEDTick_t LED_MidiOutTick[LED_MIDI_SIZE] = {
+    {D36,0},{D37,0},{D16,0},{D17,0}
   };
 #endif
 
-// Timer used to signal I2C events every 300 ms
-PulseOut I2C_LedTimer(0xFF,500);
+// Midi Clocks initialize
+bpmTick_t bpmTicks[MIDI_CLOCKGEN_MAX] ;
 
 // USB Midi object & globals
 USBMidi MidiUSB;
-volatile bool					midiUSBCx      = false;
-volatile bool         midiUSBIdle    = false;
-bool                  midiUSBLaunched= false;
+
+volatile bool					midiUSBCx      = false ;
+volatile bool         midiUSBIdle    = false ;
 bool 					        isSerialBusy   = false ;
-unsigned long         midiUSBLastPacketMillis    = 0;
+
 // MIDI Parsers for serial 1 to n
 midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
-uint8_t sysExInternalHeader[] = {SYSEX_INTERNAL_HEADER} ;
-uint8_t sysExInternalIdentityRqReply[] = {SYSEX_INTERNAL_IDENTITY_RQ_REPLY};
-uint8_t sysExInternalBuffer[SYSEX_INTERNAL_BUFF_SIZE] ;
-
+// Multi purpose data buffer.
+uint8_t globalDataBuffer[GLOBAL_DATA_BUFF_SIZE] ;
 
 // Intelligent midi thru mode
-volatile bool intelliThruActive = false;
-unsigned long intelliThruDelayMillis = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD * 15000;
+volatile bool midiIthruActive        = false ;
+unsigned long ithruUSBIdlelMillis    = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD * 15000;
 
 // Bus Mode globals
-uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
-uint8_t I2C_DeviceActiveCount=0;
+volatile uint8_t I2C_Command         = B_CMD_NONE;
 
-boolean I2C_MasterReady = false;
-volatile unsigned long I2C_MasterReadyTimeoutMillis = 0;
-volatile uint8_t I2C_Command = B_CMD_NONE;
+// True if events received from Master when slave
+volatile boolean I2C_MasterIsActive    = false;
 
 // Master to slave synchonization globals
-volatile boolean I2C_SlaveSyncStarted = false;
+volatile boolean I2C_SlaveSyncStarted  = false;
 volatile boolean I2C_SlaveSyncDoUpdate = false;
+
+// Array of active devices
+uint8_t I2C_DeviceIdActive[B_MAX_NB_DEVICE-1]; // Minus the master
+uint8_t I2C_DeviceActiveCount=0;
 
 // Templated RingBuffers to manage I2C slave reception/transmission outside I2C ISR
 // Volatile by default and RESERVED TO SLAVE
 RingBuffer<uint8_t,B_RING_BUFFER_PACKET_SIZE> I2C_QPacketsFromMaster;
 RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
+
+// Vector for process run in main Loop to avoid testing flags in a pure loop
+// approch. All function pointer are added when they are only necessary in Setup.
+// Check carefully the array size...
+uint8_t procVectorFnCount = 0;
+procVectorFn_t procVectorFn[6] ;
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CODE MODULES
@@ -138,24 +142,117 @@ RingBuffer<uint8_t,B_RING_BUFFER_MPACKET_SIZE> I2C_QPacketsToMaster;
 
 #include "mod_macros.h"
 #include "mod_eeprom.h"
+#include "mod_intsysex.h"
 #include "mod_configui.h"
 #include "mod_i2cbus.h"
+#include "mod_miditransfn.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //  CORE FUNCTIONS
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-// Timer2 interrupt handler
+// memcmpcpy : copy if different
 ///////////////////////////////////////////////////////////////////////////////
-void Timer2Handler(void)
+int memcmpcpy ( void * pDest, void * pSrc, size_t sz )
 {
-     // Update LEDS & timer
-     flashLEDManager.update(millis());
-     I2C_LedTimer.update(millis());
-     #ifdef DEBUG_MODE
-     I2C_DebugTimer.update(millis());
-     #endif
+
+  int r = 0;
+  if ( ( r = memcmp(pDest,pSrc,sz) ) ) {
+    memcpy(pDest,pSrc,sz);
+  };
+
+  return r;
+
+}
+///////////////////////////////////////////////////////////////////////////////
+// Timer2 interrupt handler - 1 millisec timer
+///////////////////////////////////////////////////////////////////////////////
+void TimerMillisHandler(void)
+{
+  LED_Update();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - Init PINS
+///////////////////////////////////////////////////////////////////////////////
+void LED_Init()
+{
+
+  // Initialize LED arrays
+
+  // LED connect
+  gpio_set_mode(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, GPIO_OUTPUT_PP);
+  LED_ConnectTick.tick = 0;
+
+  // LEDs IN/OUT if available
+#ifdef HAS_MIDITECH_HARDWARE
+  for (uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
+    gpio_set_mode(PIN_MAP[LED_MidiInTick[i].pin].gpio_device, PIN_MAP[LED_MidiInTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
+    gpio_set_mode(PIN_MAP[LED_MidiOutTick[i].pin].gpio_device, PIN_MAP[LED_MidiOutTick[i].pin].gpio_bit, GPIO_OUTPUT_PP);
+
+    LED_MidiOutTick[i].tick = 0;
+    LED_MidiInTick[i].tick = 0;
+  }
+#endif
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - Turn ON / OFF A LED (Faster with GPIO functions)
+///////////////////////////////////////////////////////////////////////////////
+void LED_TurnOn(volatile LEDTick_t *ledTick)
+{
+  gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
+}
+
+void LED_TurnOff(volatile LEDTick_t *ledTick)
+{
+  gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, HIGH);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - FLASH A LED DURING LED_TICK_COUNT*TIMER2_RATE_MICROS
+///////////////////////////////////////////////////////////////////////////////
+boolean LED_Flash(volatile LEDTick_t *ledTick)
+{
+    if ( ! ledTick->tick ) {
+      gpio_write_bit(PIN_MAP[ledTick->pin].gpio_device, PIN_MAP[ledTick->pin].gpio_bit, LOW);
+      ledTick->tick = LED_TICK_COUNT;
+      return true;
+    }
+    ledTick->tick = LED_TICK_COUNT;
+    return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LED MANAGEMENT - CHECK TO SWITCH OFF FLASHED LEDS AT TIMER2_RATE_MICROS RATE
+///////////////////////////////////////////////////////////////////////////////
+void LED_Update()
+{
+    // LED connect
+    if ( LED_ConnectTick.tick ) {
+      if ( !( --LED_ConnectTick.tick ) ) {
+        // LED OFF
+        gpio_write_bit(PIN_MAP[LED_ConnectTick.pin].gpio_device, PIN_MAP[LED_ConnectTick.pin].gpio_bit, HIGH);
+      }
+    }
+#ifdef LED_MIDI_SIZE
+    for (uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
+      if ( LED_MidiInTick[i].tick ) {
+        if ( !(--LED_MidiInTick[i].tick) ) {
+          // LED OFF
+          gpio_write_bit(PIN_MAP[LED_MidiInTick[i].pin].gpio_device, PIN_MAP[LED_MidiInTick[i].pin].gpio_bit, HIGH);
+        }
+      }
+      if ( LED_MidiOutTick[i].tick ) {
+        if ( !(--LED_MidiOutTick[i].tick) ) {
+          // LED OFF
+          gpio_write_bit(PIN_MAP[LED_MidiOutTick[i].pin].gpio_device, PIN_MAP[LED_MidiOutTick[i].pin].gpio_bit, HIGH);
+        }
+      }
+    }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -164,20 +261,20 @@ void Timer2Handler(void)
 void FlashAllLeds(uint8_t mode)
 {
   for ( uint8_t f=0 ; f!= 4 ; f++ ) {
-		#ifdef LEDS_MIDI
-			for ( uint8_t i=0 ; i< SERIAL_INTERFACE_MAX ; i++ ) {
-					if ( mode == 0 || mode ==1 ) flashLED_IN[i]->start();
-					if ( mode == 0 || mode ==2 ) 	flashLED_OUT[i]->start();
+		#ifdef LED_MIDI_SIZE
+			for ( uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
+					if ( mode == 0 || mode ==1 ) FLASH_LED_IN(i);
+					if ( mode == 0 || mode ==2 ) FLASH_LED_OUT(i);
 			}
 		#else
-			flashLED_CONNECT->start();
+			FLASH_LED_OUT(0);
 		#endif
 		delay(100);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a midi msg to serial MIDI. 0 is Serial1.
+// Send a midi msg to serial. 0 is Serial1.
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_SendMsg(uint8_t *msg, uint8_t serialNo)
 {
@@ -192,7 +289,7 @@ void SerialMidi_SendMsg(uint8_t *msg, uint8_t serialNo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Send a USB midi packet to ad-hoc serial MIDI
+// Send a USB midi packet to ad-hoc serial
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 {
@@ -207,11 +304,10 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Prepare a packet and route it to the right USB midi cable
+// Prepare a pseudo packet from serial midi and route it to the right target
 ///////////////////////////////////////////////////////////////////////////////
- void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
+void SerialMidi_RouteMsg( uint8_t cable, midiXparser* xpMidi )
 {
-
     midiPacket_t pk = { .i = 0 };
     uint8_t msgLen = xpMidi->getMidiMsgLen();
     uint8_t msgType = xpMidi->getMidiMsgType();
@@ -240,7 +336,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 
     else return; // We should never be here !
 
-    RoutePacketToTarget( FROM_SERIAL,&pk);
+    RoutePacketToTarget( PORT_TYPE_JACK,&pk);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -249,7 +345,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 // We use the midiXparser 'on the fly' mode, allowing to tag bytes as "captured"
 // when they belong to a midi SYSEX message, without storing them in a buffer.
 ///////////////////////////////////////////////////////////////////////////////
- void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
+void SerialMidi_RouteSysEx( uint8_t cable, midiXparser* xpMidi )
 {
   static midiPacket_t pk[SERIAL_INTERFACE_MAX];
   static uint8_t packetLen[SERIAL_INTERFACE_MAX];
@@ -273,7 +369,7 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
       pk[cable].packet[ packetLen[cable] ] = midiXparser::eoxStatus;
       // CIN = 5/6/7  sysex ends with one/two/three bytes,
       pk[cable].packet[0] = (cable << 4) + (packetLen[cable] + 4) ;
-      RoutePacketToTarget( FROM_SERIAL,&pk[cable]);
+      RoutePacketToTarget( PORT_TYPE_JACK,&pk[cable]);
       packetLen[cable] = 0;
       pk[cable].i = 0;
 			return;
@@ -287,71 +383,11 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 	  // Packet complete ?
 	  if (packetLen[cable] == 3 ) {
 	      pk[cable].packet[0] = (cable << 4) + 4 ; // Sysex start or continue
-	      RoutePacketToTarget( FROM_SERIAL,&pk[cable]);
+	      RoutePacketToTarget( PORT_TYPE_JACK,&pk[cable]);
 	      packetLen[cable] = 0;
 	      pk[cable].i = 0;
 	  }
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// PARSE INTERNAL SYSEX, either for serial or USB
-// ----------------------------------------------------------------------------
-// Internal sysex must be transmitted on the first cable/midi jack (whatever routing).
-// Internal sysex are purely ignored on other cables or jack.
-///////////////////////////////////////////////////////////////////////////////
- void SysExInternalParse(uint8_t source, midiPacket_t *pk)
-{
-		static unsigned sysExInternalMsgIdx = 0;
-		static bool 	sysExInternalHeaderFound = false;
-
-		uint8_t cin   = pk->packet[0] & 0x0F ;
-    uint8_t cable = pk->packet[0] >> 4;
-
-		// Only SYSEX and concerned packet on cable or serial 1
-    if (cable > 0) return;
-		if (cin < 4 || cin > 7) return;
-		if (cin == 4 && pk->packet[1] != 0xF0 && sysExInternalMsgIdx<3 ) return;
-		if (cin > 4  && sysExInternalMsgIdx<3) return;
-
-		uint8_t pklen = ( cin == 4 ? 3 : cin - 4) ;
-		uint8_t ev = 1;
-
-		for ( uint8_t i = 0 ; i< pklen ; i++ ) {
-			if (sysExInternalHeaderFound) {
-				// Start storing the message in the msg buffer
-				// If Message too big. don't store...
-				if ( sysExInternalBuffer[0] <  sizeof(sysExInternalBuffer)-1  ) {
-						if (pk->packet[ev] != 0xF7) {
-							sysExInternalBuffer[0]++;
-							sysExInternalBuffer[sysExInternalBuffer[0]]  = pk->packet[ev];
-						}
-						ev++;
-				}
-			}	else
-
-			if ( sysExInternalHeader[sysExInternalMsgIdx] == pk->packet[ev] ) {
-				sysExInternalMsgIdx++;
-				ev++;
-				if ( sysExInternalMsgIdx >= sizeof(sysExInternalHeader) ) {
-					sysExInternalHeaderFound = true;
-					sysExInternalBuffer[0] = 0; // Len of the sysex buffer
-				}
-			}
-			else {
-				// No match
-				sysExInternalMsgIdx = 0;
-				sysExInternalHeaderFound = false;
-				return;
-			}
-		}
-
-		// End of SYSEX for a valid message ? => Process
-		if (cin != 4  && sysExInternalHeaderFound ) {
-			sysExInternalMsgIdx = 0;
-			sysExInternalHeaderFound = false;
-			SysExInternalProcess(source);
-		}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -360,731 +396,453 @@ void SerialMidi_SendPacket(midiPacket_t *pk, uint8_t serialNo)
 // Route a packet from a midi IN jack / USB OUT to
 // a midi OUT jacks / USB IN  or I2C remote serial midi on another device
 ///////////////////////////////////////////////////////////////////////////////
- void RoutePacketToTarget(uint8_t source,  midiPacket_t *pk)
+void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 {
-  // NB : we use the same routine to route USB and serial/ I2C .
+
+  if ( portType != PORT_TYPE_CABLE && portType != PORT_TYPE_JACK && portType != PORT_TYPE_VIRTUAL) return;
+
+  // NB : we use the same routine to route USB and jack serial/ I2C .
 	// The Cable can be the serial port # if coming from local serial
-  uint8_t sourcePort  = pk->packet[0] >> 4;
-
-	// Check at the physical level (i.e. not the bus)
-  if ( source == FROM_USB && sourcePort >= USBCABLE_INTERFACE_MAX ) return;
-	if ( source == FROM_SERIAL ) {
-    if ( sourcePort >= SERIAL_INTERFACE_MAX ) return;
-    // If bus mode active, the local port# must be translated according
-		// to the device Id, before routing
-    if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-			sourcePort = GET_BUS_SERIALNO_FROM_LOCALDEV(EEPROM_Params.I2C_DeviceId,sourcePort);
-    }
-  }
-
+  uint8_t port  = pk->packet[0] >> 4;
   uint8_t cin   = pk->packet[0] & 0x0F ;
 
-	FLASH_LED_IN(sourcePort);
+  // ROUTING rules masks
+	uint16_t cbInTargets  = 0;
+	uint16_t jkOutTargets = 0;
+  uint16_t vrInTargets  = 0;
+  uint8_t  attachedSlot = 0;
 
-	// Sysex is a particular case when using packets.
-	// Internal sysex Jack 1/Cable = 0 ALWAYS!! are checked whatever filters are
-	// This insures that the internal sysex will be always interpreted.
-	// If the MCU is resetted, the msg will not be sent
-	uint8_t  msgType=0;
+  // Save midiIthruActive state as it could be changed in an interrupt
+  boolean ithru = midiIthruActive;
 
-	if (cin >= 4 && cin <= 7  ) {
-		if (sourcePort == 0) SysExInternalParse(source, pk);
-		msgType =  midiXparser::sysExMsgTypeMsk;
-	} else {
-			msgType =  midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]);
-	}
+  FLASH_LED_IN(port);
 
-	// ROUTING tables
-	uint16_t *cableInTargets ;
-	uint16_t *serialOutTargets ;
-	uint8_t *inFilters ;
+  // A midi packet from physical serial jack ?
+  if ( portType == PORT_TYPE_JACK ) {
+    // Check at the physical level (i.e. not the bus)
+    if ( port >= SERIAL_INTERFACE_MAX ) return;
 
-  // Save intelliThruActive and USBCx state as it could be changed in an interrupt
-  // (when slave)
-  boolean ithru = intelliThruActive;
+    // If bus mode active, the local port# must be translated according
+		// to the device Id, before routing
+    if (EE_Prm.I2C_BusModeState == B_ENABLED ) {
+			port = GET_BUS_SERIALNO_FROM_LOCALDEV(EE_Prm.I2C_DeviceId,port);
+      // Rebuild packet header with source port translated
+      pk->packet[0] = cin + ( port << 4) ;
+    }
 
-  if (source == FROM_SERIAL ){
     // IntelliThru active ? If so, take the good routing rules
     if ( ithru ) {
-			if ( ! EEPROM_Params.intelliThruJackInMsk ) return; // Double check.
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesIntelliThru[sourcePort].filterMsk;
+      jkOutTargets = EE_Prm.rtRulesIthru[port].jkOutTgMsk;
+      vrInTargets  = EE_Prm.rtRulesIthru[port].vrInTgMsk;
+      attachedSlot = EE_Prm.rtRulesIthru[port].slot;
     }
+    // else Standard jack rules
     else {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesSerial[sourcePort].filterMsk;
+      cbInTargets  = EE_Prm.rtRulesJack[port].cbInTgMsk;
+      jkOutTargets = EE_Prm.rtRulesJack[port].jkOutTgMsk;
+      vrInTargets  = EE_Prm.rtRulesJack[port].vrInTgMsk;
+      attachedSlot = EE_Prm.rtRulesJack[port].slot;
     }
   }
-  else if (source == FROM_USB ) {
-      cableInTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].cableInTargetsMsk;
-      serialOutTargets = &EEPROM_Params.midiRoutingRulesCable[sourcePort].jackOutTargetsMsk;
-      inFilters = &EEPROM_Params.midiRoutingRulesCable[sourcePort].filterMsk;
+  // A midi packet from USB cable out ?
+  else if ( portType == PORT_TYPE_CABLE ) {
+    if ( port >= USBCABLE_INTERFACE_MAX ) return;
+    cbInTargets  = EE_Prm.rtRulesCable[port].cbInTgMsk;
+    jkOutTargets = EE_Prm.rtRulesCable[port].jkOutTgMsk;
+    vrInTargets  = EE_Prm.rtRulesCable[port].vrInTgMsk;
+    attachedSlot = EE_Prm.rtRulesCable[port].slot;
+  }
+  // A midi packet from a virtual port ?
+  else if ( portType == PORT_TYPE_VIRTUAL ) {
+    if ( port >= VIRTUAL_INTERFACE_MAX ) return;
+    cbInTargets  = EE_Prm.rtRulesVirtual[port].cbInTgMsk;
+    jkOutTargets = EE_Prm.rtRulesVirtual[port].jkOutTgMsk;
+    attachedSlot = EE_Prm.rtRulesVirtual[port].slot;
   }
 
-  else return; // Error.
+	// Sysex is a particular case when routing or modifying packets.
+	// Internal sysex must be sent to Jack/Cable port 0. These ports 0 must be ALWAYS
+  // available whatever routing is to insure that internal sysex will be always interpreted.
+  // Internal sysex packets can't be looped back, because that will corrupt the flow.
+  // A slave must not interpret sysex when active on bus to stay  synchronized with the master.
+  // The port#0 is mandatory a port of the master or a port of a slave without bus.
+  // Only virtual port can be 0 when bus mode active.
+  if (port == 0 && portType != PORT_TYPE_VIRTUAL && !slotLockMsk) {
+    // CIN 5 exception : tune request. It is not a sysex packet !
+		if ( cin <= 7 && cin >= 4 && pk->packet[1] != midiXparser::tuneRequestStatus) {
+      if (SysExInternal_Parse(portType, pk,globalDataBuffer))
+            SysExInternal_Process(portType,globalDataBuffer);
+    }
+	}
 
-	// Apply midi filters
-	if (! (msgType & *inFilters) ) return;
+  // 1/ Apply pipeline if any.  Drop packet if a pipe returned false
+  if ( attachedSlot && !TransPacketPipelineExec(portType, attachedSlot, pk) ) return ;
 
-  // ROUTING FROM ANY SOURCE PORT TO SERIAL TARGETS //////////////////////////
-	// A target match ?
-  if ( *serialOutTargets) {
-				for (	uint16_t t=0; t != SERIAL_INTERFACE_COUNT ; t++)
-					if ( (*serialOutTargets & ( 1 << t ) ) ) {
-								// Route via the bus
-								if (EEPROM_Params.I2C_BusModeState == B_ENABLED ) {
-                     I2C_BusSerialSendMidiPacket(pk, t);
-								}
-								// Route to local serial if bus mode disabled
-								else SerialMidi_SendPacket(pk,t);
-					}
-	} // serialOutTargets
+  // 2/ Apply virtual port routing if a target match
+  uint8_t t=0;
+  while ( vrInTargets && t != VIRTUAL_INTERFACE_MAX ) {
+    if ( vrInTargets & 1 ) {
+      midiPacket_t pk2 = { .i = pk->i }; // packet copy
+      pk2.packet[0] = ( t << 4 ) + cin;
+      RoutePacketToTarget(PORT_TYPE_VIRTUAL,  &pk2);
+    }
+    t++; vrInTargets >>= 1;
+  }
+
+  // 3/ Apply serial jack routing if a target match
+  t=0;
+  while ( jkOutTargets && t != SERIAL_INTERFACE_COUNT ) {
+    if ( jkOutTargets & 1 ) {
+      // Route via the bus or local serial if bus mode disabled
+      if (EE_Prm.I2C_BusModeState == B_ENABLED ) I2C_BusSerialSendMidiPacket(pk, t);
+      else SerialMidi_SendPacket(pk,t);
+    }
+    t++; jkOutTargets >>= 1;
+  }
 
   // Stop here if IntelliThru active (no USB active but maybe connected)
+  // or no USB connection (owned by the master).
+  // If we are a slave, the master should have notified us
   // Intellithru is always activated by the master in bus mode!.
 
-  if ( ithru ) return;
+  if ( ithru || !midiUSBCx ) return;
 
-  // Stop here if no USB connection (owned by the master).
-  // If we are a slave, the master should have notified us
-  if ( ! midiUSBCx ) return;
+	// 4/ Apply cable routing rules only if USB connected and thru mode inactive
+  t=0;
+  while ( cbInTargets && t != USBCABLE_INTERFACE_MAX ) {
+    if ( cbInTargets & 1 ) {
+        midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
+        pk2.packet[0] = ( t << 4 ) + cin;
+        // Only the master has USB midi privilege in bus MODE
+        // Everybody else if an usb connection is active
+        if ( !(IS_SLAVE && IS_BUS_E) ) {
+            MidiUSB.writePacket(&pk2.i);
+        } else
+        // A slave in bus mode ?
+        // We need to add a master packet to the Master's queue.
+        {
+            masterMidiPacket_t mpk;
+            mpk.mpk.dest = PORT_TYPE_CABLE;
+            // Copy the midi packet to the master packet
+            mpk.mpk.pk.i = pk2.i;
+            I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
+        }
+    }
+    t++; cbInTargets >>= 1;
+  }
+  // All Routing Done !
+}
 
-	// Apply cable routing rules from serial or USB
-	// Only if USB connected and thru mode inactive
+///////////////////////////////////////////////////////////////////////////////
+// MIDI CLOCK GENERATOR TO VIRTUAL PORTS
+// Clocks are mandatory attached to their respective virtual port.
+///////////////////////////////////////////////////////////////////////////////
+void MidiClockGenerator()
+{
+  static unsigned long nextMTCFrameTick = 0;
+  uint8_t frameByte = 0;
+  boolean sendMTC = false;
 
-  if (  *cableInTargets  ) {
-    	midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
-			for (uint8_t t=0; t != USBCABLE_INTERFACE_MAX ; t++) {
-	      if ( *cableInTargets & ( 1 << t ) ) {
-	          pk2.packet[0] = ( t << 4 ) + cin;
-            // Only the master has USB midi privilege in bus MODE
-            // Everybody else if an usb connection is active
-            if (! B_IS_SLAVE ) {
-                MidiUSB.writePacket(&pk2.i);
-            } else
-            // A slave in bus mode ?
-            // We need to add a master packet to the Master's queue.
-            {
-                masterMidiPacket_t mpk;
-                mpk.mpk.dest = TO_USB;
-                // Copy the midi packet to the master packet
-                mpk.mpk.pk.i = pk2.i;
-                I2C_QPacketsToMaster.write(mpk.packet,sizeof(masterMidiPacket_t));
-            }
+  // MTC Frame byte
+  if ( micros() > nextMTCFrameTick ) {
+       nextMTCFrameTick = micros() + MTC_FRAME_TICK;
+       frameByte = MidiTimeCodeGetFrameByte();
+       sendMTC = true;
+  }
 
-	          #ifdef LEDS_MIDI
-	          flashLED_IN[t]->start();
-	          #endif
-	    	}
-			}
-	}
+  for ( uint8_t i = 0 ;  i != MIDI_CLOCKGEN_MAX ; i++ ) {
+    // MTC
+    if ( EE_Prm.bpmClocks[i].mtc && sendMTC ) {
+       midiPacket_t MtcPk = {.packet = { (uint8_t)(0x02 + (i<<4)),0XF1, frameByte,0x00 } };
+       RoutePacketToTarget(PORT_TYPE_VIRTUAL, &MtcPk);
+    }
+    // Midi Clock
+    if ( EE_Prm.bpmClocks[i].enabled ) {
+       // Generate a midi timingClock status packet
+       if ( micros() > bpmTicks[i].nextBpmTick ) {
+          // Change virtual port clk 0 to port 0, clk1 port1, ...
+          midiPacket_t timingClockPk = { .packet= {0x0F ,0XF8,0,0} };
+          timingClockPk.packet[0] += (i<< 4);
+          RoutePacketToTarget(PORT_TYPE_VIRTUAL, &timingClockPk);
+          bpmTicks[i].nextBpmTick += bpmTicks[i].tickBpm ;
+       }
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Set a midi clock bpm or 7F for all.
+///////////////////////////////////////////////////////////////////////////////
+boolean SetMidiBpmClock(uint8_t clockNo, uint16_t bpm)
+{
+  if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
+  if ( (bpm != 0 && bpm < MIN_BPM) || bpm > MAX_BPM  ) return false;
+
+  if ( clockNo == 0x7F) {
+    for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
+      // If bpm = 0, then current bpm is kept.
+      if (bpm) EE_Prm.bpmClocks[i].bpm = bpm;
+      bpmTicks[i].tickBpm = ( (60000000 / EE_Prm.bpmClocks[i].bpm ) / 24 ) * 10;
+      bpmTicks[i].nextBpmTick = micros() + bpmTicks[i].tickBpm;
+    }
+    return true;
+  }
+  // a valid bpm value is required here
+  if (! bpm) return false;
+  EE_Prm.bpmClocks[clockNo].bpm = bpm;
+  bpmTicks[clockNo].tickBpm = ( (60000000 / EE_Prm.bpmClocks[clockNo].bpm ) / 24 ) * 10;
+  bpmTicks[clockNo].nextBpmTick = micros() + bpmTicks[clockNo].tickBpm;
+
+  return true;
+}
+///////////////////////////////////////////////////////////////////////////////
+// Enable/Disable a midi clock or 7F for all .
+///////////////////////////////////////////////////////////////////////////////
+boolean SetMidiEnableClock(uint8_t clockNo, boolean enable)
+{
+  if (clockNo != 0x7F && clockNo >= MIDI_CLOCKGEN_MAX ) return false;
+
+  if ( clockNo == 0x7F) {
+    for ( uint8_t i=0 ; i !=MIDI_CLOCKGEN_MAX ; i++ ) {
+        EE_Prm.bpmClocks[i].enabled = enable;
+        bpmTicks[i].nextBpmTick = micros() + bpmTicks[i].tickBpm;
+    }
+    return true;
+  }
+  bpmTicks[clockNo].nextBpmTick = micros() + bpmTicks[clockNo].tickBpm;
+  EE_Prm.bpmClocks[clockNo].enabled = enable;
+  return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Generate the midi time code (MTC) frame byte
+///////////////////////////////////////////////////////////////////////////////
+uint8_t MidiTimeCodeGetFrameByte()
+{
+  //static unsigned long nextFrameTick = 0;
+  static uint8_t hh=0, mm=0 , ss=0, frmType=0, frmCount=0;
+  // MTC packet F1 0nnn dddd
+  // 0nnn = frame Type - dddd = 4 bits data
+
+  uint8_t frameByte = 0;
+  // frame type
+  frameByte = frmType << 4;
+  //   0 = Frame count LS nibble
+  if ( frmType == 0 ) frameByte += frmCount & 0x0F ;
+  //   1 = Frame count MS nibble
+  else if ( frmType == 1 ) frameByte += frmCount >> 4  ;
+  //   2 = Seconds LS nibble
+  else if ( frmType == 2 ) frameByte += ss & 0x0F ;
+  //   3 = Seconds count MS nibble
+  else if ( frmType == 3 ) frameByte += ss  >> 4 ;
+  //   4 = Minutes count LS nibble
+  else if ( frmType == 4 ) frameByte += mm & 0x0F ;
+  //   5 = Minutes count MS nibble
+  else if ( frmType == 5 ) frameByte += mm  >> 4 ;
+  //   6 = Hours count LS nibble
+  else if ( frmType == 6 ) frameByte += hh & 0x0F ;
+  //   7 = Hours count MS nibble and SMPTE Type : 0nnn x yy d
+  //  Where nnn is 7. x is unused and set to 0.
+  //  d is bit 4 of the Hours Time. yy tells the SMPTE Type as follows:
+  // 0 = 24 fps, 1 = 25 fps, 2 = 30 fps (Drop-Frame), 3 = 30 fps
+  if ( frmType++ == 7 ) { frameByte += (hh  >> 4) + (MTC_SMPTE_TYPE<<1) ; frmType = 0; }
+
+  if ( ++frmCount == MTC_FPS ) { frmCount = 0 ;
+     if ( ++ss > 59 ) { ss = 0 ;
+       if ( ++mm > 59 ) { mm = 0 ;
+         if ( ++hh > 23 ) hh = 0;
+       } //mm
+     } // ss
+  } //frmCount
+
+  return frameByte;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Reset routing rules to default factory
 // ROUTING_RESET_ALL         : Factory defaults
-// ROUTING_RESET_MIDIUSB     : Midi USB and serial routing to defaults
+// ROUTING_RESET_MIDIUSB     : Midi USB , serial, virtual routing to defaults
 // ROUTING_RESET_INTELLITHRU : Intellithru to factory defaults
 // ROUTING_INTELLITHRU_OFF   : Stop IntelliThru
+// ROUTING_CLEAR_ALL         : Erase all routing and pipeline rules
 ///////////////////////////////////////////////////////////////////////////////
 void ResetMidiRoutingRules(uint8_t mode)
 {
 
+  // Clear all pipelines slots
+  if (mode == ROUTING_RESET_ALL || mode == ROUTING_CLEAR_ALL ) {
+      TransPacketPipeline_ClearSlot(0x7F);
+  }
+
+  if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB || mode == ROUTING_CLEAR_ALL ) {
+    // Virtual
+    for ( uint8_t i = 0 ; i != VIRTUAL_INTERFACE_MAX ; i++ ) {
+      EE_Prm.rtRulesVirtual[i].slot = 0;
+      EE_Prm.rtRulesVirtual[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesVirtual[i].jkOutTgMsk = 0  ;
+    }
+  }
+
+  if (mode == ROUTING_CLEAR_ALL ) {
+    for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
+
+      // Cables
+      EE_Prm.rtRulesCable[i].slot = 0;
+      EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesCable[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesCable[i].vrInTgMsk = 0  ;
+
+    }
+    // Jack serial
+    for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
+      EE_Prm.rtRulesJack[i].slot = 0;
+      EE_Prm.rtRulesJack[i].cbInTgMsk = 0 ;
+      EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrInTgMsk = 0  ;
+    }
+
+    // "Intelligent thru" serial mode
+	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
+	    EE_Prm.rtRulesIthru[i].slot = 0;
+	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesIthru[i].vrInTgMsk = 0  ;
+		}
+		EE_Prm.ithruJackInMsk = 0;
+	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
+	}
+
+
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
 	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
-
 			// Cables
-	    EEPROM_Params.midiRoutingRulesCable[i].filterMsk = midiXparser::allMsgTypeMsk;
-	    EEPROM_Params.midiRoutingRulesCable[i].cableInTargetsMsk = 0 ;
-	    EEPROM_Params.midiRoutingRulesCable[i].jackOutTargetsMsk = 1 << i ;
+	    EE_Prm.rtRulesCable[i].slot = 0;
+	    EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
+	    EE_Prm.rtRulesCable[i].jkOutTgMsk = 1 << i ;
+      EE_Prm.rtRulesCable[i].vrInTgMsk = 0  ;
 		}
 
 		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-
 			// Jack serial
-	    EEPROM_Params.midiRoutingRulesSerial[i].filterMsk = midiXparser::allMsgTypeMsk;
-	    EEPROM_Params.midiRoutingRulesSerial[i].cableInTargetsMsk = 1 << i ;
-	    EEPROM_Params.midiRoutingRulesSerial[i].jackOutTargetsMsk = 0  ;
+	    EE_Prm.rtRulesJack[i].slot = 0;
+	    EE_Prm.rtRulesJack[i].cbInTgMsk = 1 << i ;
+	    EE_Prm.rtRulesJack[i].jkOutTgMsk = 0  ;
+      EE_Prm.rtRulesJack[i].vrInTgMsk = 0  ;
 	  }
-	}
+
+  }
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_INTELLITHRU) {
 	  // "Intelligent thru" serial mode
+
 	  for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].filterMsk = midiXparser::allMsgTypeMsk;
-	    EEPROM_Params.midiRoutingRulesIntelliThru[i].jackOutTargetsMsk = 0B1111 ;
+	    EE_Prm.rtRulesIthru[i].slot = 0;
+	    EE_Prm.rtRulesIthru[i].jkOutTgMsk = 0 ;
+      EE_Prm.rtRulesIthru[i].vrInTgMsk = 0  ;
 		}
-		EEPROM_Params.intelliThruJackInMsk = 0;
-	  EEPROM_Params.intelliThruDelayPeriod = DEFAULT_INTELLIGENT_MIDI_THRU_DELAY_PERIOD ;
+    // Default IN 1 -> OUT 1,2 (split) , IN 2,3 -> OUT 3 (merge)
+    EE_Prm.rtRulesIthru[0].jkOutTgMsk = B0011 ;
+    EE_Prm.rtRulesIthru[1].jkOutTgMsk = B0100 ;
+    EE_Prm.rtRulesIthru[2].jkOutTgMsk = B0100 ;
+
+		EE_Prm.ithruJackInMsk = 0;
+	  EE_Prm.ithruUSBIdleTimePeriod = DEFAULT_ITHRU_USB_IDLE_TIME_PERIOD ;
+
 	}
 
-	// Disable "Intelligent thru" serial mode
-	if (mode == ROUTING_INTELLITHRU_OFF ) {
-		for ( uint8_t i = 0 ; i != B_SERIAL_INTERFACE_MAX ; i++ ) {
-			EEPROM_Params.intelliThruJackInMsk = 0;
-		}
-	}
-
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Return current configuration as a SYSEX buffer
-///////////////////////////////////////////////////////////////////////////////
-uint8_t SysexInternalDumpConf(uint32_t fnId, uint8_t port,uint8_t *buff) {
-
-  uint8_t src;
-  uint8_t dest = 0 ;
-  uint16_t msk ;
-  uint8_t i;
-  uint8_t c;
-  uint8_t *buff2 = buff;
-
-  memcpy(buff2,sysExInternalHeader,sizeof(sysExInternalHeader));
-  buff2+=sizeof(sysExInternalHeader);
-  *buff2 = fnId >> 24;
-
-  switch (fnId) {
-
-    // Function 0B - Change USB Product String
-    case 0x0B000000:
-          strcpy((char*)++buff2,(char*)EEPROM_Params.productString);
-          buff2+=strlen((char*)EEPROM_Params.productString)-1;
-          break;
-
-    // Function 0C - Change USB Vendor ID and Product ID
-    case 0x0C000000:
-          *(++buff2) = EEPROM_Params.vendorID >> 12;
-          *(++buff2) = (EEPROM_Params.vendorID & 0x0F00) >> 8;
-          *(++buff2) = (EEPROM_Params.vendorID & 0x00F0) >> 4;
-          *(++buff2) = (EEPROM_Params.vendorID & 0x000F) ;
-          *(++buff2) = EEPROM_Params.productID >> 12;
-          *(++buff2) = (EEPROM_Params.productID & 0x0F00) >> 8;
-          *(++buff2) = (EEPROM_Params.productID & 0x00F0) >> 4;
-          *(++buff2) = (EEPROM_Params.productID & 0x000F) ;
-          break;
-
-    // Function 0E - Intellithru midi routing rules
-    // 02 Timeout
-    case 0x0E020000:
-          *(++buff2) = 0X02;
-          *(++buff2) = EEPROM_Params.intelliThruDelayPeriod;
-          break;
-
-     // Function 0E - Intellithru midi routing rules
-     // 03 Routing rules
-     case 0x0E030000:
-          *(++buff2) = 0X03;
-          *(++buff2) = port;
-          *(++buff2) = EEPROM_Params.midiRoutingRulesIntelliThru[port].filterMsk;
-          c = 0;
-          for ( i=0; i != 16 ; i++) {
-     						if ( EEPROM_Params.midiRoutingRulesIntelliThru[port].jackOutTargetsMsk & ( 1 << i) ) {
-                      *(++buff2) = i;
-                      c++;
-                }
-     		  }
-          if (c == 0 ) return 0;
-          break;
-
-     // Function 0F - USB/Serial Midi midi routing rules
-     // 02 Midi filter
-     case 0x0F020000: // Cable
-     case 0x0F020100: // Serial
-         src  = (fnId & 0x0000FF00) >> 8;
-         if (src > 1  ) return 0;
-         *(++buff2) = 0X02;
-         *(++buff2) = src;
-         *(++buff2) = port;
-         if (src) {
-            *(++buff2) = EEPROM_Params.midiRoutingRulesSerial[port].filterMsk;
-         }
-         else {
-            *(++buff2) = EEPROM_Params.midiRoutingRulesCable[port].filterMsk;
-         }
-
-         break;
-
-     // Function 0F - USB/Serial Midi midi routing rules
-     // 01 Routing rules
-     case 0x0F010000: // Cable to Cable
-     case 0x0F010001: // Cable to Serial
-     case 0x0F010100: // Serial to Cable
-     case 0x0F010101: // Serial to Serial
-     src  = (fnId & 0x0000FF00) >> 8;
-     dest = (fnId & 0x000000FF) ;
-     if (src > 1 || dest > 1 ) return 0;
-     *(++buff2) = 0X01;
-     *(++buff2) = src;
-     *(++buff2) = port;
-     *(++buff2) = dest;
-
-     if (src ) {
-       msk = dest ? EEPROM_Params.midiRoutingRulesSerial[port].jackOutTargetsMsk : EEPROM_Params.midiRoutingRulesSerial[port].cableInTargetsMsk;
-     } else {
-       msk = dest ? EEPROM_Params.midiRoutingRulesCable[port].jackOutTargetsMsk : EEPROM_Params.midiRoutingRulesCable[port].cableInTargetsMsk;
-     } ;
-
-     c = 0;
-     for ( i = 0 ; i != 16  ; i++) {
-         if ( msk & ( 1 << i) ) {
-           *(++buff2) = i;
-           c++;
-         }
-     }
-     if (c == 0 ) return 0;
-     break;
-  }
-  *(++buff2) = 0xF7;
-  return buff2-buff+1;
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-// Send a SYSEX dump to the appropriate destination stream
-// 0 : Serial USB
-// 1 : Serial port 0
-// 2 : USB Cable 0
-///////////////////////////////////////////////////////////////////////////////
-void SysexInternalDumpToStream(uint8_t dest) {
-
-  uint16_t l;
-
-  // Function 0B - Change USB Product String
-  l = SysexInternalDumpConf(0x0B000000, 0, sysExInternalBuffer);
-  if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-  else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-  else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-
-  // Function 0C - Change USB Vendor ID and Product ID
-  l = SysexInternalDumpConf(0x0C000000, 0, sysExInternalBuffer);
-  if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-  else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-  else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-
-  // Function 0E - Intellithru midi routing rules - 02 Timeout
-  l = SysexInternalDumpConf(0x0E020000, 0, sysExInternalBuffer);
-  if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-  else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-  else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0E - Intellithru midi routing rules - 03 Routing rules
-      l = SysexInternalDumpConf(0x0E030000, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-  }
-
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - 02 Midi filter Cable
-      l = SysexInternalDumpConf(0x0F020000, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-  }
-
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - 02 Midi filter Serial
-      l = SysexInternalDumpConf(0x0F020100, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-  }
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - Cable to Cable
-      l = SysexInternalDumpConf(0x0F010000, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-  }
-
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - Cable to Serial
-      l = SysexInternalDumpConf(0x0F010001, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-  }
-
-  for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - Serial to Cable
-      l = SysexInternalDumpConf(0x0F010100, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-   }
-
-   for ( uint8_t j=0; j != 16 ; j++) {
-      // Function 0F - USB/Serial Midi midi routing rules - Serial to Serial
-      l = SysexInternalDumpConf(0x0F010101, j, sysExInternalBuffer);
-      if ( l && dest == 0 ) {ShowBufferHexDump(sysExInternalBuffer,l,0);Serial.println();}
-      else if ( l && dest == 1 ) serialHw[0]->write(sysExInternalBuffer,l);
-      else if ( l && dest == 2 ) SysExSendMsgPacket(sysExInternalBuffer,l);
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Send a SYSEX midi message to USB Cable 0
 ///////////////////////////////////////////////////////////////////////////////
-void SysExSendMsgPacket( uint8_t buff[],uint16_t sz) {
+boolean USBMidi_SendSysExPacket( uint8_t cable, const uint8_t sxBuff[],uint16_t sz)
+{
   midiPacket_t pk { .i = 0};
   uint8_t b=0;
-  bool endPk;
+  bool startSx=false;
+  bool endSx=false;
+
+  if (cable > 0x0F) return false;
+  if ( sxBuff[0] != 0xF0 || sxBuff[sz-1] != 0xF7) return false;
+
   // Build sysex packets
+  // Multiple Sysyex messages can be embedded in the buffer :
+  // F0 nn ... nn F7 F0 nn ... nn F7 so we have to care about that.
+
   for ( uint16_t i = 0; i != sz ; i ++ ) {
-    pk.packet[++b] = buff[i];
-    endPk = ( i+2 > sz );
-    if (b == 3 ||  endPk ) {
-        pk.packet[0]  = endPk ?  b + 4 : 4 ;
-        MidiUSB.writePacket(&pk.i);
-        FLASH_LED_OUT(0);
-        b=0; pk.i = 0;
-    }
+      // Check integrity
+      if ( sxBuff[i] == 0xF0) startSx = true;
+      if ( sxBuff[i] == 0xF7) endSx = true;
+      if (startSx) {
+        pk.packet[++b] = sxBuff[i];
+        if ( b == 3 || endSx ) {
+          pk.packet[0]  = (endSx ?  b + 4 : 4 ) + (cable << 4);
+          MidiUSB.writePacket(&pk.i);
+          if (endSx) startSx = endSx = false;
+          b=0; pk.i = 0;
+        }
+      }
   }
+
+  FLASH_LED_OUT(0);
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Process internal USBMidiKlik SYSEX
-// ----------------------------------------------------------------------------
-// MidiKlik SYSEX are of the following form :
-//
-// F0            SOX Start Of Sysex
-// 77 77 78      USBMIDIKliK header
-// <xx>          USBMIDIKliK sysex command
-// <dddddd...dd> data
-// F7            EOX End of SYSEX
-//
-// SOX, Header and EOX are not stored in sysExInternalBuffer.
-//
-// Fn   Description                           Data
-//
-// 0x05 Sysex configuration dump
-// 0x06 General Information
-// 0x08 Reboot in config mode
-// 0x0A Hard reset interface
-// 0x0B Change USB Product string
-// 0X0C Change USB VID / PID
-// 0X0E Set Intelligent Midi thru mode
-// 0X0F Change midi routing rule
-// ----------------------------------------------------------------------------
-// sysExInternalBuffer[0] length of the message (func code + data)
-// sysExInternalBuffer[1] function code
-// sysExInternalBuffer[2] data without EOX
+// Get/ Set magic boot mode
+// DR5 backup register is used for UMK4x4
 ///////////////////////////////////////////////////////////////////////////////
-void SysExInternalProcess(uint8_t source)
+uint16_t GetAndClearBootMagicWord()
 {
-  uint8_t msgLen = sysExInternalBuffer[0];
-  uint8_t cmdId  = sysExInternalBuffer[1];
+  uint16_t magicWord = 0x0000;
 
-  switch (cmdId) {
+  RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+  // read magic word in register register
+  magicWord = BKP_BASE->BOOT_REGISTER ;
+  // Reset magic word
+  // Enable write access to the backup registers and the RTC
+  PWR_BASE->CR |= PWR_CR_DBP;
+  // write register
+  BKP_BASE->BOOT_REGISTER = BOOT_MIDI_MAGIC; // Default;
+  // Disable write
+  PWR_BASE->CR &= ~PWR_CR_DBP;
+  RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+  return magicWord;
+}
 
-    // ---------------------------------------------------------------------------
-    // Function 05 Sysex configuration dump
-    // Example : F0 77 77 78 05 F7
-    // ---------------------------------------------------------------------------
-    case 0x05:
-      if (source == FROM_USB && midiUSBCx) {
-        // send to USB , cable 0
-        SysexInternalDumpToStream(2);
-      } else
-      if (source == FROM_SERIAL ) {
-        // Send to serial port 0 being the only possible for sysex
-        SysexInternalDumpToStream(1);
-      }
-      break;
+void SetBootMagicWord(uint16_t magicWord)
+{
+  if ( magicWord != BOOT_BTL_MAGIC &&
+       magicWord != BOOT_CONFIG_MAGIC &&
+       magicWord != BOOT_MIDI_MAGIC )
 
-    // ---------------------------------------------------------------------------
-    // Function 06 subId 0x01 - Identity request.
-    // Example : F0 77 77 78 06 01 F7
-    // ---------------------------------------------------------------------------
-    case 0x06:
-      if ( sysExInternalBuffer[2] == 0x01 && msgLen == 2 ) {
+       return;
 
-          if (source == FROM_USB && midiUSBCx) {
-            // send to USB , cable 0
-            SysExSendMsgPacket(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
-          } else
-          if (source == FROM_SERIAL ) {
-            // Send to serial port 0 being the only possible for sysex
-            serialHw[0]->write(sysExInternalIdentityRqReply,sizeof(sysExInternalIdentityRqReply));
-          }
-      }
-      break;
+   // global
+   bootMagicWord = magicWord;
 
-    // ---------------------------------------------------------------------------
-    // Function 08 - Reboot in serial configuration mode
-    // Example : F0 77 77 78 08 F7
-    // ---------------------------------------------------------------------------
-		case 0x08:
-			// Set serial boot mode & Write the whole param struct
-			EEPROM_Params.nextBootMode = bootModeConfigMenu;
-      EEPROM_ParamsSave();
-      nvic_sys_reset();
-			break;
+   // Write the Magic word bootloader
 
-    // ---------------------------------------------------------------------------
-    // Function 0A - Reboot unit
-    // Example : F0 77 77 78 0A F7
-    // ---------------------------------------------------------------------------
-    case 0x0A:
-      nvic_sys_reset();
-      break;
+   RCC_BASE->APB1ENR |=  (RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
+   // Enable write access to the backup registers and the RTC
+   PWR_BASE->CR |= PWR_CR_DBP;
 
-    // ---------------------------------------------------------------------------
-    // Function 0B - Change USB Product String
-    // F0 77 77 78 0B <string bytes> F7
-    // ---------------------------------------------------------------------------
-    // Copy the received string to the USB Product String Descriptor
-    // For MIDI protocol compatibility, and avoid a sysex encoding,
-    // accentuated ASCII characters, below 128 are non supported.
-    // Size if defined by USB_MIDI_PRODUCT_STRING_SIZE in UsbMidiKliK4x4.h
-    // ---------------------------------------------------------------------------
-    case 0x0B:
-      if (msgLen < 2) break;
-      if ( (msgLen-1) > USB_MIDI_PRODUCT_STRING_SIZE  ) break;
+   // write register
+   // if bootloader then write hid_boolaoder magic word to DR4/10
+   // Write also DR5 to come back to config mode.
+   if (magicWord == BOOT_BTL_MAGIC ) {
+     BKP_BASE->BOOT_BTL_REGISTER = BOOT_BTL_MAGIC;
+     BKP_BASE->BOOT_REGISTER = BOOT_CONFIG_MAGIC;
+   }
+   // usual case. No Wait.
+   else {
+     BKP_BASE->BOOT_BTL_REGISTER = BOOT_BTL_MAGIC_NOWAIT;
+     BKP_BASE->BOOT_REGISTER = bootMagicWord;
+   }
 
-      // Store the new string in EEPROM
-      memset(&EEPROM_Params.productString,0, sizeof(EEPROM_Params.productString));
-      memcpy(&EEPROM_Params.productString,&sysExInternalBuffer[2],msgLen-1);
-      EEPROM_ParamsSave();
-      break;
-
-    // ---------------------------------------------------------------------------
-    // Function 0C - Change USB Vendor ID and Product ID
-    // F0 77 77 78 0C <n1 n2 n3 n4 = VID nibbles> <n1 n2 n3 n4 = PID nibbles> F7
-    // ---------------------------------------------------------------------------
-    // To respect a simple encoding of 7 bits bytes, each hex digit must be
-    // transmitted separately in a serialized way.
-    // The following example will set  VID to 0X8F12 and PID to 0X9067 :
-    // F0 77 77 78 0C 08 0F 01 02 09 00 06 07 F7
-    //                8  F  1  2  9  0  6  7
-    case 0x0C:
-      if ( msgLen != 9 ) break;
-      EEPROM_Params.vendorID = (sysExInternalBuffer[2] << 12) + (sysExInternalBuffer[3] << 8) +
-                                     (sysExInternalBuffer[4] << 4) + sysExInternalBuffer[5] ;
-      EEPROM_Params.productID= (sysExInternalBuffer[6] << 12) + (sysExInternalBuffer[7] << 8) +
-                                     (sysExInternalBuffer[8] << 4) + sysExInternalBuffer[9] ;
-      EEPROM_ParamsSave();
-      break;
-
-    // ---------------------------------------------------------------------------
-    // Function 0E - Intellithru midi routing rules
-    // ---------------------------------------------------------------------------
-    // IntelligentThru can be activated when USB is sleeping or unavailable beyond a certain timeout.
-    // F0 77 77 78 0E  < Routing rules command <command args>   >
-    //
-    // Commands are :
-    //  00 Reset Intellithru to default
-    //  01 Disable Intellithru
-    //  02 Set  Intellithru timeout
-    //      arg1 : 0xnn (number of 15s periods 1-127)
-    //  03 Set thru mode jack routing
-    //      arg1 - Midi In Jack = 0xnn (0-F)
-    //      arg2 - Midi filter mask (binary OR)
-    //                => zero if you want to inactivate intelliThru for this jack
-    //                  channel Voice = 0001 (1), (binary OR)
-    //                  system Common = 0010 (2), (binary OR)
-    //                  realTime      = 0100 (4), (binary OR)
-    //                  sysEx         = 1000 (8)
-    //      arg3 - Serial midi Jack out targets
-    //            <t1> <t2>...<tn>  0-F 16 targets maximum.
-    // EOX = F7
-    // Examples :
-    // F0 77 77 78 0E 00 F7                    <= Reset to default
-    // F0 77 77 78 0E 01 F7                    <= Disable
-    // F0 77 77 78 0E 02 02 F7                 <= Set timeout to 30s
-    // F0 77 77 78 0E 03 01 0F 00 01 02 03 F7  <= Route Midi In Jack 2 to Jacks out 1,2,3,4 All msg
-    // F0 77 77 78 0E 03 03 04 03 04 F7        <= Route Midi In Jack 4 to Jacks out 4,5, real time only
-
-    case 0x0E:
-			if ( msgLen < 2 ) break;
-
-			// reset to default midi thru routing
-      if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
-				 ResetMidiRoutingRules(ROUTING_RESET_INTELLITHRU);
-			} else
-
-			// Disable thru mode
-			if (sysExInternalBuffer[2] == 0x01  && msgLen == 3) {
-					ResetMidiRoutingRules(ROUTING_INTELLITHRU_OFF);
-			}	else
-
-			// Set Delay
-			// The min delay is 1 period of 15 secondes. The max is 127 periods of 15 secondes.
-      if (sysExInternalBuffer[2] == 0x02  && msgLen == 3) {
-				if ( sysExInternalBuffer[3] < 1 || sysExInternalBuffer[3] > 0X7F ) break;
-				EEPROM_Params.intelliThruDelayPeriod = sysExInternalBuffer[3];
-			}	else
-
-      // Set routing : Midin 2 mapped to all events. All 4 ports.
-			// 0E 03 01 0F 00 01 02 03
-			// 0E 03 01 0F 00
-			if (sysExInternalBuffer[2] == 3 ) {
-					if (msgLen < 4 ) break;
-					if ( msgLen > SERIAL_INTERFACE_COUNT + 4 ) break;
-
-					uint8_t src = sysExInternalBuffer[3];
-					uint8_t filterMsk = sysExInternalBuffer[4];
-
-					if ( src >= SERIAL_INTERFACE_COUNT) break;
-
-					// Filter is 4 bits
-					if ( filterMsk > 0x0F  ) break;
-
-					// Disable Thru mode for this jack if no filter
-					if ( filterMsk == 0 && msgLen ==4 ) {
-						EEPROM_Params.intelliThruJackInMsk &= ~(1 << src);
-					}
-					else {
-							if ( filterMsk == 0 ) break;
-							// Add midi in jack
-							EEPROM_Params.intelliThruJackInMsk |= (1 << src);
-							// Set filter
-							EEPROM_Params.midiRoutingRulesIntelliThru[src].filterMsk = filterMsk;
-							// Set Jacks
-							if ( msgLen > 4)	{
-								uint16_t msk = 0;
-								for ( uint8_t i = 5 ; i != (msgLen+1)  ; i++) {
-										if ( sysExInternalBuffer[i] < SERIAL_INTERFACE_COUNT)
-											msk |= 	1 << sysExInternalBuffer[i] ;
-								}
-								EEPROM_Params.midiRoutingRulesIntelliThru[src].jackOutTargetsMsk = msk;
-							}
-					}
-			}
-			else	break;
-
-			// Write the whole param struct
-      EEPROM_ParamsSave();
-			// reset globals for a real time update
-			intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
-      // Synchronize slaves routing rules if bus active and master
-      if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
-
-      break;
-
-    // ---------------------------------------------------------------------------
-    // Function 0F - USB/Serial Midi midi routing rules
-    // ---------------------------------------------------------------------------
-    // F0 77 77 78 0F  < Routing rules command <command args>   >
-    //
-    // Commands are :
-    //  00 Reset to default midi routing
-    //  01 Set routing +
-    //      arg1 - source type : <0x00 usb cable | 0x01 jack serial>
-    //      arg2 - port id : id for cable or jack serial (0-F)
-    //      arg3 - destination = <0x00 usb cable in | 0x01 jack serial out>
-    //      arg4 - targets : <port 0 1 2...n> 16 max (0-F)
-    //  02  Midi filter
-    //      arg1 - source type : : <0x00 usb cable | 0x01 jack serial>
-    //      arg2 - port id : id for cable or jack serial (0-F)
-    //      arg3 - midi filter mask (binary OR)
-    //                => zero if you want to inactivate intelliThru for this jack
-    //                  channel Voice = 0001 (1), (binary OR)
-    //                  system Common = 0010 (2), (binary OR)
-    //                  realTime      = 0100 (4), (binary OR)
-    //                  sysEx         = 1000 (8)
-    // EOX = F7
-      //
-    // Examples :
-    // F0 77 77 78 0F 00 F7                      <= reset to default midi routing
-    // F0 77 77 78 0F 02 00 00 04 F7             <= Set filter to realtime events on cable 0
-    // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= Set Cable 0 to Jack 1,2
-    // F0 77 77 78 0F 01 00 00 00 00 01 F7       <= Set Cable 0 to Cable In 0, In 01
-    // F0 77 77 78 0F 01 00 00 01 00 01 F7       <= & jack 1,2 (2 msg)
-    // F0 77 77 78 0F 01 01 01 01 00 01 02 03 F7 <= Set Serial jack In No 2 to serial jacks out 1,2,3,4
-
-    case 0x0F:
-
-      // reset to default routing
-
-      if (sysExInternalBuffer[2] == 0x00  && msgLen == 2) {
-					ResetMidiRoutingRules(ROUTING_RESET_MIDIUSB);
-      } else
-
-			// Set filter
-
-			if (sysExInternalBuffer[2] == 0x02  && msgLen == 5) {
-
-					uint8_t srcType = sysExInternalBuffer[3];
-					uint8_t src = sysExInternalBuffer[4];
-					uint8_t filterMsk = sysExInternalBuffer[5];
-
-					// Filter is 4 bits
-				  if ( filterMsk > 0x0F  ) break;
-
-					if (srcType == 0 ) { // Cable
-						if ( src  >= USBCABLE_INTERFACE_MAX) break;
-								EEPROM_Params.midiRoutingRulesCable[src].filterMsk = filterMsk;
-					} else
-
-					if (srcType == 1) { // Serial
-						if ( src >= SERIAL_INTERFACE_COUNT) break;
-							EEPROM_Params.midiRoutingRulesSerial[src].filterMsk = filterMsk;
-					} else break;
-
-
-			} else
-
-			// Set Routing targets
-
-			if (sysExInternalBuffer[2] == 0x01  )
-      {
-
-				if (msgLen < 6) break;
-
-				uint8_t srcType = sysExInternalBuffer[3];
-				uint8_t dstType = sysExInternalBuffer[5];
-				uint8_t src = sysExInternalBuffer[4];
-
-				if (srcType != 0 && srcType != 1 ) break;
-				if (dstType != 0 && dstType != 1 ) break;
-				if (srcType  == 0 && src >= USBCABLE_INTERFACE_MAX ) break;
-				if (srcType  == 1 && src >= SERIAL_INTERFACE_COUNT) break;
-				if (dstType  == 0 &&  msgLen > (USBCABLE_INTERFACE_MAX + 5) )  break;
-				if (dstType  == 1 &&  msgLen > (SERIAL_INTERFACE_COUNT + 5) )  break;
-
-				// Compute mask from the port list
-				uint16_t msk = 0;
-				for ( uint8_t i = 6 ; i != (msgLen+1)  ; i++) {
-					  uint8_t b = sysExInternalBuffer[i];
-						if ( (dstType == 0 && b < USBCABLE_INTERFACE_MAX) ||
-						     (dstType == 1 && b < SERIAL_INTERFACE_COUNT) ) {
-
-									 msk |= 	1 << b ;
-						}
-				}// for
-
-				// Set masks
-				if ( srcType == 0 ) { // Cable
-						if (dstType == 0) // To cable
-							EEPROM_Params.midiRoutingRulesCable[src].cableInTargetsMsk = msk;
-						else // To serial
-							EEPROM_Params.midiRoutingRulesCable[src].jackOutTargetsMsk = msk;
-
-				} else
-
-				if ( srcType == 1 ) { // Serial
-					if (dstType == 0)
-						EEPROM_Params.midiRoutingRulesSerial[src].cableInTargetsMsk = msk;
-					else
-						EEPROM_Params.midiRoutingRulesSerial[src].jackOutTargetsMsk = msk;
-				}
-
-      } else
-					return;
-
-			// Write the whole param struct
-			EEPROM_ParamsSave();
-
-      // Synchronize slaves routing rules
-      if (B_IS_MASTER) I2C_SlavesRoutingSyncFromMaster();
-
-			break;
-
-  }
+   // Disable write
+   PWR_BASE->CR &= ~PWR_CR_DBP;
+   RCC_BASE->APB1ENR &=  ~(RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN) ;
 
 }
 
@@ -1096,11 +854,13 @@ void CheckBootMode()
 {
 	// Does the config menu boot mode is active ?
 	// if so, prepare the next boot in MIDI mode and jump to menu
-	if  ( EEPROM_Params.nextBootMode == bootModeConfigMenu ) {
+
+  // Read the boot magic word if default.
+  // If a new build was uploaded, we force config mode.
+    if (bootMagicWord == BOOT_CONFIG_MAGIC || GetAndClearBootMagicWord() == BOOT_CONFIG_MAGIC) {
 
       // Next boot on Midi
-      EEPROM_Params.nextBootMode = bootModeMidi;
-      EEPROM_ParamsSave();
+      SetBootMagicWord(BOOT_MIDI_MAGIC);
 
 			#ifdef HAS_MIDITECH_HARDWARE
 				// Assert DISC PIN (PA8 usually for Miditech) to enable USB
@@ -1112,21 +872,23 @@ void CheckBootMode()
 			Serial.begin(115200);
 			delay(500);
 
-			// Start Wire as a master for config & tests purpose in the menu
-			Wire.begin();
-			Wire.setClock(B_FREQ) ;
+      // Start Wire as a master for config & tests purpose in the menu
+      Wire.begin();
+      Wire.setClock(B_FREQ) ;
 
 			// wait for a serial monitor to be connected.
 			// 3 short flash
 
 			while (!Serial) {
-					flashLED_CONNECT->start();delay(100);
-					flashLED_CONNECT->start();delay(100);
-					flashLED_CONNECT->start();delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
+          LED_Flash(&LED_ConnectTick);delay(300);
 				}
 			digitalWrite(LED_CONNECT, LOW);
+
 			ShowConfigMenu(); // INFINITE LOOP
 	}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1135,8 +897,8 @@ void CheckBootMode()
 ///////////////////////////////////////////////////////////////////////////////
 void USBMidi_Init()
 {
-	usb_midi_set_vid_pid(EEPROM_Params.vendorID,EEPROM_Params.productID);
-	usb_midi_set_product_string((char *) &EEPROM_Params.productString);
+	usb_midi_set_vid_pid(EE_Prm.vendorID,EE_Prm.productID);
+	usb_midi_set_product_string((char *) &EE_Prm.productString);
 
 	MidiUSB.begin() ;
   delay(4000); // Note : Usually around 4 s to fully detect USB Midi on the host
@@ -1147,47 +909,58 @@ void USBMidi_Init()
 ///////////////////////////////////////////////////////////////////////////////
 void USBMidi_Process()
 {
-	// Try to connect/reconnect USB if we detect a high level on USBDM
+  // Try to connect/reconnect USB if we detect a high level on USBDM
 	// This is to manage the case of a powered device without USB active or suspend mode for ex.
+  static unsigned long ledCxMillis = 0;
+  static unsigned long lastPacketMillis = 0;
+
 	if ( MidiUSB.isConnected() ) {
 
-    if (! midiUSBCx) digitalWrite(LED_CONNECT, LOW);
+    unsigned long lastPollMillis = millis();
+
+    if (lastPollMillis > ledCxMillis ) {
+      LED_TurnOn(&LED_ConnectTick);
+      ledCxMillis = lastPollMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS;
+    }
+
     midiUSBCx = true;
 
 		// Do we have a MIDI USB packet available ?
 		if ( MidiUSB.available() ) {
-			midiUSBLastPacketMillis = millis()  ;
+			lastPacketMillis = lastPollMillis  ;
+      ledCxMillis = lastPollMillis + LED_CONNECT_USB_RECOVER_TIME_MILLIS;
 			midiUSBIdle = false;
-			intelliThruActive = false;
+			midiIthruActive = false;
 
 			// Read a Midi USB packet .
 			if ( !isSerialBusy ) {
 				midiPacket_t pk ;
 				pk.i = MidiUSB.readPacket();
-				RoutePacketToTarget( FROM_USB,  &pk );
+				RoutePacketToTarget( PORT_TYPE_CABLE,  &pk );
 			} else {
 					isSerialBusy = false ;
 			}
-		} else
-		if (!midiUSBIdle && millis() > ( midiUSBLastPacketMillis + intelliThruDelayMillis ) )
+		}
+    else
+		if (!midiUSBIdle && lastPollMillis > ( lastPacketMillis + ithruUSBIdlelMillis ) )
 				midiUSBIdle = true;
 	}
 	// Are we physically connected to USB
 	else {
-       if (midiUSBCx) digitalWrite(LED_CONNECT, HIGH);
+       if (midiUSBCx) LED_TurnOff(&LED_ConnectTick);
        midiUSBCx = false;
 		   midiUSBIdle = true;
   }
 
-	if ( midiUSBIdle && !intelliThruActive && EEPROM_Params.intelliThruJackInMsk) {
-			intelliThruActive = true;
+	if ( midiUSBIdle && !midiIthruActive && EE_Prm.ithruJackInMsk) {
+			midiIthruActive = true;
 			FlashAllLeds(0); // All leds when Midi intellithru mode active
 	}
 
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// I2C Loop Process for SERIAL MIDI
+// MIDI SERIAL Loop Process
 ///////////////////////////////////////////////////////////////////////////////
 void SerialMidi_Process()
 {
@@ -1200,12 +973,10 @@ void SerialMidi_Process()
 								// We manage sysEx "on the fly". Clean end of a sysexe msg ?
 								if ( midiSerial[s].getMidiMsgType() == midiXparser::sysExMsgTypeMsk )
 									SerialMidi_RouteSysEx(s, &midiSerial[s]) ;
-
 								// Not a sysex. The message is complete.
 								else {
                   SerialMidi_RouteMsg( s, &midiSerial[s]);
                 }
-
 					 }
 					 else
 					 // Acknowledge any sysex error
@@ -1231,41 +1002,37 @@ void SerialMidi_Process()
 void setup()
 {
 
-		// EEPROM initialization
-		// Set EEPROM parameters for the STMF103RC
-	  EEPROM.PageBase0 = 0x801F000;
-	  EEPROM.PageBase1 = 0x801F800;
-	  EEPROM.PageSize  = 0x800;
-		//EEPROM.Pages     = 1;
+    Serial.end();
 
+    // Retrieve EEPROM parameters
+    EE_PrmInit();
 
-		EEPROM.init();
+    // Reset LEDs counters.
+    LED_Init();
 
-		// Retrieve EEPROM parameters
-    EEPROM_ParamsInit();
+    // Configure the general purpose TIMER.
+    HardwareTimer *timerMillis = new HardwareTimer(2);
 
-    #ifndef DEBUG_MODE
-        EEPROM_Params.debugMode = false;
-    #endif
-
-    // Configure the TIMER2
-    timer.pause();
-    timer.setPeriod(TIMER2_RATE_MICROS); // in microseconds
+    // Configure the millisec timer ISR
+    timerMillis->pause();
+    timerMillis->setPeriod(TIMER_MILLIS_RATE_MICROS); // in microseconds
     // Set up an interrupt on channel 1
-    timer.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-    timer.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
-    timer.attachCompare1Interrupt(Timer2Handler);
-    timer.refresh();   // Refresh the timer's count, prescale, and overflow
-    timer.resume();    // Start the timer counting
+    timerMillis->setChannel1Mode(TIMER_OUTPUT_COMPARE);
+    // Interrupt 1 count after each update
+    timerMillis->setCompare(TIMER_CH4, 1);
+    timerMillis->attachInterrupt(TIMER_CH4, TimerMillisHandler);
+    timerMillis->refresh();
+    timerMillis->resume();
 
-    // Start the LED Manager
-    flashLEDManager.begin();
+    // recompute all midi clocks ticks...
+    SetMidiBpmClock(0x7F, 0);
 
+    // Check if we must go to configuration mode
 		CheckBootMode();
 
     // MIDI MODE START HERE ==================================================
 
-    intelliThruDelayMillis = EEPROM_Params.intelliThruDelayPeriod * 15000;
+    ithruUSBIdlelMillis = EE_Prm.ithruUSBIdleTimePeriod * 15000;
 
     // MIDI SERIAL PORTS set Baud rates and parser inits
     // To compile with the 4 serial ports, you must use the right variant : STMF103RC
@@ -1279,21 +1046,51 @@ void setup()
 		// I2C bus checks that could disable the bus mode
   	I2C_BusChecks();
 
-    // Midi USB only if master when bus is enabled or master/slave
-    if ( ! B_IS_SLAVE  ) {
-        midiUSBLaunched = true;
+    // PROCESSES.
+    // 1. SerialMidi_Process
+    // 2. MidiClockGenerator (if not slave on bus)
+    // 3. USBMidi_Process
+    // 4. MidiClockGenerator (if not slave on bus)
+    // 5. I2C_ProcessSlave or I2C_ProcessMaster (if bus enabled)
+    // 6. MidiClockGenerator (if master on bus )
+    //
+    // MidiClockGenerator is added after each process because we don't
+    // want to wait the full loop, for accuracy.
+
+    // 1. Add Serial process to process fn vector
+    procVectorFn[procVectorFnCount++] = &SerialMidi_Process;
+
+    // Midi USB only if available only for master when bus is enabled or master/slave
+    if ( !(IS_SLAVE && IS_BUS_E)  ) {
+        // 2. Add midi clock generator not for a slave on bus
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
+        // 3. Add midi USB process
+        procVectorFn[procVectorFnCount++] = &USBMidi_Process;
         USBMidi_Init();
-        #ifdef DEBUG_MODE
-        if (EEPROM_Params.debugMode ) {
-            DEBUG_SERIAL.end();
-            DEBUG_SERIAL.begin(115200);
-            DEBUG_SERIAL.flush();
-            delay(500);
-        }
-        #endif
+        // 4. add again midi clock generator for the best refresh rate possible
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
   	}
 
-		I2C_BusStartWire();		// Start Wire if bus mode enabled. AFTER MIDI !
+    // 5. Add add-hoc I2C BUS process vector fn when bus is enabled
+    if ( IS_BUS_E ) {
+      if (IS_SLAVE ) procVectorFn[procVectorFnCount++] = &I2C_ProcessSlave;
+      else
+      if ( IS_MASTER )  {
+        procVectorFn[procVectorFnCount++] = &I2C_ProcessMaster;
+        // 6. Add midi clock generator again for the master.
+        procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
+      }
+    }
+
+    // Start Wire (I2C) if bus mode enabled. AFTER MIDI !
+    I2C_BusStartWire();
+
+    // Show end of setup phase
+    // Seems that using LED_Flash in combination with timer introduce
+    // some conflicts with USB (cf USBMidi_Init above)...
+    // This is a low level thing...in the core library probably.
+
+    FlashAllLeds(0);
 
 }
 
@@ -1302,11 +1099,7 @@ void setup()
 ///////////////////////////////////////////////////////////////////////////////
 void loop()
 {
-		if ( midiUSBLaunched ) USBMidi_Process();
-
-		SerialMidi_Process();
-
-		// I2C BUS MIDI PACKET PROCESS
-		if ( B_IS_SLAVE ) I2C_ProcessSlave();
-		else if ( B_IS_MASTER ) I2C_ProcessMaster();
+    // Pure loop of functions in vector
+    uint8_t p = procVectorFnCount;
+    do {  procVectorFn[--p](); } while (p);
 }

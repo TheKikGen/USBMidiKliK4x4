@@ -66,7 +66,7 @@ __ __| |           |  /_) |     ___|             |           |
 #include "usb_def.h"
 
 // EEPROM parameters
-//#include "EEPROM_Params.h"
+//#include "EE_Prm.h"
 
 #ifdef __cplusplus
 extern "C" {

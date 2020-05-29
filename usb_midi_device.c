@@ -47,7 +47,7 @@ __ __| |           |  /_) |     ___|             |           |
 */
 #ifndef USB_MIDI_DEVICE_H
 #define USB_MIDI_DEVICE_H
-
+#include <string.h>
 #include "hardware_config.h"
 #include "usb_midi_device.h"
 
@@ -361,7 +361,7 @@ uint32_t usb_midi_rx(uint32* buf, uint32_t packets) {
  *
  * Looks at unread bytes without marking them as read. */
 uint32_t usb_midi_peek(uint32* buf, uint32_t packets) {
-    int i;
+    uint16_t i;
     if (packets > n_unread_packets) {
         packets = n_unread_packets;
     }
@@ -380,7 +380,6 @@ uint32_t usb_midi_peek(uint32* buf, uint32_t packets) {
  */
 
 uint32_t usb_midi_mark_read(uint32_t n_copied) {
-    /* Mark bytes as read. */
     /* Mark bytes as read. */
     n_unread_packets -= n_copied;
     rx_offset += n_copied;
