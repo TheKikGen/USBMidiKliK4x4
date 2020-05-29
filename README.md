@@ -36,7 +36,7 @@ The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routin
 + USB device ProductStringName, Vendor and Product Ids can be changed easily
 + STANDALONE Mode :  can be used as a standalone MIDI routing box without connecting any host to the USB
 + Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
-+ Powerfull "pipeline" feature allows to modify an incoming midi message
++ Powerfull "pipeline" feature to transform any incoming midi message
 + 8 Midi clock / Midi Time Code generators
 + Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
 
