@@ -113,6 +113,9 @@ The following menu should appear after connecting to the right serial USB port ,
 
 # NEWS
 
+## OFFICIAL RELEASE VERSION 2 merged to master branch ###
+This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 8 midi clock generators in the routing engine. 
+
 ## Midi clock generator and virtual ports added (RC1 - 14 April 2020) ###
 
 8 virtual ports and 8 midi clock generators are now available in the routing engine. Below is an overview to help to better understand what are possible paths for a midi message packet, coming from a physical in port to a physical out port :
