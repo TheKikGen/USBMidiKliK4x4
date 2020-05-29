@@ -49,58 +49,50 @@ The bus mode allows the aggregation of up to five interfaces using the I2C proto
 
 <img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
 
-
-V2.5 SYSEX implementation : https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/UMK-4X4-SYSEX-IPL.TXT
-
-
 Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
 
 
-## Bluepill and USBMidiKlik 3x3
+## Bluepill and USBMidiKlik
 
 <img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
 
-I have realized a proto board, let's say a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.
+I have realized a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
 
-The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
-
-Some units are currently available at Tindie :
+Some (few) units are currently available at Tindie :
 <img width="50" border="0" src="https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png" />  
 https://www.tindie.com/products/thekikgenlabs/usb-midi-interface-3-io-with-routing-features/
 
+Specific PCB without DIN 5 female to allow a deported DIN 5 rail are also available. Contact me for more details.
 
-I have also designed a variant version of this PCB without DIN 5 female, to allow a deported DIN 5 rail.
-Contact me for more details.
+<img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 
-<img width="800" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 
-# USBMidiKliK4x4 - Configuration
+# USBMidiKliK4x4 - Configuration overview
 
-2 modes can be used to configure the USBMidiKlik midi : system exclusive messages or a configuration menu.
-
+2 modes can be used to configure the USBMidiKlik midi : system exclusive messages or a configuration menu. 
 Sysex messages have the following format, and ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1 :
 
 	F0 77 77 78 <sysex function id > <data> F7
 
 The "F0 77 77 78" is the specific sysex header for USBMidiKlik4x4. Know that it is a totally unofficial header.
-You will find the sysex V2 documentation in the wiki :
+You will find the sysex V2.5 documentation in the repository :
 
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/UMK4x4-V2.0-SYSEX-documentation
+https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/UMK-4X4-SYSEX-IPL.TXT
 
 The second way is to activate the configuration menu on the serial port with the following sysex :
 
        F0 77 77 78 08 F7
 
-This sysex enables the serial configuration menu.  To send it, you can use for example, MIDIOX, or the "sendmidi" command line utility by gbevin :
+To send that Sysex, you can use for example, MIDIOX, or the "sendmidi" command line utility by gbevin :
 
        sendmidi dev "USB MIDIKliK 4x4" syx hex 77 77 78 08
 
 You will find the last binary release of sendmidi here :  https://github.com/gbevin/SendMIDI/releases
        
 Immediatly after sending this sequence with your prefered midi software, the interface will reboot in CDC serial COM mode, allowing you to open a terminal to configure easily USBMIDIKLIK. 
-You can use any software like TERATERM, on Windows, or "screen" on MacOs.  The bauds rate must be set to 115200.
 
+You can use any software like TERATERM, on Windows, or "screen" on MacOs.  The bauds rate must be set to 115200.
 The following menu should appear after connecting to the right serial USB port , and pressing ENTER :
 
 	USBMIDIKLIK 4x4 - BLUEPILL STMF103C8x - V2.0
@@ -118,6 +110,7 @@ The following menu should appear after connecting to the right serial USB port ,
 	[8] Toggle bus mode              [z] Debug on Serial3
 	[9] Set device Id                [x] Exit
 	=>
+Don't forget to save your settings with the "s" option before leaving the configuration menu with "x".
 
 # NEWS
 
