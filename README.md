@@ -22,34 +22,32 @@ The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routin
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=thekikgen@gmail.com&lc=FR&item_name=Donation+to+TheKikGen+projects&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted)
 
 ## USBMidiKliK4x4 features
++ STM32F103C8 / STM32F103CB / STM32F103RB / STM32F103RC uC support
++ Bluepill and Miditech 4x4 board support
++ 16 MIDI USB IN/OUT
++ 15-16  MIDI JACK IN  / JACKS OUT *1
++ 8 Virtual internal IN/OUT
++ 8 midi clock and Midi Time Code generators
++ Full  remote configuration by SYSEX
++ Configuration user interface from a serial USB terminal
++ Support of large sysex flow
++ Complex routing engine allowing to route any IN to any OUT
++ Transformation pipes allowing dynamic modification of midi messages
++ Customisable USB device ProductStringName, Vendor and Product Ids
++ STANDALONE mode (no USB host needed)
++ INTELLITHRU mode allowing specific routing rules when USB is idle
++ Stackable interfaces in bus mode to get 6x6 to 15x15 physical midi ports
 
-+ 16 MIDI IN / 16 MIDI OUT Support
-+ Support 15 JACK IN / 15 JACK OUT in bus mode
-+ Configuration with SYSEX and/or and interactive menu from a serial USB terminal
-+ Complex routing rules also configurables by sysex or from an interactive user menu
-+ Routing rules allowing MIDI MERGE, SPLIT easily on any ports available.
-+ Ability to route any USB IN to any USB OUT/ MIDI OUT
-+ Midi messages filtering : channel voice, system common, realtime, sysex
-+ Support of very big SYSEX dump files transmission
-+ Hardware reset remotely by Sysex
-+ Sysex to switch to configuration menu serial mode instead of MIDI USB
-+ USB device ProductStringName, Vendor and Product Ids can be changed easily
-+ STANDALONE Mode :  can be used as a standalone MIDI routing box without connecting any host to the USB
-+ Intellithru mode : possibility to define a second level of routing rules when USB is idle or unavailable
-+ Powerfull "pipeline" feature to transform any incoming midi message
-+ 8 Midi clock / Midi Time Code generators
-+ Stackable :  several interfaces can be "stacked" in bus mode , to get 6x6, 9x9, 15x15 physical midi ports, 16x16 USB.
+The "pipeline" feature allows you to modify an incoming midi message through a chain of transformation functions (a "pipe"), e.g.,  transpose notes, split, map channel to another, map CC to another, etc...New pipes can be easily added in order to obtain complex midi transformations without degrading performances. 
 
-
-The "pipeline" feature allows you to modify an incoming midi message through a chain of transformation functions (a "pipe"), e.g.,  transpose notes, split, map channel to another, map CC to another, etc...New pipes can be easily added in order to obtain complex midi transformations without degrading performances.
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
+<img width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
 
 8 Midi clock generator / virtual ports are available form the routing engine. Below is an overview of the possible paths for a midi message packet, coming from a physical in port to a physical out port :
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
+<img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
 
 The bus mode allows the aggregation of up to five interfaces using the I2C protocol, which will be seen as a single interface by the usb host and/or the midi routing engine (including standalone mode).
 
-<img  border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
+<img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
 
 
 V2.5 SYSEX implementation : https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/UMK-4X4-SYSEX-IPL.TXT
