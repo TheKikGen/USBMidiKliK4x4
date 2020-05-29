@@ -42,7 +42,7 @@ The "pipeline" feature allows you to modify an incoming midi message through a c
 
 <img width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/pipelines1.jpg"  />
 
-8 Midi clock generator / virtual ports are available form the routing engine. Below is an overview of the possible paths for a midi message packet, coming from a physical in port to a physical out port :
+8 Midi clock generator / virtual ports are available within the routing engine. Below is an overview of the possible paths for a midi message packet, coming from a physical in port to a physical out port :
 <img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/pipelines/umk4x4-routing-engine-overview.jpg"  />
 
 The bus mode allows the aggregation of up to five interfaces using the I2C protocol, which will be seen as a single interface by the usb host and/or the midi routing engine (including standalone mode).
