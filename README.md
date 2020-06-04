@@ -27,7 +27,7 @@ The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routin
 + 16 MIDI USB IN/OUT
 + 15-16  MIDI JACK IN  / JACKS OUT *1
 + 8 Virtual internal IN/OUT
-+ 8 midi clock and Midi Time Code generators
++ 4 midi clock and Midi Time Code generators
 + Full  remote configuration by SYSEX
 + Configuration user interface from a serial USB terminal
 + Support of large sysex flow
