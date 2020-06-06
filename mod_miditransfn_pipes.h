@@ -148,32 +148,58 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // -----------------------------------------------------------------------------------------------
 // | PipeID  |        par1        |        par2        |        par3        |         par4       |
 // |---------+--------------------+--------------------+--------------------+--------------------|
-// | MSGFLTR |     inclusive      | bits mask.         |     00 (unused)    |     00 (unused)    |
-// |   00    |     filter:0       |  ch voice:0001 (1) |                    |                    |
+// | MSGFLTR |     include:0      | bits mask.         |     00 (unused)    |     00 (unused)    |
+// |   00    |     exclude:1      |  ch voice:0001 (1) |                    |                    |
 // |         |                    |  Sys.cmn :0010 (2) |                    |                    |
 // |         |                    |  realtime:0100 (4) |                    |                    |
 // |         |                    |  sysex   :1000 (8) |                    |                    |
-// |         |   MidiStatus       |  include:0         | status1:80-FF      |   status2:80-FF    |
-// |         |  dble filter:1     |  exclude:1         |(sysex not allowed) |    if unused:0     |
+// |         |                    |                    |                    |                    |
+// |         |   MidiStatus       |   include:0        |  midi status id1** OR  midi status id2  |
+// |         |  dble filter:2     |   exclude:1        |                    |  if par4 unused:0  |
+// |         |                    |                    |  (see Midi status ids table for values) |
 // -----------------------------------------------------------------------------------------------
+// --------------------------------
+// |   ** Midi status ids table   |
+// |------------------------------|
+// | noteOffStatus         | 0X08 |
+// | noteOnStatus          | 0X09 |
+// | polyKeyPressureStatus | 0X0A |
+// | controlChangeStatus   | 0X0B |
+// | programChangeStatus   | 0X0C |
+// | channelPressureStatus | 0X0D |
+// | pitchBendStatus       | 0X0E |
+// | midiTimeCodeStatus    | 0X11 |
+// | songPosPointerStatus  | 0X12 |
+// | songSelectStatus      | 0X13 |
+// | tuneRequestStatus     | 0X16 |
+// | timingClockStatus     | 0X18 |
+// | startStatus           | 0X1A |
+// | continueStatus        | 0X1B |
+// | stopStatus            | 0X1C |
+// | activeSensingStatus   | 0X1E |
+// | systemResetStatus     | 0X1F |
+// --------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
 {
   if ( pipe->par1 > 1 ) return false;
-  if ( pipe->par1 == 0 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
-  if ( pipe->par1 == 1 ) {
+  if ( pipe->par1 < 2 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
+  if ( pipe->par1 == 2 ) {
     if ( pipe->par2 > 1 ) return false;
-    if ( pipe->par3 < 0x80 || (pipe->par3 >= 0x80 && pipe->par4 > 0 && pipe->par4 < 0x80 ) ) return false;
-    if ( pipe->par3 == 0xF0 || pipe->par3 == 0xF7 ) return false;
-    if ( pipe->par4 == 0xF0 || pipe->par4 == 0xF7 ) return false;
+    if ( pipe->par3 < 0x08 || pipe->par3 > 0x1F
+        || pipe->par3 == 0x10 || pipe->par3 == 0x14 || pipe->par3 == 0x15
+        || pipe->par3 == 0x17 || pipe->par3 == 0x19 || pipe->par3 == 0x1D ) return false;
+
+    if ( pipe->par4 != 0 && ( pipe->par4 < 0x08 || pipe->par4 > 0x1F
+        || pipe->par4 == 0x10 || pipe->par4 == 0x14 || pipe->par4 == 0x15
+        || pipe->par4 == 0x17 || pipe->par4 == 0x19 || pipe->par4 == 0x1D ) ) return false;
   }
   return true;
 }
 
 boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
 {
-
-	// Apply inclusive filter. Drop if not matching.
-  if ( pipe->par1 == 0  ) {
+	// Apply global include/exclude filter. Drop if not matching.
+  if ( pipe->par1 < 2  ) {
     uint8_t msgType = 0;
     uint8_t cin   = pk->packet[0] & 0x0F ;
     // Check if SysEx filter first and modify the msgType mask because it is a multipacket msg
@@ -183,11 +209,21 @@ boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_
     else
           msgType = midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]); // All other msg
 
-    return ( pipe->par2 & msgType );
+    if ( pipe->par2 & msgType ) {
+      // Include
+      if ( pipe->par1 == 0 ) return true;
+    }
+    else {
+      // exclude
+      if ( pipe->par1 == 1 ) return true;
+    }
+    return false;
+
   }
+
   // Midi Status double filter
-  else  if ( pipe->par1 == 1  ) {
-    uint8_t midiStatus = pk->packet[1] & 0xF0 ;
+  else  if ( pipe->par1 == 2  ) {
+    uint8_t midiStatus = ( pk->packet[1] >= 0xF0 ? pk->packet[1] - 0xE0 : pk->packet[1]>>4 ) ;
     if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  )
         return (pipe->par2 == 0 ? true : false ); //Keep or drop...
     else return true;
