@@ -115,7 +115,9 @@ Don't forget to save your settings with the "s" option before leaving the config
 # NEWS
 
 ## OFFICIAL RELEASE VERSION 2.5 merged to master branch ###
-This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 8 midi clock generators in the routing engine. 
+This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 4 midi clock generators in the routing engine. 
+
+Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.5.0
 
 ## Build 2.191207.1818 is ready (07 December 2019) ###
 
