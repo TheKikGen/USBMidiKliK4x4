@@ -181,17 +181,22 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // --------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
 {
-  if ( pipe->par1 > 1 ) return false;
+  if ( pipe->par1 > 2 ) return false;
   if ( pipe->par1 < 2 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
   if ( pipe->par1 == 2 ) {
-    if ( pipe->par2 > 1 ) return false;
-    if ( pipe->par3 < 0x08 || pipe->par3 > 0x1F
-        || pipe->par3 == 0x10 || pipe->par3 == 0x14 || pipe->par3 == 0x15
-        || pipe->par3 == 0x17 || pipe->par3 == 0x19 || pipe->par3 == 0x1D ) return false;
-
-    if ( pipe->par4 != 0 && ( pipe->par4 < 0x08 || pipe->par4 > 0x1F
-        || pipe->par4 == 0x10 || pipe->par4 == 0x14 || pipe->par4 == 0x15
-        || pipe->par4 == 0x17 || pipe->par4 == 0x19 || pipe->par4 == 0x1D ) ) return false;
+     if ( pipe->par2 > 1 ) return false;
+     if ( pipe->par3 < 0x08 || pipe->par3 > 0x1F
+          || pipe->par3 == 0x10 || pipe->par3 == 0x14 || pipe->par3 == 0x15
+          || pipe->par3 == 0x17 || pipe->par3 == 0x19 || pipe->par3 == 0x1D ) {
+          return false;
+      }
+      if ( pipe->par4 != 0 ) {
+        if ( pipe->par4 < 0x08 || pipe->par4 > 0x1F
+            || pipe->par4 == 0x10 || pipe->par4 == 0x14 || pipe->par4 == 0x15
+            || pipe->par4 == 0x17 || pipe->par4 == 0x19 || pipe->par4 == 0x1D ) {
+              return false;
+            }
+      }
   }
   return true;
 }
@@ -224,9 +229,11 @@ boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_
   // Midi Status double filter
   else  if ( pipe->par1 == 2  ) {
     uint8_t midiStatus = ( pk->packet[1] >= 0xF0 ? pk->packet[1] - 0xE0 : pk->packet[1]>>4 ) ;
-    if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  )
+    if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  ) {
         return (pipe->par2 == 0 ? true : false ); //Keep or drop...
-    else return true;
+    } else {
+        return (pipe->par2 == 0 ? false : true); //Keep or drop...
+    }
   }
   else
   return false; // Error
