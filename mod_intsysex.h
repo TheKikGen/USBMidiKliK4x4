@@ -367,10 +367,13 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 // F0 77 77 78 06 05 F7
 //
 // 06 06 Save settings to flash memory
-//F0 77 77 78 06 06 F7
+// F0 77 77 78 06 06 F7
 //
 // 06 08 Reboot in configuration mode
 // F0 77 77 78 06 08 F7
+//
+// 06 09 Reboot in updatemode
+// F0 77 77 78 06 09 F7
 //
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t SysExInternal_fnGlobalFunctions(uint8_t portType,uint8_t *sxMsg,uint8_t *doMask)
