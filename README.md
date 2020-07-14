@@ -120,6 +120,9 @@ Don't forget to save your settings with the "s" option before leaving the config
 
 # NEWS
 
+## V2.5.1 release correcting the MSGFLTR pipe bug
+This v2.5 includes a bug correction in parameters validation of the MSGFLTR pipe that was blocking the function #2.
+
 ## OFFICIAL RELEASE VERSION 2.5 merged to master branch ###
 This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 4 midi clock generators in the routing engine. 
 
