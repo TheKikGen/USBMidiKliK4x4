@@ -70,6 +70,12 @@ Specific PCB without DIN 5 female to allow a deported DIN 5 rail are also availa
 
 # USBMidiKliK4x4 - Configuration overview
 
+Prebuilt binaries are compiled for the tkg-hid-bootloader since the 2.5 version, so you need the tkg-hid-bootloader firmware here :
+https://github.com/TheKikGen/stm32-tkg-hid-bootloader/blob/master/F1/bootloader_only_binaries/tkg_hid_generic_pc13.bin
+
+You can then use TKG-FLASH.EXE provided in the release to flash the 128K or the 64k bluepill version.  
+The 128K firmware should work on a 64K Bluepill most of the time. If it is not the case, try the 64K firmware version.  
+
 2 modes can be used to configure the USBMidiKlik midi : system exclusive messages or a configuration menu. 
 Sysex messages have the following format, and ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1 :
 
