@@ -157,6 +157,9 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // |         |   MidiStatus       |   include:0        |  midi status id1** OR  midi status id2  |
 // |         |  dble filter:2     |   exclude:1        |                    |  if par4 unused:0  |
 // |         |                    |                    |  (see Midi status ids table for values) |
+// |         |                    |                    |                    |                    |
+// |         |  midi channel      |   include:0        |  from channel 0-F  |  to channel 0-F    |
+// |         |  filter:3          |   exclude:1        |                    |                    |
 // -----------------------------------------------------------------------------------------------
 // --------------------------------
 // |   ** Midi status ids table   |
@@ -181,7 +184,7 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // --------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
 {
-  if ( pipe->par1 > 2 ) return false;
+  if ( pipe->par1 > 3 ) return false;
   if ( pipe->par1 < 2 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
   if ( pipe->par1 == 2 ) {
      if ( pipe->par2 > 1 ) return false;
@@ -197,6 +200,11 @@ boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
               return false;
             }
       }
+  } else
+  // Midi channel filtering
+  if ( pipe->par1 == 3 ) {
+      if ( pipe->par2 > 1 ) return false;
+      if ( pipe->par3 > 0x0F || pipe->par4 > 0x0F || pipe->par3 > pipe->par4 ) return false;
   }
   return true;
 }
@@ -216,26 +224,37 @@ boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pk, transPipe_
 
     if ( pipe->par2 & msgType ) {
       // Include
-      if ( pipe->par1 == 0 ) return true;
+      return (pipe->par1 == 0 ? true : false );
     }
     else {
       // exclude
-      if ( pipe->par1 == 1 ) return true;
+      return (pipe->par1 == 0 ? false : true);
     }
-    return false;
-
   }
 
   // Midi Status double filter
   else  if ( pipe->par1 == 2  ) {
     uint8_t midiStatus = ( pk->packet[1] >= 0xF0 ? pk->packet[1] - 0xE0 : pk->packet[1]>>4 ) ;
     if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  ) {
-        return (pipe->par2 == 0 ? true : false ); //Keep or drop...
+        return (pipe->par2 == 0 ? true : false ); //Include. Keep or drop...
     } else {
         return (pipe->par2 == 0 ? false : true); //Keep or drop...
     }
   }
-  else
+
+  // Midi channel from/to filtering
+  else   if ( pipe->par1 == 3 ) {
+    // Channel voice only
+    if (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) !=  midiXparser::channelVoiceMsgTypeMsk)
+        return true;
+    uint8_t channel = pk->packet[1] & 0x0F;
+    if (channel >= pipe->par3 && channel <= pipe->par4) {
+        return (pipe->par2 == 0 ? true : false ); //Include. Keep or drop...
+    } else {
+        return (pipe->par2 == 0 ? false : true); //Keep or drop...
+    }
+  } else
+
   return false; // Error
 }
 // -----------------------------------------------------------------------------------------------

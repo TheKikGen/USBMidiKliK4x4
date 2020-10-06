@@ -419,7 +419,7 @@ void ShowPipelineSlot(uint8_t s) {
   SerialPrintf("| %y %s                | ",str_CABLE,str_OUT);
 
   for (uint8_t j=0; j < 16 ; j++) {
-    if (j > USBCABLE_INTERFACE_MAX) Serial.print(" ");
+    if (j >= USBCABLE_INTERFACE_MAX) Serial.print(" ");
     else if ( EE_Prm.rtRulesCable[j].slot == s)
         Serial.print ("X");
     else Serial.print(".");
@@ -428,7 +428,7 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.println(" |");
   SerialPrintf("| %y %s                  | ",str_JACK,str_IN);
   for (uint8_t j=0; j < 16 ; j++) {
-    if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
+    if (j >= SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesJack[j].slot == s)
         Serial.print ("X");
     else Serial.print(".");
@@ -437,7 +437,7 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.println(" |");
   SerialPrintf("| %y %s %y            | ",str_JACK,str_IN,str_ITHRU);
   for (uint8_t j=0; j < 16 ; j++) {
-    if (j > SERIAL_INTERFACE_COUNT) Serial.print(" ");
+    if (j >= SERIAL_INTERFACE_COUNT) Serial.print(" ");
     else if ( EE_Prm.rtRulesIthru[j].slot == s)
         Serial.print ("X");
     else Serial.print(".");
@@ -446,7 +446,7 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.println(" |");
   SerialPrintf("| %y %s               | ",str_VIRTUAL,str_IN);
   for (uint8_t j=0; j < 16 ; j++) {
-    if (j > VIRTUAL_INTERFACE_MAX) Serial.print(" ");
+    if (j >= VIRTUAL_INTERFACE_MAX) Serial.print(" ");
     else if ( EE_Prm.rtRulesVirtual[j].slot == s)
         Serial.print ("X");
     else Serial.print(".");
