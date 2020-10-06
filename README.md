@@ -47,7 +47,7 @@ The "pipeline" feature allows you to modify an incoming midi message through a c
 
 The bus mode allows the aggregation of up to five interfaces using the I2C protocol, which will be seen as a single interface by the usb host and/or the midi routing engine (including standalone mode).
 
-<img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
+<img  width="650" border="0" src="https://?raw=true"  />
 
 Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
@@ -69,6 +69,12 @@ Specific PCB without DIN 5 female to allow a deported DIN 5 rail are also availa
 
 
 # USBMidiKliK4x4 - Configuration overview
+
+Prebuilt binaries are compiled for the tkg-hid-bootloader since the 2.5 version, so you need the tkg-hid-bootloader firmware here :
+https://github.com/TheKikGen/stm32-tkg-hid-bootloader/blob/master/F1/bootloader_only_binaries/tkg_hid_generic_pc13.bin
+
+You can then use TKG-FLASH.EXE provided in the release to flash the 128K or the 64k bluepill version.  
+The 128K firmware should work on a 64K Bluepill most of the time. If it is not the case, try the 64K firmware version.  
 
 2 modes can be used to configure the USBMidiKlik midi : system exclusive messages or a configuration menu. 
 Sysex messages have the following format, and ARE ONLY INTERPRETED ON CABLE 0 OR MIDI IN JACK 1 :
@@ -113,6 +119,10 @@ The following menu should appear after connecting to the right serial USB port ,
 Don't forget to save your settings with the "s" option before leaving the configuration menu with "x".
 
 # NEWS
+
+## New release : V2.5.1 correcting the MSGFLTR pipe bug
+This v2.5.1 release includes a bug correction in parameters validation of the MSGFLTR pipe that was blocking the function #2.
+https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.1
 
 ## OFFICIAL RELEASE VERSION 2.5 merged to master branch ###
 This is a major release adding a powerfull "pipeline" feature allowing to modify an incoming midi message within a chain of transformation functions, 8 virtual ports and 4 midi clock generators in the routing engine. 
