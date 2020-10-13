@@ -47,7 +47,7 @@ The "pipeline" feature allows you to modify an incoming midi message through a c
 
 The bus mode allows the aggregation of up to five interfaces using the I2C protocol, which will be seen as a single interface by the usb host and/or the midi routing engine (including standalone mode).
 
-<img  width="650" border="0" src="https://?raw=true"  />
+<img  width="650" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/raw/master/doc/USBMIDIKLIK-I2C-BUS-MODE.jpg?raw=true"  />
 
 Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
