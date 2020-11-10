@@ -129,17 +129,4 @@ This is a major release adding a powerfull "pipeline" feature allowing to modify
 
 Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.5.0
 
-## Build 2.191207.1818 is ready (07 December 2019) ###
-
-Update tool is included.  Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).
-The libusb driver is also provided with this package if it is not already installed on your PC.
-https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/build_2.191207.1818
-
-## THE V2 IS MERGED WITH THE MASTER BRANCH AS RC3.   
-
-That major release offers now the possibility to aggregate until 5 Bluepill boards to get a 15x15 IN/OUT ports with routing....
-https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE-TO-AGGREGATE-5-boards-to-a-15x15-MIDI-USB-interface
-
-## MPC LIVE/X Midi ports hack has been moved to MPC-LiveXplore
-https://github.com/TheKikGen/MPC-LiveXplore/wiki/Add-2-new-midi-ports-C-D---a-quick-guide-with-MIDI-OX
 
