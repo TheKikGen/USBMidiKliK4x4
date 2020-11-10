@@ -59,9 +59,9 @@ Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windo
 
 I have realized a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
 
-Some (few) units are currently available at Tindie :
+A DIY kit is available at Tindie :
 <img width="50" border="0" src="https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png" />  
-https://www.tindie.com/products/thekikgenlabs/usb-midi-interface-3-io-with-routing-features/
+https://www.tindie.com/stores/thekikgenlabs/
 
 Specific PCB without DIN 5 female to allow a deported DIN 5 rail are also available. Contact me for more details.
 
