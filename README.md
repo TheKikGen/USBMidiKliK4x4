@@ -88,11 +88,11 @@ https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/UMK-4X4-SYSEX-
 
 The second way is to activate the configuration menu on the serial port with the following sysex :
 
-       F0 77 77 78 08 F7
+       F0 77 77 78 06 08 F7
 
 To send that Sysex, you can use for example, MIDIOX, or the "sendmidi" command line utility by gbevin :
 
-       sendmidi dev "USB MIDIKliK 4x4" syx hex 77 77 78 08
+       sendmidi dev "USB MIDIKliK 4x4" syx hex 77 77 78 06 08
 
 You will find the last binary release of sendmidi here :  https://github.com/gbevin/SendMIDI/releases
        
