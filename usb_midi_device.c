@@ -178,9 +178,9 @@ void usb_midi_set_product_string(char stringDescriptor[]) {
   // in usb_midi_descriptor.c. It is critical !!!
 
   // fill the existing string descriptor with 0
-  memset(&usbMIDIDescriptor_iProduct.bString,0, (USB_MIDI_PRODUCT_STRING_SIZE)*2+2);
+  memset(&usbMIDIDescriptor_iProduct.bString,0, (USB_MIDI_PRODUCT_STRING_SIZE)*2);
 
-  // Copy string to the descriptor. The string must be zero ending !!!
+  // Copy string to the descriptor. The input string must be zero ending !!!
   uint8_t i = 0;
   while ( stringDescriptor[i] != 0 ) {
     // The string is wide characters type.  2 bytes / char.
