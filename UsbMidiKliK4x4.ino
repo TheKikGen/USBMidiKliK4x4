@@ -901,7 +901,8 @@ void USBMidi_Init()
 	usb_midi_set_product_string((char *) &EE_Prm.productString);
 
 	MidiUSB.begin() ;
-  delay(4000); // Note : Usually around 4 s to fully detect USB Midi on the host
+  // Note : Usually around 4 s to fully detect USB Midi on the host
+  while (! MidiUSB.isConnected() ) delay(500);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
