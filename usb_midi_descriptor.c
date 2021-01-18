@@ -1060,12 +1060,12 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
      .bString         = {0x09, 0x04},
  };
 
- #define STRING_IMANUFACTURER_LEN 14
+ #define STRING_IMANUFACTURER_LEN 15
  static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
      .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IMANUFACTURER_LEN),
      .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
      // TheKikGen Labs
-     .bString = {'T', 0, 'h', 0, 'e', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
+     .bString = {'T', 0, 'h', 0, 'e', 0, ' ', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
  };
 
 
