@@ -52,6 +52,12 @@ __ __| |           |  /_) |     ___|             |           |
  #define __VALUE(x) __VALUE_TO_STRING(x)
  #define __VAR_NAME_VALUE(var) #var " = "  __VALUE(var)
 
+ // BCD Version
+ #define VERSION_MAJOR 2
+ #define VERSION_MINOR 5
+ #define BCD_VERSION ( VERSION_MAJOR << 8 ) + (VERSION_MINOR << 4)
+
+
 // About STM32F103xx microcontrollers :
 // Low-density devices have a flash memory between 16 and 32 Kbytes.
 // Medium-density devices have a flash memory between 32 and 128 Kbytes.

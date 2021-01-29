@@ -47,30 +47,115 @@ __ __| |           |  /_) |     ___|             |           |
 */
 
 // ---------------------------------------------------------------
-// Full assembled USB Descriptor FOR MIDI 4X4 DEVICE
+// Full assembled USB Descriptor FOR MIDIKLIK 4X4 DEVICE
 // ---------------------------------------------------------------
 
+#include "hardware_config.h"
 #include "usb_midi_device.h"
 
-// ---------------------------------------------------------------
-// DEVICE DESCRIPTOR
-// ---------------------------------------------------------------
-static usb_descriptor_device usbMIDIDescriptor_Device = {
-      .bLength            = sizeof(usb_descriptor_device),
-      .bDescriptorType    = USB_DESCRIPTOR_TYPE_DEVICE,
-      .bcdUSB             = 0x0110,
-      .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,
-      .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,
-      .bDeviceProtocol    = 0x00,
-      .bMaxPacketSize0    = USB_MIDI_MAX_PACKET_SIZE,
-      .idVendor           = USB_MIDI_VENDORID,  // R/W
-      .idProduct          = USB_MIDI_PRODUCTID, // R/W
-      .bcdDevice          = 0x0100,
-      .iManufacturer      = 0x01,
-      .iProduct           = 0x02,
-      .iSerialNumber      = 0x03,
-      .bNumConfigurations = 0x01,
+ // ---------------------------------------------------------------------------
+ //  String Descriptors:
+ // ----------------------------------------------------------------------------
+
+ /* Remember that bLengh is the full length of the descriptor including
+    blength and bDescriptorType (2 bytes).  So the blength of a string of n bytes
+    will be 2 + n * 2. USB_DESCRIPTOR_STRING_LEN macro does that for us.
+ */
+
+ /* Unicode language identifier: 0x0409 is US English */
+ static const usb_descriptor_string usbMIDIDescriptor_LangID = {
+     .bLength         = USB_DESCRIPTOR_STRING_LEN(1),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     .bString         = {0x09, 0x04},
  };
+
+ #define STRING_IMANUFACTURER_LEN 14
+ #define STRING_IMANUFACTURER_ID 1
+
+ static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
+     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IMANUFACTURER_LEN),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     // TheKikGen Labs
+     .bString = {'T', 0, 'h', 0, 'e', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
+ };
+
+
+ // We reserve 30 bytes room to change the product string later but the default
+ // length is manually adjusted to 16.
+ #define STRING_IPRODUCT_LEN 11
+ #define STRING_IPRODUCT_ID 2
+
+ static usb_descriptor_string usbMIDIDescriptor_iProduct = {
+     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IPRODUCT_LEN),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     // USB_MIDI_PRODUCT_STRING_SIZE = 30
+     .bString =  { 'M', 0, 'i', 0, 'd', 0, 'i', 0, 'K', 0, 'l', 0, 'i', 0, 'K', 0, ' ', 0 ,'4', 0,  // 10
+                   'x', 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , 0 , 0 , 0,  // 20
+                    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , 0,  // 30
+                 }
+ };
+
+
+ #define STRING_IINTERFACE_LEN 4
+ #define STRING_IINTERFACE_ID 3
+
+ static const usb_descriptor_string usbMIDIDescriptor_iInterface = {
+     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IINTERFACE_LEN),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0},
+ };
+
+ // Midi IN 1-n
+ #define STRING_IJACK_IN_LEN 9
+ #define STRING_IJACK_IN_ID 4
+
+ static const usb_descriptor_string usbMIDIDescriptor_iJack_IN = {
+     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IJACK_IN_LEN),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     .bString = {'U', 0, 'M', 0, 'K', 0, ' ', 0, '4', 0, 'X', 0, ' ', 0, 'I', 0, 'N', 0 },
+ };
+
+
+ // Midi OUT 1-n
+ #define STRING_IJACK_OUT_LEN 10
+ #define STRING_IJACK_OUT_ID 5
+
+ static const usb_descriptor_string usbMIDIDescriptor_iJack_OUT = {
+     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IJACK_OUT_LEN),
+     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
+     .bString = {'U', 0, 'M', 0, 'K', 0, ' ', 0, '4', 0, 'X', 0, ' ', 0, 'O', 0, 'U', 0, 'T', 0 },
+ };
+
+ // Assemble string descriptors array
+ static ONE_DESCRIPTOR usbMIDIString_Descriptor[] = {
+     {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1) },
+     {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(STRING_IMANUFACTURER_LEN)},
+     {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(STRING_IPRODUCT_LEN)},// R/W
+     {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(STRING_IINTERFACE_LEN) },
+     {(uint8*)&usbMIDIDescriptor_iJack_IN,     USB_DESCRIPTOR_STRING_LEN(STRING_IJACK_IN_LEN) },
+     {(uint8*)&usbMIDIDescriptor_iJack_OUT,    USB_DESCRIPTOR_STRING_LEN(STRING_IJACK_OUT_LEN) },
+ };
+
+ // ---------------------------------------------------------------
+ // DEVICE DESCRIPTOR
+ // ---------------------------------------------------------------
+ static usb_descriptor_device usbMIDIDescriptor_Device = {
+       .bLength            = sizeof(usb_descriptor_device),
+       .bDescriptorType    = USB_DESCRIPTOR_TYPE_DEVICE,
+       .bcdUSB             = 0x0110,
+       .bDeviceClass       = USB_DEVICE_CLASS_UNDEFINED,
+       .bDeviceSubClass    = USB_DEVICE_SUBCLASS_UNDEFINED,
+       .bDeviceProtocol    = 0x00,
+       .bMaxPacketSize0    = USB_MIDI_MAX_PACKET_SIZE,
+       .idVendor           = USB_MIDI_VENDORID,  // R/W
+       .idProduct          = USB_MIDI_PRODUCTID, // R/W
+       // Fill the firmware version from build number
+       .bcdDevice          = BCD_VERSION,
+       .iManufacturer      = STRING_IMANUFACTURER_ID,
+       .iProduct           = STRING_IPRODUCT_ID,
+       .iSerialNumber      = 0x00,
+       .bNumConfigurations = 0x01,
+  };
 
  // ---------------------------------------------------------------
  // CONFIGURATION DESCRIPTOR
@@ -267,7 +352,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO,
          .bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING,
          .bInterfaceProtocol = 0x00,
-         .iInterface         = 0x04, // Midi
+         .iInterface         = STRING_IINTERFACE_ID, // Midi
      },
 
      .MS_CS_Interface = {
@@ -293,7 +378,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x01,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_2 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -301,7 +386,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x02,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 4
@@ -312,7 +397,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x03,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_4 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -320,7 +405,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x04,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
 
     #if USB_MIDI_IO_PORT_NUM >= 8
@@ -331,7 +416,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x05,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_6 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -339,7 +424,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x06,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_7 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -347,7 +432,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x07,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_8 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -355,7 +440,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x08,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 12
@@ -366,7 +451,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x09,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_A = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -374,7 +459,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0A,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_B = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -382,7 +467,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0B,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_C = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -390,7 +475,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0C,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 16
@@ -400,7 +485,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0D,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_E = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -408,7 +493,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0E,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_F = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -416,7 +501,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x0F,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
      .MIDI_IN_JACK_10 = {
          .bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR),
@@ -424,7 +509,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .SubType            = MIDI_IN_JACK,
          .bJackType          = MIDI_JACK_EMBEDDED,
          .bJackId            = 0x10,
-         .iJack              = 0x05,  // MIDI OUT 1
+         .iJack              = STRING_IJACK_IN_ID,  // UMK 4X IN
      },
     #endif
     #endif
@@ -587,7 +672,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x11}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_22 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -598,7 +683,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x12}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 4
@@ -612,7 +697,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x13}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_24 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -623,7 +708,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x14}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 8
@@ -637,7 +722,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x15}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_26 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -648,7 +733,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x16}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_27 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -659,7 +744,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x17}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_28 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -670,7 +755,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x18}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 12
@@ -684,7 +769,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x19}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_2A = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -695,7 +780,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1A}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_2B = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -706,7 +791,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1B}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_2C = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -717,7 +802,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1C}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
 
      #if USB_MIDI_IO_PORT_NUM >= 16
@@ -730,7 +815,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1D}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_2E = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -741,7 +826,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1E}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_2F = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -752,7 +837,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x1F}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      .MIDI_OUT_JACK_30 = {
          .bLength            = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1),
@@ -763,7 +848,7 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
          .bNrInputPins       = 0x01,
          .baSourceId         = {0x20}, // IN External
          .baSourcePin        = {0x01},
-         .iJack              = 0x06, // MIDI IN 1
+         .iJack              = STRING_IJACK_OUT_ID,  // UMK 4X OUT
      },
      #endif
      #endif
@@ -1044,66 +1129,6 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
 
  };
 
- // --------------------------------------------------------------------------------------
- //  String Descriptors:
- // --------------------------------------------------------------------------------------
-
- /* Remember that bLengh is the full length of the descriptor including
-    blength and bDescriptorType (2 bytes).  So the blength of a string of n bytes
-    will be 2 + n * 2. USB_DESCRIPTOR_STRING_LEN macro does that for us.
- */
-
- /* Unicode language identifier: 0x0409 is US English */
- static const usb_descriptor_string usbMIDIDescriptor_LangID = {
-     .bLength         = USB_DESCRIPTOR_STRING_LEN(1),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     .bString         = {0x09, 0x04},
- };
-
- #define STRING_IMANUFACTURER_LEN 14
- static const usb_descriptor_string usbMIDIDescriptor_iManufacturer = {
-     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IMANUFACTURER_LEN),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     // TheKikGen Labs
-     .bString = {'T', 0, 'h', 0, 'e', 0, 'K', 0,'i', 0, 'K', 0, 'G', 0, 'e', 0, 'n', 0, ' ', 0, 'L', 0, 'a', 0, 'b', 0, 's', 0},
- };
-
-
- // We reserve 30 bytes room to change the product string later but the default
- // length is manually adjusted to 16.
- #define STRING_IPRODUCT_LEN 16
- static usb_descriptor_string usbMIDIDescriptor_iProduct = {
-     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IPRODUCT_LEN),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     // USB_MIDI_PRODUCT_STRING_SIZE = 30
-     .bString =  { 'U', 0, 'S', 0, 'B', 0, ' ', 0, 'M', 0, 'i', 0, 'd', 0, 'i', 0, 'K', 0, 'l', 0,  // 10
-                   'i', 0, 'K', 0, ' ', 0, '4', 0, 'X', 0, '4', 0,  0,  0,  0,  0,  0 , 0 , 0 , 0,  // 20
-                    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  // 30
-                 }
- };
-
- #define STRING_ISERIAL_LEN 1
- static const usb_descriptor_string usbMIDIDescriptor_iSerial = {
-     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_ISERIAL_LEN),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     .bString = {' ', 0, },
- };
-
- #define STRING_IINTERFACE_LEN 4
- static const usb_descriptor_string usbMIDIDescriptor_iInterface = {
-     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IINTERFACE_LEN),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0},
- };
-
- // Midi 1-n
- #define STRING_IJACK 8
- static const usb_descriptor_string usbMIDIDescriptor_iJack = {
-     .bLength = USB_DESCRIPTOR_STRING_LEN(STRING_IJACK),
-     .bDescriptorType = USB_DESCRIPTOR_TYPE_STRING,
-     .bString = {'M', 0, 'i', 0, 'd', 0, 'i', 0, 'K', 0, 'l', 0, 'i', 0, 'k', 0},
- };
-
  static const ONE_DESCRIPTOR usbMidiDevice_Descriptor = {
      (uint8*)&usbMIDIDescriptor_Device,
      sizeof(usb_descriptor_device)
@@ -1112,15 +1137,4 @@ static usb_descriptor_device usbMIDIDescriptor_Device = {
  static const ONE_DESCRIPTOR usbMidiConfig_Descriptor = {
      (uint8*)&usbMIDIDescriptor_Config,
      sizeof(usb_midi_descriptor_config)
- };
-
- #define USB_MIDI_N_STRING_DESCRIPTORS 7
- static ONE_DESCRIPTOR usbMIDIString_Descriptor[USB_MIDI_N_STRING_DESCRIPTORS] = {
-     {(uint8*)&usbMIDIDescriptor_LangID,       USB_DESCRIPTOR_STRING_LEN(1) },
-     {(uint8*)&usbMIDIDescriptor_iManufacturer,USB_DESCRIPTOR_STRING_LEN(STRING_IMANUFACTURER_LEN)},
-     {(uint8*)&usbMIDIDescriptor_iProduct,     USB_DESCRIPTOR_STRING_LEN(STRING_IPRODUCT_LEN)},// R/W
-     {(uint8*)&usbMIDIDescriptor_iSerial,      USB_DESCRIPTOR_STRING_LEN(STRING_ISERIAL_LEN) },
-     {(uint8*)&usbMIDIDescriptor_iInterface,   USB_DESCRIPTOR_STRING_LEN(STRING_IINTERFACE_LEN) },
-     {(uint8*)&usbMIDIDescriptor_iJack,        USB_DESCRIPTOR_STRING_LEN(STRING_IJACK) },
-     {(uint8*)&usbMIDIDescriptor_iJack,        USB_DESCRIPTOR_STRING_LEN(STRING_IJACK) },
  };
