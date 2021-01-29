@@ -163,8 +163,10 @@ void (*usb_midi_ep_int_out[7])(void) =
 
 
 // --------------------------------------------------------------------------------------
-// DEVICE DESCRIPTOR MANIPULATION
+// DEVICE DESCRIPTOR MANIPULATION (IF NOT READ ONLY)
 // --------------------------------------------------------------------------------------
+
+#ifdef USB_MIDI_PRODUCT_STRING
 
 void usb_midi_set_vid_pid(uint16_t vid, uint16_t pid) {
   usbMIDIDescriptor_Device.idVendor           = vid;
@@ -192,6 +194,7 @@ void usb_midi_set_product_string(char stringDescriptor[]) {
   usbMIDIDescriptor_iProduct.bLength = i*2+2;
   usbMIDIString_Descriptor[usbMIDIDescriptor_Device.iProduct].Descriptor_Size = i*2+2;
 }
+#endif
 
 // --------------------------------------------------------------------------------------
 // ENABLE / DISABLE / POWERDOWN   MIDI DEVICE
@@ -552,7 +555,7 @@ static uint8* usb_midi_GetConfigDescriptor(uint16_t length) {
 static uint8* usb_midi_GetStringDescriptor(uint16_t length) {
     uint8_t wValue0 = pInformation->USBwValue0;
 
-    if (wValue0 > USB_MIDI_N_STRING_DESCRIPTORS) {
+    if (wValue0 >= sizeof(usbMIDIString_Descriptor) ) {
         return NULL;
     }
     return Standard_GetDescriptorData(length, &usbMIDIString_Descriptor[wValue0]);
