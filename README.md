@@ -130,7 +130,7 @@ This is a major release adding a powerfull "pipeline" feature allowing to modify
 Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.5.0
 
 
-# Wiki
+# WIKI
 
 <ul class="m-0 p-0 list-style-none" data-filterable-for="wiki-pages-filter" data-filterable-type="substring" data-pjax="">
 <li class="Box-row">
@@ -146,7 +146,7 @@ Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.
 <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/Build-UsbMidiKlik4x4-from-sources">Build UMK4x4 from sources</a></strong>
 </li>
         <li class="Box-row">
-          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/How-to-get-a--TriThru-%C3%A0-la-Midisolutions">How to get a TriThru a la Midisolutions</a></strong>
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/How-to-get-a--TriThru-%C3%A0-la-Midisolutions">Use case : how to get a TriThru a la Midisolutions</a></strong>
         </li>
         <li class="Box-row">
           <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/UMK-4X4-SYSEX-IPL.TXT">Sysex implementation for firmware V2.5</a></strong>
