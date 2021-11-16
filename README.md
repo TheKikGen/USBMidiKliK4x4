@@ -130,3 +130,27 @@ This is a major release adding a powerfull "pipeline" feature allowing to modify
 Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.5.0
 
 
+# Wiki
+
+<ul class="m-0 p-0 list-style-none" data-filterable-for="wiki-pages-filter" data-filterable-type="substring" data-pjax="">
+        <li class="Box-row">
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki">Wiki Home</a></strong>
+        </li>
+        <li class="Box-row">
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/The-Miditech-Midiplus-4x4-hack-and-STM32Duino">The Miditech/Midiplus hack story</a></strong>
+        </li>
+        <li class="Box-row">
+   <li class="Box-row">
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/USBMIDIKLIK-BUS-MODE">About the bus mode</a></strong>
+        </li>
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/Build-UsbMidiKlik4x4-from-sources">Build UMK4x4 from sources</a></strong>
+        </li>
+        <li class="Box-row">
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/How-to-get-a--TriThru-%C3%A0-la-Midisolutions">How to get a TriThru a la Midisolutions</a></strong>
+        </li>
+        <li class="Box-row">
+          <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/UMK-4X4-SYSEX-IPL.TXT">Sysex implementation for firmware V2.5</a></strong>
+        </li>
+    </ul>
+
+
