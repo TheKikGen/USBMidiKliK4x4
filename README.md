@@ -55,6 +55,16 @@ Last release of the firmware can be found here : https://github.com/TheKikGen/US
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
 
 
+## MKPI : UMK4x4 graphical frontend
+
+Orzdk has developped a graphical UI for manipulating and configuring the USBMidiKliK settings in sysex mode, from a web browser.
+It also allows to show visual representation of the routes and transformations that are currently applied in your USBMidiKlik.
+
+https://github.com/orzdk/mkpi
+
+<img width="650" border="0" src="https://github.com/orzdk/mkpi/raw/master/doc/screenshot.png" />  
+
+
 ## Bluepill and USBMidiKlik
 
 <img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
