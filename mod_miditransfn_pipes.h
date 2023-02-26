@@ -332,6 +332,7 @@ boolean MidiTransFn_ChannelMapper(uint8_t portType, midiPacket_t *pk, transPipe_
     if ( pipe->par2 == (pk->packet[1] & 0x0F) )
         pk->packet[0] = (pk->packet[0] & 0x0F) + ( pipe->par3 << 4);
   }
+  else
   // channel offset
   if (pipe->par1 == 2 ) {
       uint8_t c = (pk->packet[1] & 0x0F) + pipe->par2;
