@@ -386,6 +386,8 @@ boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk
   slotLockMsk &= ~(1 << slot);  // Unlock slot
   return r;
 }
+
+#if OPTION_CONFIGUI
 //////////////////////////////////////////////////////////////////////////////
 // Show the content of a pipeline
 ///////////////////////////////////////////////////////////////////////////////
@@ -455,3 +457,4 @@ void ShowPipelineSlot(uint8_t s) {
   Serial.println(" |");
 
 }
+#endif

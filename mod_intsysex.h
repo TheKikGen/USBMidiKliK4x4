@@ -56,8 +56,10 @@ __ __| |           |  /_) |     ___|             |           |
 boolean SysExInternal_Process(uint8_t, uint8_t *);
 boolean SysExInternal_Parse(uint8_t, midiPacket_t *);
 uint8_t SysexInternal_DumpAddrToBuff(uint32_t , uint8_t *);
+#if OPTION_CONFIGUI
 void    SysexInternal_DumpAddrToStream(uint32_t sxAddr,uint8_t dest);
 void    SysexInternal_DumpConfToStream(uint8_t dest);
+#endif
 void    SysExInternal_SendFnACK(uint8_t ,uint8_t ) ;
 
 uint8_t SysExInternal_fnDumpConfig(uint8_t ,uint8_t *,uint8_t *);
@@ -325,6 +327,7 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
   else if (portType == PORT_TYPE_JACK ) dest = 1;
   else return SX_ERROR_BAD_PORT;
 
+#if OPTION_CONFIGUI
   // Make a pseudo 32 bits value to address sysex functions
   uint32_t sxAddr =  (sxMsg[2] << 24) + (sxMsg[3] << 16) + (sxMsg[4] << 8) + sxMsg[5];
   if ( ! ( (sxAddr == 0x7F000000 )
@@ -341,7 +344,7 @@ uint8_t SysExInternal_fnDumpConfig(uint8_t portType,uint8_t *sxMsg,uint8_t *doMa
 
   if ( sxAddr == 0x7F000000 ) SysexInternal_DumpConfToStream(dest);
   else SysexInternal_DumpAddrToStream(sxAddr,dest);
-
+#endif
   return SX_NO_ERROR;
 }
 

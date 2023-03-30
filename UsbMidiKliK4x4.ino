@@ -41,9 +41,13 @@ __ __| |           |  /_) |     ___|             |           |
   it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
+#define OPTION_CONFIGUI 1
+
 
 #include "build_number_defines.h"
-#include <string.h>
+#if OPTION_CONFIGUI
+  #include <string.h>
+#endif
 #include <stdarg.h>
 
 #include <libmaple/nvic.h>
@@ -143,7 +147,9 @@ procVectorFn_t procVectorFn[6] ;
 #include "mod_macros.h"
 #include "mod_eeprom.h"
 #include "mod_intsysex.h"
-#include "mod_configui.h"
+#if OPTION_CONFIGUI
+  #include "mod_configui.h"
+#endif
 #include "mod_i2cbus.h"
 #include "mod_miditransfn.h"
 
@@ -885,8 +891,9 @@ void CheckBootMode()
           LED_Flash(&LED_ConnectTick);delay(300);
 				}
 			digitalWrite(LED_CONNECT, LOW);
-
+#if OPTION_CONFIGUI
 			ShowConfigMenu(); // INFINITE LOOP
+#endif
 	}
 
 }

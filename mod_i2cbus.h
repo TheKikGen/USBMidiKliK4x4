@@ -591,6 +591,7 @@ void I2C_ProcessSlave ()
 
 	// Activate the configuration menu if a terminal is opened in Slave mode
   // and key pressed
+  #if OPTION_CONFIGUI
 	if (Serial.available()) {
       char key = Serial.read();
 			Serial.println();
@@ -616,4 +617,5 @@ void I2C_ProcessSlave ()
 			else if ( key >= '1' || key <= '8' )
 				ShowPipelineSlot(key - '0');
 	}
+#endif // OPTION_CONFIGUI
 }
