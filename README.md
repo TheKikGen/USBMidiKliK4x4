@@ -65,17 +65,26 @@ https://github.com/orzdk/mkpi
 <img width="650" border="0" src="https://github.com/orzdk/mkpi/raw/master/doc/screenshot.png" />  
 
 
-## Bluepill and USBMidiKlik
+## USBMidiKlik 4x4 PCB ready to be used
 
-<img width="250" border="0" src="https://2.bp.blogspot.com/-wo1H27RQYiU/XDzO9VG3vdI/AAAAAAAAAWA/KehLjyXhLTg_nmjjmEkO7LZtY5H83Rr-ACLcBGAs/s1600/20190113_221557.jpg"  />
+<img width="400" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true)"  />
+A new version of the USBMidiKlik 4x4 PCB ready-to-use (based on a STM32F103) is available now at Tindie.
 
-I have realized a Bluepill "MIDI shield", to easily transform that cheap uC board to a powerfull 3 IN / 3 OUT USB MIDI interface, based on the exactly same firmware as USB MidiKlik 4x4.  The board is USB Powered, so no additional power supply necessary. It works driverless as a class compliant device, with Windows XP SP3, Vista 32 and 64 Bit, Windows 7 / 8 / 10   32 and 64 Bit, and Mac OS X, Linux ALSA, Akai MPC Live/X/Force, IOS, Android.
+The board is USB Powered, so no additional power supply necessary. 
+It works driverless as a class compliant device, with all Windows and Linux versions, Mac OS X, Akai MPC Live/X/Force, IOS, Android...
+[![The Kikgen Labs Tindie place](https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png)]( https://www.tindie.com/stores/thekikgenlabs/ ) 
 
-A DIY kit is available at Tindie :
-<img width="50" border="0" src="https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png" />  
-https://www.tindie.com/stores/thekikgenlabs/
 
-Specific PCB without DIN 5 female to allow a deported DIN 5 rail are also available. Contact me for more details.
+
+To simplify connectivity, this board uses now only 3.5mm jacks for MIDI and I2C : 
+- 6 TRS jacks : 3 MIDI in, 3 out, compliants with the MMA RP-054 specifications.
+- You can use TRS to Midi DIN conversion cables, or connect your MIDI device directly with a simple stereo cable.
+- 4 TRS jacks are now used instead connectors for stacking multiple boards on the I2C bus with 1 pair of stereo cables (power and data).
+
+You will find also a 4 ports PCB allowing MIDI DIN from/to TRS at Tindie. This can help if your need numerous MIDI DIN ports.  
+With a single board, you can set 2 MIDI DIN IN and 2 OUT or 3 IN, 1 OUT, or you can set a 16 DIN ports (8 IN, 8 OUT) with 4 PCB.
+NB: The UMK4x4 supports only 3 physical IN and 3 physical OUT. 
+
 
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 
