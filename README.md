@@ -54,25 +54,17 @@ The bus mode allows the aggregation of up to five interfaces using the I2C proto
 Last release of the firmware can be found here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/
 Update tool is included. Unzip and launch the UMK_BluePillUpdate.bat file (Windows only currently).   
 
-
-## MKPI : UMK4x4 graphical frontend
-
-Orzdk has developped a graphical UI for manipulating and configuring the USBMidiKliK settings in sysex mode, from a web browser.
-It also allows to show visual representation of the routes and transformations that are currently applied in your USBMidiKlik.
-
-https://github.com/orzdk/mkpi
-
-<img width="650" border="0" src="https://github.com/orzdk/mkpi/raw/master/doc/screenshot.png" />  
-
-
 ## USBMidiKlik 4x4 PCB ready to be used
 
 <img width="400" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true)"  />
-A new version of the USBMidiKlik 4x4 PCB ready-to-use (based on a STM32F103) is available now at Tindie.
+
+[![The Kikgen Labs Tindie place](https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png)]( https://www.tindie.com/stores/thekikgenlabs/ ) 
+
+A new version of the USBMidiKlik 4x4 PCB ready-to-use (based on a STM32F103) is available now at [ Tindie ](https://www.tindie.com/stores/thekikgenlabs) 
 
 The board is USB Powered, so no additional power supply necessary. 
 It works driverless as a class compliant device, with all Windows and Linux versions, Mac OS X, Akai MPC Live/X/Force, IOS, Android...
-[![The Kikgen Labs Tindie place](https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png)]( https://www.tindie.com/stores/thekikgenlabs/ ) 
+
 
 
 
@@ -87,6 +79,18 @@ NB: The UMK4x4 supports only 3 physical IN and 3 physical OUT.
 
 
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
+
+## MKPI : UMK4x4 graphical frontend
+
+Orzdk has developped a graphical UI for manipulating and configuring the USBMidiKliK settings in sysex mode, from a web browser.
+It also allows to show visual representation of the routes and transformations that are currently applied in your USBMidiKlik.
+
+https://github.com/orzdk/mkpi
+
+<img width="650" border="0" src="https://github.com/orzdk/mkpi/raw/master/doc/screenshot.png" />  
+
+
+
 
 
 # USBMidiKliK4x4 - Configuration overview
