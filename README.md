@@ -164,6 +164,9 @@ Upgrade pack here : https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/V2.
 <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki">Wiki Home</a></strong>
 </li>
 <li class="Box-row">
+<strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/UMK4x4-V2.5-User-Manual">UMK4x4 official User Manuel</a></strong>
+</li>
+<li class="Box-row">
 <strong><a class="d-block" href="https://github.com/TheKikGen/USBMidiKliK4x4/wiki/The-Miditech-Midiplus-4x4-hack-and-STM32Duino">The Miditech/Midiplus hack story</a></strong>
 </li>
 <li class="Box-row">
