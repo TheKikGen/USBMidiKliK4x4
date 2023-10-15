@@ -8,6 +8,7 @@
 A multi-port USB MIDI interface for the STM32DUINO platform.
 
 Download the last firmware here : https://github.com/TheKikGen/USBMidiKliK4x4/releases
+User manual is here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki/UMK4x4-V2.5-User-Manual
 
 Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
 
