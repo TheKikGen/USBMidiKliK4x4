@@ -67,20 +67,18 @@ A new version of the USBMidiKlik 4x4 PCB ready-to-use (based on a STM32F103) is 
 The board is USB Powered, so no additional power supply necessary. 
 It works driverless as a class compliant device, with all Windows and Linux versions, Mac OS X, Akai MPC Live/X/Force, IOS, Android...
 
-
-
-
 To simplify connectivity, this board uses now only 3.5mm jacks for MIDI and I2C : 
-- 6 TRS jacks : 3 MIDI in, 3 out, compliants with the MMA RP-054 specifications.
+- 6 TRS jacks : 3 MIDI in, 3 out, compliants with the MMA RP-054 type A specifications.
 - You can use TRS to Midi DIN conversion cables, or connect your MIDI device directly with a simple stereo cable.
 - 4 TRS jacks are now used instead connectors for stacking multiple boards on the I2C bus with 1 pair of stereo cables (power and data).
 
-You will find also a 4 ports PCB allowing MIDI DIN from/to TRS at Tindie. This can help if your need numerous MIDI DIN ports.  
-With a single board, you can set 2 MIDI DIN IN and 2 OUT or 3 IN, 1 OUT, or you can set a 16 DIN ports (8 IN, 8 OUT) with 4 PCB.
+You will find also at Tindie, a 4 ports "midi rail" PCB allowing MIDI DIN from/to TRS. This can help if your need MIDI DIN ports and/or to arange the order of the DIN ports.  
+With a single board, you can set e.g. 2 MIDI DIN IN and 2 OUT or 3 IN, 1 OUT, or you can set a 16 DIN ports (8 IN, 8 OUT) with 4 PCB, etc..
+With 8 midi rail boards and 5 UMK4x4 stacked boards, it is possbile to get 30 midi DIN ports (15 x IN + 16 x OUT).
 NB: The UMK4x4 supports only 3 physical IN and 3 physical OUT. 
 
-
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
+The first protoype of the bus mode I used every day !
 
 ## MKPI : UMK4x4 graphical frontend
 
