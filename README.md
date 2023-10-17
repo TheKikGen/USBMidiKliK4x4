@@ -78,7 +78,7 @@ With 8 midi rail boards and 5 UMK4x4 stacked boards, it is possbile to get 30 mi
 NB: The UMK4x4 supports only 3 physical IN and 3 physical OUT. 
 
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
-The first protoype of the bus mode I used every day !
+The first protoype of the bus mode I use every day !
 
 ## MKPI : UMK4x4 graphical frontend
 
