@@ -7,17 +7,16 @@
 # NEWS
 
 ## New release V2.5.2 soon : Velocity curve transformation pipe
-<img width="200" border="0" src="https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/doc/um4x4-velocity-orignew-curves.png"/>
+<img width="300" border="0" src="https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/doc/um4x4-velocity-orignew-curves.png"/>
 
-2 news pipes will be added in that release : 
-* VLCURV1 : allows you to define a default 5 segments velocity curve by adjusting 4 in to out values.    
+2 news pipes will be added in that release :
+* VLCURV1 : allows you to define a default 5 segments velocity curve by adjusting 4 in ranges to out values.    
 * VLCURV2 : allows you to define a single segment of the velocity curve with a (midi in, midi out) pairs. You can use that to define a fully customized curve, by adding, for example, eight pipes that will form 9 segments. It can be combined with VLCURV1 to adjust only some specify segments of a the 4 values curve.
 
 ## New UMKK4x4 PCB v2.3 will be soon available at Tindie !
 The KikGen Labs team is curently working on the new UM4x4 V2.3 based on the STM32F103 Bluepill. This new board uses 3,5MM jacks instead of midi DIN, with full MMA RP-051 type A compliance. 
-Midi DIN is still possible obviously, under the form of a 4 mini jack to DINs rail board, so you can "patch" midi in and out as you want.
-
-<img width="250" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true)"  />
+Midi DIN is still possible obviously, under the form of a 4 mini jack to DINs rail board, so you can "patch" midi in and out as you want.<br>
+<img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true"  />   <img width="250" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/um4x4-mini-jack-to-midi-board.png?raw=true"  />
 
 ## New release : V2.5.1 correcting the MSGFLTR pipe bug
 This v2.5.1 release includes a bug correction in parameters validation of the MSGFLTR pipe that was blocking the function #2.
