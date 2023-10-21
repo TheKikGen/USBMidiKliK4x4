@@ -12,6 +12,7 @@
 2 news pipes will be added in that release :
 * VLCURV1 : allows you to define a default 5 segments velocity curve by adjusting 4 in ranges to out values.    
 * VLCURV2 : allows you to define a single segment of the velocity curve with a (midi in, midi out) pairs. You can use that to define a fully customized curve, by adding, for example, eight pipes that will form 9 segments. It can be combined with VLCURV1 to adjust only some specify segments of a the 4 values curve.
+* VLCURV3 : allows you to choose a predifined velocity curve between 6 presets
 
 ## New UMKK4x4 PCB v2.3 will be soon available at Tindie !
 The KikGen Labs team is curently working on the new UM4x4 V2.3 based on the STM32F103 Bluepill. This new board uses 3,5MM jacks instead of midi DIN, with full MMA RP-051 type A compliance. 
