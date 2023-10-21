@@ -99,6 +99,16 @@ boolean MidiTransFn_KbSplit(uint8_t, midiPacket_t *, transPipe_t *);
 boolean MidiTransFn_VeloSplit_CheckParms(transPipe_t *);
 boolean MidiTransFn_VeloSplit(uint8_t, midiPacket_t *, transPipe_t *);
 
+uint8_t MidiTransFn_VeloCurveLine(uint8_t veloIn, float a, float b, float c, float d); // Utility function only
+boolean MidiTransFn_VeloCurv1_CheckParms(transPipe_t *);
+boolean MidiTransFn_VeloCurv1(uint8_t, midiPacket_t *, transPipe_t *);
+
+boolean MidiTransFn_VeloCurv2_CheckParms(transPipe_t *);
+boolean MidiTransFn_VeloCurv2(uint8_t, midiPacket_t *, transPipe_t *);
+
+boolean MidiTransFn_VeloCurv3_CheckParms(transPipe_t *);
+boolean MidiTransFn_VeloCurv3(uint8_t, midiPacket_t *, transPipe_t *);
+
 ///////////////////////////////////////////////////////////////////////////////
 //  Midi transformation functions vector
 ///////////////////////////////////////////////////////////////////////////////
@@ -116,6 +126,9 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_SLOT_CHAIN,
   FN_TRANSPIPE_KB_SPLIT,
   FN_TRANSPIPE_VELO_SPLIT,
+  FN_TRANSPIPE_VELO_CURV1,
+  FN_TRANSPIPE_VELO_CURV2,
+  FN_TRANSPIPE_VELO_CURV3,
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
@@ -140,6 +153,9 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
    {"SLOTCHN", &MidiTransFn_SlotChain,     &MidiTransFn_SlotChain_CheckParms},
    {"KBSPLIT", &MidiTransFn_KbSplit,       &MidiTransFn_KbSplit_CheckParms},
    {"VLSPLIT", &MidiTransFn_VeloSplit,     &MidiTransFn_VeloSplit_CheckParms},
+   {"VLCURV1", &MidiTransFn_VeloCurv1,     &MidiTransFn_VeloCurv1_CheckParms},
+   {"VLCURV2", &MidiTransFn_VeloCurv2,     &MidiTransFn_VeloCurv2_CheckParms},
+   {"VLCURV3", &MidiTransFn_VeloCurv3,     &MidiTransFn_VeloCurv3_CheckParms},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -617,4 +633,183 @@ boolean MidiTransFn_VeloSplit(uint8_t portType, midiPacket_t *pk, transPipe_t *p
     else if ( pipe->par3 == 3 ) { CONSTRAINT_SUB(pk->packet[3],pipe->par4,0); }
   }
   return true;
+}
+
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | VLCURV1 | value 1 : 0-7F     | value 2 : 0-7F     | value 3 :  0-7F    |  value 4 : 0-7F    |
+// |   10    |                    |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
+
+// Utility function to compute a line (a,b)-(c,d) segment formula. Not a sysex function.
+uint8_t MidiTransFn_VeloCurveLine(uint8_t veloIn, float a, float b, float c, float d)
+{
+   // Does velocity value must be adjusted ?
+  if ( veloIn >= a && veloIn <= c  ) return roundf( ( ( d - b ) / ( c - a ) ) * ( veloIn - a ) + b ) ; 
+
+  return veloIn;
+}
+
+boolean MidiTransFn_VeloCurv1_CheckParms(transPipe_t *pipe)
+{ 
+  return true;
+}
+
+boolean MidiTransFn_VeloCurv1(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
+ 
+  uint8_t midiStatus = pk->packet[1] & 0xF0;
+
+  // Only notes ON
+  if ( midiStatus != midiXparser::noteOnStatus) return true;
+
+  //  5 curve segments from 0 to 127
+  #define VELOCURV1_INV1 24.6
+  #define VELOCURV1_INV2 50.2
+  #define VELOCURV1_INV3 75.8
+  #define VELOCURV1_INV4 101.4
+  
+  // Do not process null velocity (equivalent to note off)
+  if ( pk->packet[3] == 0 ) return true;
+ 
+  // Determine velocity segment and compute the new velociy with a linear equation
+  if ( pk->packet[3] <= VELOCURV1_INV1  )      pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,VELOCURV1_INV1,(float) pipe->par1) ;                              // 1. (0,0)-(INV1,V1)
+  else if ( pk->packet[3] <= VELOCURV1_INV2  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],VELOCURV1_INV1,(float) pipe->par1,VELOCURV1_INV2,(float) pipe->par2) ;  // 2. (INV1,V1)-(INV2,V2)
+  else if ( pk->packet[3] <= VELOCURV1_INV3  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],VELOCURV1_INV2,(float) pipe->par2,VELOCURV1_INV3,(float) pipe->par3) ;  // 3. (INV2,V2)-(INV3,V3)
+  else if ( pk->packet[3] <= VELOCURV1_INV4  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],VELOCURV1_INV3,(float) pipe->par3,VELOCURV1_INV4,(float) pipe->par4) ;  // 4. (INV3,V3)-(INV4,V4)
+  else pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],VELOCURV1_INV4,(float) pipe->par4,127.,127.) ; // 5. (INV4,V4)-(127,127)
+  
+  return true;
+}
+
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | VLCURV2 |  in 1 : 0-7F       | out 1 : 0-7F       | in 2 :  in 1-7F    | out 2 : 0-7F       |
+// |   11    |                    |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
+
+boolean MidiTransFn_VeloCurv2_CheckParms(transPipe_t *pipe)
+{
+  if (pipe->par3 < pipe->par1  ) return false;
+    
+  return true;
+}
+
+boolean MidiTransFn_VeloCurv2(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
+ 
+  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],(float) pipe->par1,(float) pipe->par2,(float) pipe->par3,(float) pipe->par4);
+
+
+  return true;
+}
+
+
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | VLCURV3 | Hard player   : 1  |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+// |   12    | Medium velo.  : 2  |                    |                    |                    |
+// |         | Comp.Expander : 3  |                    |                    |                    |
+// |         | Low velo. 1   : 4  |                    |                    |                    |
+// |         | Low velo. 2   : 5  |                    |                    |                    |
+// |         | Ends cut      : 6  |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
+
+boolean MidiTransFn_VeloCurv3_CheckParms(transPipe_t *pipe)
+{ 
+
+  if (pipe->par1 > 1 || pipe->par1 > 6) return false;
+  return true;
+
+}
+
+boolean MidiTransFn_VeloCurv3(uint8_t portType, midiPacket_t *pk, transPipe_t *pipe)
+{
+ 
+  uint8_t midiStatus = pk->packet[1] & 0xF0;
+
+  // Only notes ON
+  if ( midiStatus != midiXparser::noteOnStatus) return true;
+
+  // Do not process null velocity (equivalent to note off)
+  if ( pk->packet[3] == 0 ) return true;
+ 
+  // Determine velocity segment and compute the new velociy with a linear equation
+  
+  // 1. Hard player
+  if ( pipe->par1 == 1 ) {
+      
+      if ( pk->packet[3] <= 32 )       pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,32.,16.) ;
+      else if ( pk->packet[3] <= 64  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],32.,16.,64.,32.) ;
+      else if ( pk->packet[3] <= 95  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],64.,32.,95.,64.) ;
+      else                             pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],95.,64.,127.,127.) ;
+  } 
+  else
+
+  // 2. Medium velocity
+  if ( pipe->par1 == 2 ) {
+      
+      if      ( pk->packet[3] <= 16 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,16.,48.) ;
+      else if ( pk->packet[3] <= 95  ) pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],16.,48.,95.,64.) ;
+      else                             pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],95.,64.,127.,127.) ;
+
+  } 
+  else
+
+  // 3. Compression / Expander
+  if ( pipe->par1 == 3 ) {
+
+      if      ( pk->packet[3] <= 13  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,13.,13.,29.) ;
+      else if ( pk->packet[3] <= 105 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],13.,29.,105.,37.) ;
+      else if ( pk->packet[3] <= 117 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],105.,37.,117.,70.) ;
+      else                              pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],117.,70.,127.,127.) ;
+
+  } 
+  else
+
+  // Low velocity 1
+  if ( pipe->par1 == 4 ) {
+
+      if      ( pk->packet[3] <= 8   )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,8.,8.) ;
+      else if ( pk->packet[3] <= 32  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],8.,8.,32.,8.) ;
+      else if ( pk->packet[3] <= 64  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],32.,8.,64.,24.) ;
+      else if ( pk->packet[3] <= 84  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],64.,24.,84.,43.) ;
+      else if ( pk->packet[3] <= 111 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],84.,43.,111.,79.) ;
+      else if ( pk->packet[3] <= 117 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],111.,79.,117.,121.) ;
+      else                              pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],117.,121.,127.,127.) ;
+
+  } 
+  else
+
+  // Low velocity 2
+  if ( pipe->par1 == 5 ) {
+
+      if      ( pk->packet[3] <= 8   )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,8.,8.) ;
+      else if ( pk->packet[3] <= 48  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],8.,8.,48.,8.) ;
+      else if ( pk->packet[3] <= 68  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],48.,8.,68.,19.) ;
+      else if ( pk->packet[3] <= 92  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],68.,19.,92.,40.) ;
+      else if ( pk->packet[3] <= 111 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],92.,40.,111.,79.) ;
+      else if ( pk->packet[3] <= 117 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],111.,79.,117.,121.) ;
+      else                              pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],117.,121.,127.,127.) ;
+
+  }
+  else
+
+  // Ends cut
+  if ( pipe->par1 == 6 ) {
+
+      if      ( pk->packet[3] <= 6   )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],0.,0.,6.,24.) ;
+      else if ( pk->packet[3] <= 56  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],6.,24.,56.,35.) ;
+      else if ( pk->packet[3] <= 95  )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],56.,35.,95.,57.) ;
+      else if ( pk->packet[3] <= 119 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],95.,57.,119.,86.) ;
+      else if ( pk->packet[3] <= 122 )  pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],119.,86.,122.,121.) ;
+      else                              pk->packet[3] = MidiTransFn_VeloCurveLine(pk->packet[3],122.,121.,127.,127.) ;
+
+  }
+
+  return false ; // Error
+ 
 }
