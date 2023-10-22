@@ -360,8 +360,6 @@ boolean TransPacketPipe_ByPass(uint8_t pipelineSlot, uint8_t index,uint8_t byPas
 ///////////////////////////////////////////////////////////////////////////////
 boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk) {
 
-
-
   if ( slot < 1 || slot > TRANS_PIPELINE_SLOT_SIZE) return false;
 
   // Check if the pipeline slot is already running, and block it to avoid infinite loop
@@ -371,13 +369,16 @@ boolean TransPacketPipelineExec(uint8_t source, uint8_t slot ,  midiPacket_t *pk
 
   transPipe_t *pipeline = EE_Prm.pipelineSlot[slot].pipeline;
 
+  // Save the original midi packet
+  midiPacket_t pkSource = *pk;
+
   boolean r = true ;
   // Apply transformation function pipes
   for (uint8_t i=0; i != TRANS_PIPELINE_SIZE ; i++) {
       // Apply active pipes only
       if ( pipeline->pId == FN_TRANSPIPE_NOPIPE ) break;
       if ( ! pipeline->byPass ) {
-         r = MidiTransFnVector[pipeline->pId].pipeFn(source, pk , pipeline);
+         r = MidiTransFnVector[pipeline->pId].pipeFn(source, &pkSource, pk , pipeline);
          if (! r )  break;
       }
       pipeline++;
