@@ -6,7 +6,7 @@
 
 # NEWS
 
-## New release V2.5.2 soon : Velocity curve transformation pipe
+## New release V2.5.2 soon : Velocity curve transformation pipes
 <img width="300" border="0" src="https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/doc/um4x4-velocity-orignew-curves.png"/>
 3 news pipes will be added in that release :
 
