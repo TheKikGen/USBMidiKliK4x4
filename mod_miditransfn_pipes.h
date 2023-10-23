@@ -164,18 +164,19 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // -----------------------------------------------------------------------------------------------
 // | PipeID  |        par1        |        par2        |        par3        |         par4       |
 // |---------+--------------------+--------------------+--------------------+--------------------|
-// | MSGFLTR |     include:0      | bits mask.         |     00 (unused)    |     00 (unused)    |
-// |   00    |     exclude:1      |  ch voice:0001 (1) |                    |                    |
-// |         |                    |  Sys.cmn :0010 (2) |                    |                    |
-// |         |                    |  realtime:0100 (4) |                    |                    |
-// |         |                    |  sysex   :1000 (8) |                    |                    |
+// | MSGFLTR |   Bits mask        |   include:0        | bits mask.         |     00 (unused)    |
+// |   00    |   filter:0         |   exclude:1        |  ch voice:0001 (1) |                    |
+// |         |                    |   select:2         |  Sys.cmn :0010 (2) |                    |
+// |         |                    |                    |  realtime:0100 (4) |                    |
+// |         |                    |                    |  sysex   :1000 (8) |                    |
 // |         |                    |                    |                    |                    |
 // |         |   MidiStatus       |   include:0        |  midi status id1** OR  midi status id2  |
-// |         |  dble filter:2     |   exclude:1        |                    |  if par4 unused:0  |
-// |         |                    |                    |  (see Midi status ids table for values) |
+// |         |  dble filter:1     |   exclude:1        |                    |  if par4 unused:0  |
+// |         |                    |   select:2         |  (see Midi status ids table for values) |
 // |         |                    |                    |                    |                    |
 // |         |  midi channel      |   include:0        |  from channel 0-F  |  to channel 0-F    |
-// |         |  filter:3          |   exclude:1        |                    |                    |
+// |         |  filter:2          |   exclude:1        |                    |                    |
+// |         |                    |   select:2         |                    |                    |  
 // -----------------------------------------------------------------------------------------------
 // --------------------------------
 // |   ** Midi status ids table   |
@@ -200,10 +201,10 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
 // --------------------------------
 boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
 {
-  if ( pipe->par1 > 3 ) return false;
-  if ( pipe->par1 < 2 && (pipe->par2 == 0 || pipe->par2 > 0B1111) ) return false;
-  if ( pipe->par1 == 2 ) {
-     if ( pipe->par2 > 1 ) return false;
+  if ( pipe->par1 > 2 ) return false;
+  if ( pipe->par1 == 0 && (pipe->par2 > 2 || pipe->par3 == 0 || pipe->par3 > 0B1111) ) return false;
+  if ( pipe->par1 == 1 ) {
+     if ( pipe->par2 > 2 ) return false;
      if ( pipe->par3 < 0x08 || pipe->par3 > 0x1F
           || pipe->par3 == 0x10 || pipe->par3 == 0x14 || pipe->par3 == 0x15
           || pipe->par3 == 0x17 || pipe->par3 == 0x19 || pipe->par3 == 0x1D ) {
@@ -218,8 +219,8 @@ boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
       }
   } else
   // Midi channel filtering
-  if ( pipe->par1 == 3 ) {
-      if ( pipe->par2 > 1 ) return false;
+  if ( pipe->par1 == 2 ) {
+      if ( pipe->par2 > 2 ) return false;
       if ( pipe->par3 > 0x0F || pipe->par4 > 0x0F || pipe->par3 > pipe->par4 ) return false;
   }
   return true;
@@ -227,8 +228,11 @@ boolean MidiTransFn_MessageFilter_CheckParms(transPipe_t *pipe)
 
 boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pkSource, midiPacket_t *pk, transPipe_t *pipe)
 {
-	// Apply global include/exclude filter. Drop if not matching.
-  if ( pipe->par1 < 2  ) {
+
+  boolean match = false;
+
+	// Apply global bits mask include/exclude filter. Drop if not matching or route/keep if select.
+  if ( pipe->par1 == 0  ) {
     uint8_t msgType = 0;
     uint8_t cin   = pk->packet[0] & 0x0F ;
     // Check if SysEx filter first and modify the msgType mask because it is a multipacket msg
@@ -237,39 +241,51 @@ boolean MidiTransFn_MessageFilter(uint8_t portType, midiPacket_t *pkSource, midi
           msgType = midiXparser::sysExMsgTypeMsk;
     else
           msgType = midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]); // All other msg
-
-    if ( pipe->par2 & msgType ) {
-      // Include
-      return (pipe->par1 == 0 ? true : false );
-    }
-    else {
-      // exclude
-      return (pipe->par1 == 0 ? false : true);
-    }
+    match = ( pipe->par3 & msgType );
+  
   }
 
   // Midi Status double filter
-  else  if ( pipe->par1 == 2  ) {
+  else  if ( pipe->par1 == 1  ) {
+
     uint8_t midiStatus = ( pk->packet[1] >= 0xF0 ? pk->packet[1] - 0xE0 : pk->packet[1]>>4 ) ;
-    if ( midiStatus == pipe->par3 || midiStatus == pipe->par4  ) {
-        return (pipe->par2 == 0 ? true : false ); //Include. Keep or drop...
-    } else {
-        return (pipe->par2 == 0 ? false : true); //Keep or drop...
-    }
+    match = ( midiStatus == pipe->par3 || midiStatus == pipe->par4  ) ;
+    
   }
 
   // Midi channel from/to filtering
-  else   if ( pipe->par1 == 3 ) {
+  else   if ( pipe->par1 == 2 ) {
+    
     // Channel voice only
     if (midiXparser::getMidiStatusMsgTypeMsk(pk->packet[1]) !=  midiXparser::channelVoiceMsgTypeMsk)
         return true;
+    
     uint8_t channel = pk->packet[1] & 0x0F;
-    if (channel >= pipe->par3 && channel <= pipe->par4) {
-        return (pipe->par2 == 0 ? true : false ); //Include. Keep or drop...
-    } else {
-        return (pipe->par2 == 0 ? false : true); //Keep or drop...
+    match = (channel >= pipe->par3 && channel <= pipe->par4) ;
+
+  } 
+  else return false; // Error
+
+  // Packet match any filter ?
+
+  if ( match ) {
+
+    // Exclude matching packet (drop)
+    return (pipe->par2 == 1 ? false : true );
+
+  } 
+  else {
+    // select = let the matching packet in the transformation chain without droping not matching ones
+    if ( pipe->par2 == 2 ) {
+      RoutePacketToTarget(portType, pk); // No transformation will be applied as the slot is locked
+      return false;
     }
-  } else
+    else {
+      // the packet doesn't match : exclude = keep not matching /drop matching
+      return (pipe->par2 == 1 ? true : false );
+    }
+
+  }
 
   return false; // Error
 }
@@ -706,9 +722,9 @@ boolean MidiTransFn_VeloCurv2(uint8_t portType, midiPacket_t *pkSource, midiPack
  
   int8_t veloOut = -1;
 
-  // PkSource is the unmodified midi packet.  VLCURV2 uses only the original packet to apply velocity changes rather than current value,
+  // PkSource is the unmodified midi packet.  VLCURV2 uses only the original packet velocity to apply changes rather than the current value,
   // because of tranformation chaining that could be incoherent with what want to do with velocity.
-  // It is strongly recommanded that VLCURV2 be the first pipe in the chain for that reason.
+  // It is often better that VLCURV2 be the first pipe in the chain for that reason.
 
   if ( ( veloOut = MidiTransFn_VeloCurveLine(pkSource->packet[3],(float) pipe->par1,(float) pipe->par2,(float) pipe->par3,(float) pipe->par4) ) >= 0 ) pk->packet[3] = veloOut;
 
