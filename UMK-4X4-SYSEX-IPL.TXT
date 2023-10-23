@@ -217,17 +217,23 @@ F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass:0 | bypass:1> F7
 -----------------------------------------------------------------------------------------------
 | PipeID  |        par1        |        par2        |        par3        |         par4       |
 |---------+--------------------+--------------------+--------------------+--------------------|
-| MSGFLTR |   include:0        | bits mask.         |     00 (unused)    |     00 (unused)    |
-|   00    |   exclude:1        |  ch voice:0001 (1) |                    |                    |
-|         |                    |  Sys.cmn :0010 (2) |                    |                    |
-|         |                    |  realtime:0100 (4) |                    |                    |
-|         |                    |  sysex   :1000 (8) |                    |                    |
+| MSGFLTR |   Bits mask        |   include:0        | bits mask.         |     00 (unused)    |
+|   00    |   filter:0         |   exclude:1        |  ch voice:0001 (1) |                    |
+|         |                    |   select:2         |  Sys.cmn :0010 (2) |                    |
+|         |                    |                    |  realtime:0100 (4) |                    |
+|         |                    |                    |  sysex   :1000 (8) |                    |
 |         |                    |                    |                    |                    |
-|         |   midiStatus       |   include:0        |  midi status id1   OR  midi status id2  |
-|         |  dble filter:2     |   exclude:1        |                    |  if par4 unused:0  |
+|         |   MidiStatus       |   include:0        |  midi status id1** OR  midi status id2  |
+|         |  dble filter:1     |   exclude:1        |                    |  if par4 unused:0  |
+|         |                    |   select:2         |  (see Midi status ids table for values) |
 |         |                    |                    |                    |                    |
-|         |  midi channel      |   include:0        |  from midi ch:0-F  |  to channel:0-F    |
-|         |  filter:3          |   exclude:1        |                    |                    |
+|         |  midi channel      |   include:0        |  from channel 0-F  |  to channel 0-F    |
+|         |  filter:2          |   exclude:1        |                    |                    |
+|         |                    |   select:2         |                    |                    |
+|         +--------------------+--------------------+--------------------+--------------------|
+|         | include : keep only matching midi messages                                        |
+|         | exclude : drop matching midi messages                                             |
+|         | select  : Apply next transformation pipes in the slot only to matching messages   |
 |---------+--------------------+--------------------+--------------------+--------------------|
 | NOTECHG |    transpose+:0    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
 |   01    |    transpose-:1    |   semitone:00-7F   |     00 (unused)    |     00 (unused)    |
@@ -268,6 +274,19 @@ F0 77 77 78 11 01 05 <slot:1-8> <pipe index:nn> <no bypass:0 | bypass:1> F7
 |   09    |                    |                    |       fixed:1      |     value:0-7F     |
 |         |                    |                    |         add:2      |     value:0-7F     |
 |         |                    |                    |         sub:3      |     value:0-7F     |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VLCURV1 | value 1 : 0-7F     | value 2 : 0-7F     | value 3 :  0-7F    |  value 4 : 0-7F    |
+|   0A    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VLCURV2 |  in 1 : 0-7F       | out 1 : 0-7F       | in 2 :  in 1-7F    | out 2 : 0-7F       |
+|   0B    |                    |                    |                    |                    |
+|---------+--------------------+--------------------+--------------------+--------------------|
+| VLCURV3 | Hard player   : 1  |     00 (unused)    |     00 (unused)    |     00 (unused)    |
+|   0C    | Medium velo.  : 2  |                    |                    |                    |
+|         | Comp.Expander : 3  |                    |                    |                    |
+|         | Low velo. 1   : 4  |                    |                    |                    |
+|         | Low velo. 2   : 5  |                    |                    |                    |
+|         | Ends cut      : 6  |                    |                    |                    |
 -----------------------------------------------------------------------------------------------
 
 --------------------------------
