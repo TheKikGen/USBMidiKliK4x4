@@ -17,8 +17,7 @@
 https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.2
 
 ## New UMK4x4 PCB v2.3 will be soon available at Tindie !
-The KikGen Labs team is currently working on the new UM4x4 V2.3 based on the STM32F103 Bluepill. This new board uses 3,5MM jacks instead of midi DIN, with full MMA RP-051 type A compliance. 
-Midi DIN is still possible obviously, under the form of a 4 mini jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
+The inclination towards smaller hardware devices has made it increasingly difficult to make use of DIN connectors for MIDI In/Out in the past few years. Many manufacturers have chosen to use 3.5mm "TRS" connectors instead. It is why The KikGen Labs team is currently working on the new UM4x4 V2.3 based on the STM32F103 Bluepill. This new board uses 3,5MM TRS jacks instead of midi DIN, with full MMA RP-054 type A compliance. Midi DIN is still possible obviously, under the form of a 4 mini 3.5mm jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true"  />   <img width="250" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/um4x4-mini-jack-to-midi-board.png?raw=true"  />
 
 ## New release : V2.5.1 correcting the MSGFLTR pipe bug
