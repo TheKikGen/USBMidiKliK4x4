@@ -13,6 +13,7 @@
 * VLCURV1 : allows you to define a default 5 segments velocity curve by adjusting 4 in ranges to out values.    
 * VLCURV2 : allows you to define a single segment of the velocity curve with a (midi in, midi out) pairs. You can use that to define a fully customized curve, by adding, for example, eight pipes that will form 9 segments. It can be combined with VLCURV1 to adjust only some specify segments of a the 4 values curve.
 * VLCURV3 : allows you to choose a predefined velocity curve between 6 presets : compressed for hard player, medium velocity, compresser/expander, low velocity 1 & 2, top and bottom ends cut
+* 
 https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.2
 
 ## New UMK4x4 PCB v2.3 will be soon available at Tindie !
