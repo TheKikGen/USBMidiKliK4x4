@@ -123,9 +123,7 @@ __ __| |           |  /_) |     ___|             |           |
  #define EE_BASE EE_FLASH_MEMORY_BASE + EE_FLASH_SIZEK * 1024 - EE_CAPACITY
  #define EE_PAGE_BASE ( EE_BASE - EE_FLASH_MEMORY_BASE ) / EE_PAGE_SIZE
 
- #define USBCABLE_INTERFACE_MAX USB_MIDI_IO_PORT_NUM
-
-  // USBDM (USB -) PIN
-  #define PIN_USBDM PA11
+ // USBDM (USB -) PIN
+ #define PIN_USBDM PA11
 
 #endif

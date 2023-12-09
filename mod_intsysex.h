@@ -727,12 +727,12 @@ uint8_t SysExInternal_fnMidiRoutingSettings(uint8_t portType,uint8_t *sxMsg,uint
     // Virtual to virtual not allowed
     if (inPortType == PORT_TYPE_VIRTUAL &&  inPortType == outPortType )  return SX_ERROR_BAD_PORT;
 
-    if (inPortType == PORT_TYPE_CABLE ) maxInPort = USBCABLE_INTERFACE_MAX;
+    if (inPortType == PORT_TYPE_CABLE ) maxInPort = UsbCableInterfaceMax;
     else if (inPortType == PORT_TYPE_JACK ) maxInPort = SERIAL_INTERFACE_COUNT;
     else if (inPortType == PORT_TYPE_VIRTUAL ) maxInPort = VIRTUAL_INTERFACE_MAX ;
     else return SX_ERROR_BAD_PORT_TYPE;
 
-    if (outPortType == PORT_TYPE_CABLE ) maxOutPort = USBCABLE_INTERFACE_MAX;
+    if (outPortType == PORT_TYPE_CABLE ) maxOutPort = UsbCableInterfaceMax;
     else if (outPortType == PORT_TYPE_JACK  )  maxOutPort = SERIAL_INTERFACE_COUNT;
     else  if (outPortType == PORT_TYPE_VIRTUAL ) maxOutPort = VIRTUAL_INTERFACE_MAX;
     else return SX_ERROR_BAD_PORT_TYPE;
@@ -987,7 +987,7 @@ void SysexInternal_DumpConfToStream(uint8_t dest)
         SysexInternal_DumpAddrToStream(0x0E030000 + (i << 8 ), dest);
 
   // In port Cable out Routing
-  for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++) {
+  for (  uint32_t i=0; i!= UsbCableInterfaceMax ; i++) {
     SysexInternal_DumpAddrToStream(0x0F010000 + i , dest);
   }
 
@@ -1001,7 +1001,7 @@ void SysexInternal_DumpConfToStream(uint8_t dest)
         SysexInternal_DumpAddrToStream(0x0F010200 + i , dest);
 
   // Cable out attached slot
-  for (  uint32_t i=0; i!= USBCABLE_INTERFACE_MAX ; i++)
+  for (  uint32_t i=0; i!= UsbCableInterfaceMax ; i++)
         SysexInternal_DumpAddrToStream(0x11000000 + i , dest);
 
   // Jack In attached slot
@@ -1191,7 +1191,7 @@ uint8_t SysexInternal_DumpAddrToBuff(uint32_t sxAddr, uint8_t *buff)
       uint8_t  i = 0;
       // Cable targets
       *(++buff2) = 0 ; // outport Type cable
-      while ( cmsk && i != USBCABLE_INTERFACE_MAX) {
+      while ( cmsk && i != UsbCableInterfaceMax) {
         if (cmsk & 1  ) *(++buff2) = i;
         cmsk >>= 1; i++;
       }

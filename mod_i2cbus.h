@@ -123,7 +123,7 @@ int8_t I2C_ParseDataSync(uint8_t dataType,uint8_t arg1,uint8_t arg2)
   {
     if (Wire.available() != sizeof(routingRule_t)) return -1;
 		routingRule_t *mr ;
-		if ( arg2 == PORT_TYPE_CABLE && arg1 < USBCABLE_INTERFACE_MAX) mr = &EE_Prm.rtRulesCable[arg1];
+		if ( arg2 == PORT_TYPE_CABLE && arg1 < UsbCableInterfaceMax) mr = &EE_Prm.rtRulesCable[arg1];
 		else if ( arg2 == PORT_TYPE_JACK && arg1 < B_SERIAL_INTERFACE_MAX) mr = &EE_Prm.rtRulesJack[arg1];
 		else return -1;
 
@@ -489,7 +489,7 @@ void I2C_SlavesRoutingSyncFromMaster()
 
 	uint8_t i=0;
   // Send rtRulesCable
-  for ( i=0 ; i != USBCABLE_INTERFACE_MAX ; i ++ ) {
+  for ( i=0 ; i != UsbCableInterfaceMax ; i ++ ) {
     I2C_SendData(B_DTYPE_ROUTING_RULE, i, PORT_TYPE_CABLE, (uint8_t *)&EE_Prm.rtRulesCable[i], sizeof(routingRule_t));
   }
 

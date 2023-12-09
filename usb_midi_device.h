@@ -75,7 +75,7 @@ extern "C" {
 // --------------------------------------------------------------------------------------
 // USB MIDI API Functions prototypes
 // --------------------------------------------------------------------------------------
-
+void usb_midi_init_descriptor_config ( uint8_t nbPorts) ;
 void usb_midi_set_vid_pid(uint16_t vid, uint16_t pid);
 void usb_midi_set_product_string(char stringDescriptor[]);
 
@@ -100,29 +100,7 @@ uint8_t usb_midi_is_transmitting(void);
 // --------------------------------------------------------------------------------------
 // MIDI PORTS
 // --------------------------------------------------------------------------------------
-// To define the number of Midi ports, uncomment the right line below.
-//#define USB_MIDI_4X4
-//#define USB_MIDI_8X8
-//#define USB_MIDI_12X12
-#define USB_MIDI_16X16
-
-#if defined(USB_MIDI_16X16)
-  #define USB_MIDI_IO_PORT_NUM  16
-  #warning "16 USB midi ports defined"
-#elif defined(USB_MIDI_12X12)
-  #define USB_MIDI_IO_PORT_NUM  12
-  #warning "12 USB midi ports defined"
-#elif defined(USB_MIDI_8X8)
-  #define USB_MIDI_IO_PORT_NUM  8
-  #warning "8 USB midi ports defined"
-#elif defined(USB_MIDI_4X4)
-  #define USB_MIDI_IO_PORT_NUM  4
-  #warning "4 USB midi ports defined"
-#else
-  #define USB_MIDI_2X2
-  #define USB_MIDI_IO_PORT_NUM  2
-  #warning "2 USB midi ports defined by default. Please check usb_midi_device.h"
-#endif
+#define USB_MIDI_IO_PORT_NUM  16
 
 // --------------------------------------------------------------------------------------
 // DESCRIPTOR IDS

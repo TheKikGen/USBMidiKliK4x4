@@ -97,6 +97,9 @@ volatile bool					midiUSBCx      = false ;
 volatile bool         midiUSBIdle    = false ;
 bool 					        isSerialBusy   = false ;
 
+// USB cable max ports.  16 if in bus mode or value changed by the end user.
+uint8_t UsbCableInterfaceMax = 4;
+
 // MIDI Parsers for serial 1 to n
 midiXparser midiSerial[SERIAL_INTERFACE_MAX];
 
@@ -446,7 +449,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
   }
   // A midi packet from USB cable out ?
   else if ( portType == PORT_TYPE_CABLE ) {
-    if ( port >= USBCABLE_INTERFACE_MAX ) return;
+    if ( port >= UsbCableInterfaceMax ) return;
     cbInTargets  = EE_Prm.rtRulesCable[port].cbInTgMsk;
     jkOutTargets = EE_Prm.rtRulesCable[port].jkOutTgMsk;
     vrInTargets  = EE_Prm.rtRulesCable[port].vrInTgMsk;
@@ -509,7 +512,7 @@ void RoutePacketToTarget(uint8_t portType,  midiPacket_t *pk)
 
 	// 4/ Apply cable routing rules only if USB connected and thru mode inactive
   t=0;
-  while ( cbInTargets && t != USBCABLE_INTERFACE_MAX ) {
+  while ( cbInTargets && t != UsbCableInterfaceMax ) {
     if ( cbInTargets & 1 ) {
         midiPacket_t pk2 = { .i = pk->i }; // packet copy to change the dest cable
         pk2.packet[0] = ( t << 4 ) + cin;
@@ -684,7 +687,7 @@ void ResetMidiRoutingRules(uint8_t mode)
   }
 
   if (mode == ROUTING_CLEAR_ALL ) {
-    for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
+    for ( uint8_t i = 0 ; i != UsbCableInterfaceMax ; i++ ) {
 
       // Cables
       EE_Prm.rtRulesCable[i].slot = 0;
@@ -714,7 +717,7 @@ void ResetMidiRoutingRules(uint8_t mode)
 
 	if (mode == ROUTING_RESET_ALL || mode == ROUTING_RESET_MIDIUSB) {
 
-	  for ( uint8_t i = 0 ; i != USBCABLE_INTERFACE_MAX ; i++ ) {
+	  for ( uint8_t i = 0 ; i != UsbCableInterfaceMax ; i++ ) {
 			// Cables
 	    EE_Prm.rtRulesCable[i].slot = 0;
 	    EE_Prm.rtRulesCable[i].cbInTgMsk = 0 ;
@@ -895,12 +898,14 @@ void CheckBootMode()
 // MIDI USB initiate connection if master
 // + Set USB descriptor strings
 ///////////////////////////////////////////////////////////////////////////////
-void USBMidi_Init()
+void USBMidi_Init(uint8_t nbports)
 {
+  usb_midi_init_descriptor_config(nbports);
 	usb_midi_set_vid_pid(EE_Prm.vendorID,EE_Prm.productID);
 	usb_midi_set_product_string((char *) &EE_Prm.productString);
 
-	MidiUSB.begin() ;
+  MidiUSB.begin() ;
+  
   // Note : Usually around 4 s to fully detect USB Midi on the host
   while (! MidiUSB.isConnected() ) delay(500);
 }
@@ -1067,7 +1072,9 @@ void setup()
         procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
         // 3. Add midi USB process
         procVectorFn[procVectorFnCount++] = &USBMidi_Process;
-        USBMidi_Init();
+        // When bus is enabled, we set 16 Usb midi I/O ports, else 4.
+        if (IS_BUS_E)  UsbCableInterfaceMax = 16 ; 
+        USBMidi_Init( UsbCableInterfaceMax);
         // 4. add again midi clock generator for the best refresh rate possible
         procVectorFn[procVectorFnCount++] = &MidiClockGenerator;
   	}

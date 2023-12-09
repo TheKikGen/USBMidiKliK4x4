@@ -309,7 +309,7 @@ typedef struct {
         // Storage space is set to the max i.e. INTERFACE_MAX for all
         // To allow dynamic change of bus mode.
 
-        routingRule_t rtRulesCable[USBCABLE_INTERFACE_MAX];
+        routingRule_t rtRulesCable[16];
         routingRule_t rtRulesJack[B_SERIAL_INTERFACE_MAX];
 
         // Virtual routing rules : cable and jack only

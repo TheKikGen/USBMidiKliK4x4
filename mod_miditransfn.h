@@ -158,7 +158,7 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
 {
     // Detach ALL
     if (portType == 0x7F) {
-        for (uint8_t i = 0; i != USBCABLE_INTERFACE_MAX ; i++)
+        for (uint8_t i = 0; i != UsbCableInterfaceMax ; i++)
               EE_Prm.rtRulesCable[i].slot=0;
         for (uint8_t i = 0; i != SERIAL_INTERFACE_COUNT ; i++) {
               EE_Prm.rtRulesJack[i].slot = 0;
@@ -173,7 +173,7 @@ boolean TransPacketPipeline_AttachPort(uint8_t portType,uint8_t port,uint8_t pip
     if ( pipelineSlot > TRANS_PIPELINE_SLOT_SIZE )    return false;
 
   	if (portType == PORT_TYPE_CABLE ) {
-      if ( port < USBCABLE_INTERFACE_MAX )
+      if ( port < UsbCableInterfaceMax )
         EE_Prm.rtRulesCable[port].slot = pipelineSlot ;
       else return false;
     }
@@ -420,7 +420,7 @@ void ShowPipelineSlot(uint8_t s) {
   SerialPrintf("| %y %s                | ",str_CABLE,str_OUT);
 
   for (uint8_t j=0; j < 16 ; j++) {
-    if (j >= USBCABLE_INTERFACE_MAX) Serial.print(" ");
+    if (j >= UsbCableInterfaceMax) Serial.print(" ");
     else if ( EE_Prm.rtRulesCable[j].slot == s)
         Serial.print ("X");
     else Serial.print(".");

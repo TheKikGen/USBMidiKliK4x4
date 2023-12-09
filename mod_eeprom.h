@@ -312,12 +312,11 @@ void EE_PrmSave()
 //////////////////////////////////////////////////////////////////////////////
 void EE_PrmInit(bool factorySettings)
 {
+	// Read the EEPROM parameters structure
+	EE_PrmLoad();
 
-  // Read the EEPROM parameters structure
-  EE_PrmLoad();
-
-  // If the signature is not found, of not the same version of parameters structure,
-  // or new version, or new size then initialize (factory settings)
+	// If the signature is not found, of not the same version of parameters structure,
+	// or new version, or new size then initialize (factory settings)
 
 	// New firmware  uploaded
 	if ( memcmp(EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion)) )
@@ -331,10 +330,10 @@ void EE_PrmInit(bool factorySettings)
 				) factorySettings = true;
 		else
 		// New build only. We keep existing settings but reboot in config mode
- 		{
+		{
 			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 			// Write the whole param struct
-	    EE_PrmSave();
+			EE_PrmSave();
 
 			// Default boot mode when new firmware uploaded only for this session.
 			bootMagicWord = BOOT_CONFIG_MAGIC;
@@ -345,43 +344,41 @@ void EE_PrmInit(bool factorySettings)
 	}
 
 	// Force factory setting
-  if (  factorySettings )
-	{
-    memset( &EE_Prm,0,sizeof(EEPROM_Prm_t) );
-    memcpy( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) );
+	if (  factorySettings )
+		{
+			memset( &EE_Prm,0,sizeof(EEPROM_Prm_t) );
+			memcpy( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) );
 
-		EE_Prm.majorVersion = VERSION_MAJOR;
-		EE_Prm.minorVersion = VERSION_MINOR;
+			EE_Prm.majorVersion = VERSION_MAJOR;
+			EE_Prm.minorVersion = VERSION_MINOR;
 
-		EE_Prm.prmVersion = EE_PRMVER;
-		EE_Prm.size = sizeof(EEPROM_Prm_t);
+			EE_Prm.prmVersion = EE_PRMVER;
+			EE_Prm.size = sizeof(EEPROM_Prm_t);
 
-    memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
+			memcpy( EE_Prm.TimestampedVersion,TimestampedVersion,sizeof(EE_Prm.TimestampedVersion) );
 
-		// Default I2C Device ID and bus mode
-		EE_Prm.I2C_DeviceId = B_MASTERID;
-		EE_Prm.I2C_BusModeState = B_DISABLED;
+			// Default I2C Device ID and bus mode
+			EE_Prm.I2C_DeviceId = B_MASTERID;
+			EE_Prm.I2C_BusModeState = B_DISABLED;
 
-		ResetMidiRoutingRules(ROUTING_RESET_ALL);
+			ResetMidiRoutingRules(ROUTING_RESET_ALL);
 
-		// Set BPM and disable all clocks
-		// MTC was initialized to false above with the first memset
-		SetMidiBpmClock(0x7F,DEFAULT_BPM);
-		SetMidiEnableClock(0x7F,false);
+			// Set BPM and disable all clocks
+			// MTC was initialized to false above with the first memset
+			SetMidiBpmClock(0x7F,DEFAULT_BPM);
+			SetMidiEnableClock(0x7F,false);
 
+			EE_Prm.vendorID  = USB_MIDI_VENDORID;
+			EE_Prm.productID = USB_MIDI_PRODUCTID;
 
-	  EE_Prm.vendorID  = USB_MIDI_VENDORID;
-    EE_Prm.productID = USB_MIDI_PRODUCTID;
+			memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
 
-    memcpy(EE_Prm.productString,USB_MIDI_PRODUCT_STRING,sizeof(USB_MIDI_PRODUCT_STRING));
+			// Write the whole param struct
+			EE_PrmSave();
 
-		// Write the whole param struct
-		EE_PrmSave();
-
-		// Default boot mode when new firmware uploaded (not saved as one shot mode)
-		bootMagicWord = BOOT_CONFIG_MAGIC;
-  }
-
+			// Default boot mode when new firmware uploaded (not saved as one shot mode)
+			bootMagicWord = BOOT_CONFIG_MAGIC;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -390,8 +387,8 @@ void EE_PrmInit(bool factorySettings)
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_Update(uint8_t* bloc,uint16_t sz)
 {
-  // Nothing to do if size above Capacity
-  if ( sz <2 || sz > EE_CAPACITY )  return;
+	// Nothing to do if size above Capacity
+	if ( sz <2 || sz > EE_CAPACITY )  return;
 
 	uint16_t nbPageWrite = ( sz / EE_PAGE_SIZE ) + ( sz % EE_PAGE_SIZE ? 1:0);
 
@@ -408,14 +405,14 @@ void EEPROM_Update(uint8_t* bloc,uint16_t sz)
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_Get(uint8_t* bloc,uint16_t sz, uint16_t offset)
 {
-  // Check if size above Capacity
-  if ( sz > EE_CAPACITY ) return ;
+  	// Check if size above Capacity
+  	if ( sz > EE_CAPACITY ) return ;
 
-  uint32_t addressRead = EE_BASE + offset;
+  	uint32_t addressRead = EE_BASE + offset;
 
 	for (uint16_t idx = 0 ; idx < sz; idx++) {
       *bloc++ = (*(__IO uint8*)addressRead++);
-  }
+  	}
 
 }
 
@@ -424,7 +421,7 @@ void EEPROM_Get(uint8_t* bloc,uint16_t sz, uint16_t offset)
 //////////////////////////////////////////////////////////////////////////////
 void EEPROM_Format() {
 
-  uint32_t addressWrite = EE_BASE;
+	uint32_t addressWrite = EE_BASE;
 
 	for (uint8_t i = 0; i != EE_NBPAGE ; i ++ ) {
 			FLASH_ErasePage(addressWrite);

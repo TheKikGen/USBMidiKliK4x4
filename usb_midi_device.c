@@ -163,8 +163,198 @@ void (*usb_midi_ep_int_out[7])(void) =
 
 
 // --------------------------------------------------------------------------------------
-// DEVICE DESCRIPTOR MANIPULATION (IF NOT READ ONLY)
+// DYNAMIC USB MIDI DESCRIPTOR CONFIGURATION
 // --------------------------------------------------------------------------------------
+void usb_midi_init_descriptor_config ( uint8_t nbPorts) {
+
+    if ( nbPorts != 2 && nbPorts != 4 && nbPorts != 8 && nbPorts != 12 && nbPorts != 16  ) nbPorts = 2 ;
+
+    size_t sz = 
+        sizeof(usb_descriptor_config_header)
+        + 2 * sizeof(usb_descriptor_interface)
+        + AC_CS_INTERFACE_DESCRIPTOR_SIZE(1) 
+        + sizeof(MS_CS_INTERFACE_DESCRIPTOR)
+        + nbPorts * 2 * sizeof(MIDI_IN_JACK_DESCRIPTOR)
+        + nbPorts * 2 * MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
+        + 2 * sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
+        + 2 * (MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1 );
+    
+    // Global configuration descriptor (see usb_midi_decriptor.c))
+    usbMidiConfig_Descriptor.Descriptor = (uint8*)malloc(sz);
+    usbMidiConfig_Descriptor.Descriptor_Size = sz ;
+    uint8_t * p = usbMidiConfig_Descriptor.Descriptor ;
+
+    // Config Header
+    usb_descriptor_config_header       Config_Header;
+    Config_Header.bLength              = sizeof(usb_descriptor_config_header);
+    Config_Header.bDescriptorType      = USB_DESCRIPTOR_TYPE_CONFIGURATION;
+    Config_Header.wTotalLength         = sz;
+    Config_Header.bNumInterfaces       = 0x02;
+    Config_Header.bConfigurationValue  = 0x01;
+    Config_Header.iConfiguration       = 0x00;
+    Config_Header.bmAttributes         = 0xa0 ; // (Bus Powered)  Remote Wakeup
+    Config_Header.bMaxPower            = USB_MIDI_MAX_POWER;
+    memcpy(p,&Config_Header,sizeof(usb_descriptor_config_header) );
+    p += sizeof(usb_descriptor_config_header);
+     
+    // AC Interface 
+    usb_descriptor_interface           AC_Interface;
+    AC_Interface.bLength            = sizeof(usb_descriptor_interface);
+    AC_Interface.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE;
+    AC_Interface.bInterfaceNumber   = 0x00;
+    AC_Interface.bAlternateSetting  = 0x00;
+    AC_Interface.bNumEndpoints      = 0x00;
+    AC_Interface.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO;
+    AC_Interface.bInterfaceSubClass = USB_INTERFACE_AUDIOCONTROL;
+    AC_Interface.bInterfaceProtocol = 0x00;
+    AC_Interface.iInterface         = 0x00;
+    memcpy(p,&AC_Interface,sizeof(usb_descriptor_interface) );
+    p += sizeof(usb_descriptor_interface);
+  
+    // AC CS interface
+    AC_CS_INTERFACE_DESCRIPTOR(1)      AC_CS_Interface;
+    AC_CS_Interface.bLength            = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1);
+    AC_CS_Interface.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+    AC_CS_Interface.SubType            = 0x01;
+    AC_CS_Interface.bcdADC             = 0x0100;
+    AC_CS_Interface.wTotalLength       = AC_CS_INTERFACE_DESCRIPTOR_SIZE(1);
+    AC_CS_Interface.bInCollection      = 0x01;
+    AC_CS_Interface.baInterfaceNr[0]   = 0x01;
+    memcpy(p,&AC_CS_Interface,AC_CS_INTERFACE_DESCRIPTOR_SIZE(1) );
+    p += AC_CS_INTERFACE_DESCRIPTOR_SIZE(1);
+
+    // MS Interface
+    usb_descriptor_interface           MS_Interface;
+    MS_Interface.bLength            = sizeof(usb_descriptor_interface);
+    MS_Interface.bDescriptorType    = USB_DESCRIPTOR_TYPE_INTERFACE;
+    MS_Interface.bInterfaceNumber   = 0x01;
+    MS_Interface.bAlternateSetting  = 0x00;
+    MS_Interface.bNumEndpoints      = 0x02;
+    MS_Interface.bInterfaceClass    = USB_INTERFACE_CLASS_AUDIO;
+    MS_Interface.bInterfaceSubClass = USB_INTERFACE_MIDISTREAMING;
+    MS_Interface.bInterfaceProtocol = 0x00;
+    MS_Interface.iInterface         = STRING_IINTERFACE_ID; // Midi
+    memcpy(p,&MS_Interface,sizeof(usb_descriptor_interface) );
+    p += sizeof(usb_descriptor_interface);
+ 
+    // MS CS Interface
+    MS_CS_INTERFACE_DESCRIPTOR         MS_CS_Interface;
+    MS_CS_Interface.bLength            = sizeof(MS_CS_INTERFACE_DESCRIPTOR);
+    MS_CS_Interface.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+    MS_CS_Interface.SubType            = 0x01;
+    MS_CS_Interface.bcdADC             = 0x0100;
+    MS_CS_Interface.wTotalLength       = sizeof(MS_CS_INTERFACE_DESCRIPTOR)
+                               + nbPorts*2*sizeof(MIDI_IN_JACK_DESCRIPTOR)
+                               + nbPorts*2*MIDI_OUT_JACK_DESCRIPTOR_SIZE(1)
+                               + 2 * sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT)
+                               + 2 * ( MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1 );
+    memcpy(p,&MS_CS_Interface,sizeof(MS_CS_INTERFACE_DESCRIPTOR) );
+    p += sizeof(MS_CS_INTERFACE_DESCRIPTOR);
+
+    // MIDI DESCRIPTORS
+
+    MIDI_IN_JACK_DESCRIPTOR     inJackEmb;
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {  
+        inJackEmb.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR);
+        inJackEmb.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+        inJackEmb.SubType            = MIDI_IN_JACK;
+        inJackEmb.bJackType          = MIDI_JACK_EMBEDDED;
+        inJackEmb.bJackId            = i + 1 ;
+        inJackEmb.iJack              = STRING_IJACK_IN_ID;  // UMK 4X IN
+        memcpy(p,&inJackEmb,sizeof(MIDI_IN_JACK_DESCRIPTOR) );
+        p += sizeof(MIDI_IN_JACK_DESCRIPTOR);
+    }
+
+    MIDI_IN_JACK_DESCRIPTOR     inJackExt;
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {  
+        inJackExt.bLength            = sizeof(MIDI_IN_JACK_DESCRIPTOR);
+        inJackExt.bDescriptorType    = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+        inJackExt.SubType            = MIDI_IN_JACK;
+        inJackExt.bJackType          = MIDI_JACK_EXTERNAL;
+        inJackExt.bJackId            = 0x11 + i;
+        inJackExt.iJack              = 0x00;
+        memcpy(p,&inJackExt,sizeof(MIDI_IN_JACK_DESCRIPTOR) );
+        p += sizeof(MIDI_IN_JACK_DESCRIPTOR);
+    }
+
+    MIDI_OUT_JACK_DESCRIPTOR(1) outJackEmb;
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {  
+        outJackEmb.bLength           = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1);
+        outJackEmb.bDescriptorType   = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+        outJackEmb.SubType           = MIDI_OUT_JACK;
+        outJackEmb.bJackType         = MIDI_JACK_EMBEDDED;
+        outJackEmb.bJackId           = 0x21 + i;
+        outJackEmb.bNrInputPins      = 0x01;
+        outJackEmb.baSourceId[0]     = 0x11 + i; // IN External
+        outJackEmb.baSourcePin[0]    = 0x01;
+        outJackEmb.iJack             = STRING_IJACK_OUT_ID;  // UMK 4X OUT
+        memcpy(p,&outJackEmb,MIDI_OUT_JACK_DESCRIPTOR_SIZE(1) );
+        p += MIDI_OUT_JACK_DESCRIPTOR_SIZE(1);
+    }
+
+    MIDI_OUT_JACK_DESCRIPTOR(1) outJackExt;
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {  
+        outJackExt.bLength           = MIDI_OUT_JACK_DESCRIPTOR_SIZE(1);
+        outJackExt.bDescriptorType   = USB_DESCRIPTOR_TYPE_CS_INTERFACE;
+        outJackExt.SubType           = MIDI_OUT_JACK;
+        outJackExt.bJackType         = MIDI_JACK_EXTERNAL;
+        outJackExt.bJackId           = 0x31 + i;
+        outJackExt.bNrInputPins      = 0x01;
+        outJackExt.baSourceId[0]     = i + 1 ; // IN Embedded
+        outJackExt.baSourcePin[0]    = 0x01;
+        outJackExt.iJack             = 0x00;
+        memcpy(p,&outJackExt,MIDI_OUT_JACK_DESCRIPTOR_SIZE(1) );
+        p += MIDI_OUT_JACK_DESCRIPTOR_SIZE(1);         
+    }
+
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataOutEndpoint;
+    DataOutEndpoint.bLength            = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT);
+    DataOutEndpoint.bDescriptorType    = USB_DESCRIPTOR_TYPE_ENDPOINT;
+    DataOutEndpoint.bEndpointAddress   = (USB_DESCRIPTOR_ENDPOINT_OUT | MIDI_STREAM_OUT_ENDP);
+    DataOutEndpoint.bmAttributes       = USB_EP_TYPE_BULK;
+    DataOutEndpoint.wMaxPacketSize     = MIDI_STREAM_EPSIZE;
+    DataOutEndpoint.bInterval          = 0x00;
+    DataOutEndpoint.bRefresh           = 0x00;
+    DataOutEndpoint.bSynchAddress      = 0x00;
+    memcpy(p,&DataOutEndpoint,sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT) );
+    p += sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT);
+
+    MS_CS_BULK_ENDPOINT_DESCRIPTOR(1) MS_CS_DataOutEndpoint;
+    MS_CS_DataOutEndpoint.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1; 
+    MS_CS_DataOutEndpoint.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT,
+    MS_CS_DataOutEndpoint.SubType              = 0x01,
+    MS_CS_DataOutEndpoint.bNumEmbMIDIJack      = nbPorts ;
+    memcpy(p,&MS_CS_DataOutEndpoint, MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1 );
+    p += ( &MS_CS_DataOutEndpoint.baAssocJackID[0] - (uint8_t *)&MS_CS_DataOutEndpoint );
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {
+        *p = i + 1 ;
+        p++;
+    }
+
+    MIDI_USB_DESCRIPTOR_ENDPOINT       DataInEndpoint;
+    DataInEndpoint.bLength          = sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT);
+    DataInEndpoint.bDescriptorType  = USB_DESCRIPTOR_TYPE_ENDPOINT;
+    DataInEndpoint.bEndpointAddress = (USB_DESCRIPTOR_ENDPOINT_IN | MIDI_STREAM_IN_ENDP);
+    DataInEndpoint.bmAttributes     = USB_EP_TYPE_BULK;
+    DataInEndpoint.wMaxPacketSize   = MIDI_STREAM_EPSIZE;
+    DataInEndpoint.bInterval        = 0x00;
+    DataInEndpoint.bRefresh         = 0x00;
+    DataInEndpoint.bSynchAddress    = 0x00;
+    memcpy(p,&DataInEndpoint,sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT) );
+    p += sizeof(MIDI_USB_DESCRIPTOR_ENDPOINT);
+  
+    MS_CS_BULK_ENDPOINT_DESCRIPTOR(1) MS_CS_DataInEndpoint;
+    MS_CS_DataInEndpoint.bLength              = MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1;
+    MS_CS_DataInEndpoint.bDescriptorType      = USB_DESCRIPTOR_TYPE_CS_ENDPOINT ;
+    MS_CS_DataInEndpoint.SubType              = 0x01 ;
+    MS_CS_DataInEndpoint.bNumEmbMIDIJack      = nbPorts ;
+    memcpy(p,&MS_CS_DataInEndpoint, MS_CS_BULK_ENDPOINT_DESCRIPTOR_SIZE(1) + nbPorts - 1 );
+    p += ( &MS_CS_DataInEndpoint.baAssocJackID[0] - (uint8_t *)&MS_CS_DataInEndpoint );
+    for ( uint8_t i = 0 ; i < nbPorts ; i++ ) {
+        *p = i + 0x21 ;
+        p++;
+    }
+}
 
 #ifdef USB_MIDI_PRODUCT_STRING
 

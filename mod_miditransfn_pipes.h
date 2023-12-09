@@ -525,7 +525,7 @@ boolean MidiTransFn_ClockDivider(uint8_t portType, midiPacket_t *pkSource, midiP
 boolean MidiTransFn_LoopBack_CheckParms(transPipe_t *pipe)
 {
   if ( pipe->par1 > 3 ) return false;
-  if ( pipe->par1 == 0 && pipe->par3 > USBCABLE_INTERFACE_MAX ) return false;
+  if ( pipe->par1 == 0 && pipe->par3 > UsbCableInterfaceMax ) return false;
   if ( pipe->par1 == 1 && pipe->par3 > B_SERIAL_INTERFACE_MAX ) return false;
   if ( pipe->par1 == 2 && pipe->par3 > VIRTUAL_INTERFACE_MAX ) return false;
   if ( pipe->par2 == 0 || pipe->par2 > 0B1111 ) return false;

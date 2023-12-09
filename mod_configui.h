@@ -277,7 +277,6 @@ uint16_t PowInt(uint8_t p,uint8_t n)
   return pow;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // USB serial get a number of N digit (long)
 ///////////////////////////////////////////////////////////////////////////////
@@ -429,7 +428,7 @@ void ShowMidiRoutingLine(uint8_t port,uint8_t portType)
   Serial.print("     | ");
 
 	// Cable IN targets ports
-  ShowMask16(cbInTgMsk,USBCABLE_INTERFACE_MAX);
+  ShowMask16(cbInTgMsk,UsbCableInterfaceMax);
   Serial.print(" | ");
 
   // Jack Out targets ports
@@ -488,7 +487,7 @@ void ShowMidiRouting(uint8_t portType)
   // Cable
 	if (portType == PORT_TYPE_CABLE) {
       SerialPrintf("%M %M",str_CABLE,str_OUT);
-			maxPorts = USBCABLE_INTERFACE_MAX;
+			maxPorts = UsbCableInterfaceMax;
 	}
 	// Serial
 	else
@@ -576,7 +575,7 @@ void ShowGlobalSettings()
 	Serial.write(EE_Prm.productString, sizeof(EE_Prm.productString));
 	Serial.println();
   // Midi ports
-  SerialPrintf("%M %s(s) number : %y:%d - %y:%d - %y:%d%n",str_MIDI,str_PORT,str_CABLE,USBCABLE_INTERFACE_MAX,str_JACK,SERIAL_INTERFACE_COUNT,str_VIRTUAL,VIRTUAL_INTERFACE_MAX);
+  SerialPrintf("%M %s(s) number : %y:%d - %y:%d - %y:%d%n",str_MIDI,str_PORT,str_CABLE,UsbCableInterfaceMax,str_JACK,SERIAL_INTERFACE_COUNT,str_VIRTUAL,VIRTUAL_INTERFACE_MAX);
   // Bus Mode
   SerialPrintf("%nI2C Bus mode        : %M%n",EE_Prm.I2C_BusModeState == B_DISABLED ? str_DISABLED:str_ENABLED);
 	SerialPrintf("I2C %s       : %d (%s)%n",str_DEVICE_ID_B,EE_Prm.I2C_DeviceId,IS_MASTER ? str_MASTER:str_SLAVE);
@@ -592,7 +591,7 @@ uint16_t AskMidiRoutingTargets(uint8_t portType,uint8_t portTypeOut, uint8_t por
 	uint16_t targetsMsk = 0;
 	uint8_t  portMax;
 
-  if      (portTypeOut == PORT_TYPE_CABLE) portMax = USBCABLE_INTERFACE_MAX;
+  if      (portTypeOut == PORT_TYPE_CABLE) portMax = UsbCableInterfaceMax;
   else if (portTypeOut == PORT_TYPE_JACK ) portMax = SERIAL_INTERFACE_COUNT;
   else if (portTypeOut == PORT_TYPE_VIRTUAL) portMax = VIRTUAL_INTERFACE_MAX;
   else return 0;
@@ -635,7 +634,7 @@ void AskMidiRouting(uint8_t portType)
   if  (portType != PORT_TYPE_CABLE && portType != PORT_TYPE_JACK && portType != PORT_TYPE_ITHRU && portType != PORT_TYPE_VIRTUAL) return ;
 
   if  (portType == PORT_TYPE_CABLE) {
-    portMax = USBCABLE_INTERFACE_MAX;
+    portMax = UsbCableInterfaceMax;
     SerialPrintf("%M %M",str_CABLE,str_OUT);
   }
   else if (portType == PORT_TYPE_JACK || portType == PORT_TYPE_ITHRU) {
@@ -932,6 +931,7 @@ void ShowConfigMenu()
 					EE_Prm.I2C_BusModeState = (EE_Prm.I2C_BusModeState == B_ENABLED)? B_DISABLED:B_ENABLED ;
           SerialPrintf("%s !%n",str_DONE_B);
 				}
+        UsbCableInterfaceMax = EE_Prm.I2C_BusModeState ? 16:4;
 			  showMenu = false;
 				break;
 
