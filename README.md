@@ -6,6 +6,10 @@
 
 # NEWS
 
+## Limited number of th new UMK4x4 PCB v2.3 available at Tindie right now  !
+The inclination towards smaller hardware devices has made it increasingly difficult to make use of DIN connectors for MIDI In/Out in the past few years. Many manufacturers have chosen to use 3.5mm "TRS" connectors instead. It is why The KikGen Labs team released a new UM4x4 V2.3 board based on the STM32F103 Bluepill. This new board uses 3,5MM TRS jacks instead of midi DIN, with full MMA RP-054 type A compliance. Midi DIN is still possible obviously, under the form of a 4 mini 3.5mm jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
+<img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true"  />   <img width="250" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/um4x4-mini-jack-to-midi-board.png?raw=true"  />
+
 ## New release V2.5.2 : Velocity curve transformation pipes
 <img width="300" border="0" src="https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/doc/um4x4-velocity-orignew-curves.png"/>
 3 news pipes have been added in that release :
@@ -15,10 +19,6 @@
 * VLCURV3 : allows you to choose a predefined velocity curve between 6 presets : compressed for hard player, medium velocity, compresser/expander, low velocity 1 & 2, top and bottom ends cut
 
 https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.2
-
-## New UMK4x4 PCB v2.3 will be soon available at Tindie !
-The inclination towards smaller hardware devices has made it increasingly difficult to make use of DIN connectors for MIDI In/Out in the past few years. Many manufacturers have chosen to use 3.5mm "TRS" connectors instead. It is why The KikGen Labs team is currently working on the new UM4x4 V2.3 based on the STM32F103 Bluepill. This new board uses 3,5MM TRS jacks instead of midi DIN, with full MMA RP-054 type A compliance. Midi DIN is still possible obviously, under the form of a 4 mini 3.5mm jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
-<img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true"  />   <img width="250" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/um4x4-mini-jack-to-midi-board.png?raw=true"  />
 
 ## New release : V2.5.1 correcting the MSGFLTR pipe bug
 This v2.5.1 release includes a bug correction in parameters validation of the MSGFLTR pipe that was blocking the function #2.
