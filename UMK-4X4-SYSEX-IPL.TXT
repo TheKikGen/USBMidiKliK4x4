@@ -82,7 +82,7 @@ port type : cable = 0 | jack = 1 | virtual:2 | ithru = 3
 06 Global functions
 
 06 00 Hardware reset
-F0 77 77 78 06 0A F7
+F0 77 77 78 06 00 F7
 
 06 01 Identity request
 F0 77 77 78 06 01 F7
