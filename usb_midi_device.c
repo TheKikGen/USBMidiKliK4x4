@@ -745,7 +745,7 @@ static uint8* usb_midi_GetConfigDescriptor(uint16_t length) {
 static uint8* usb_midi_GetStringDescriptor(uint16_t length) {
     uint8_t wValue0 = pInformation->USBwValue0;
 
-    if (wValue0 >= sizeof(usbMIDIString_Descriptor) ) {
+    if (wValue0 >= (sizeof(usbMIDIString_Descriptor) / sizeof(usbMIDIString_Descriptor[0])) ) {
         return NULL;
     }
     return Standard_GetDescriptorData(length, &usbMIDIString_Descriptor[wValue0]);
