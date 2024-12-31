@@ -49,6 +49,8 @@ __ __| |           |  /_) |     ___|             |           |
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 5
+#define VERSION_PATCH 3
+
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890
@@ -151,10 +153,35 @@ __ __| |           |  /_) |     ___|             |           |
 
 #endif
 
-//builds a version that looks like 1.160214.2041
+
+#if VERSION_PATCH > 100
+
+#define VERSION_PATCH_INIT \
+    ((VERSION_PATCH / 100) + '0'), \
+    (((VERSION_PATCH % 100) / 10) + '0'), \
+    ((VERSION_PATCH % 10) + '0')
+
+#elif VERSION_PATCH > 10
+
+#define VERSION_PATCH_INIT \
+    ((VERSION_PATCH / 10) + '0'), \
+    ((VERSION_PATCH % 10) + '0')
+
+#else
+
+#define VERSION_PATCH_INIT \
+    (VERSION_PATCH + '0')
+
+#endif
+
+//builds a version that looks like 2.53.160214.2041
+
 const char TimestampedVersion[] =
 {
     VERSION_MAJOR_INIT,
+    '.',
+    VERSION_MINOR_INIT,
+    VERSION_PATCH_INIT,
     '.',
       BUILD_YEAR_CH2,
     BUILD_YEAR_CH3,

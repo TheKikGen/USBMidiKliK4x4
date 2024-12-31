@@ -325,7 +325,7 @@ void EE_PrmInit(bool factorySettings)
 
 		if  ( memcmp( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) )
 						|| EE_Prm.prmVersion != EE_PRMVER
-						|| ( EE_Prm.majorVersion != VERSION_MAJOR && EE_Prm.minorVersion != VERSION_MINOR )
+						|| ( EE_Prm.majorVersion != VERSION_MAJOR && EE_Prm.minorVersion != ( VERSION_MINOR*10 + VERSION_PATCH) )
 						|| EE_Prm.size != sizeof(EEPROM_Prm_t)
 				) factorySettings = true;
 		else
@@ -350,7 +350,7 @@ void EE_PrmInit(bool factorySettings)
 			memcpy( EE_Prm.signature,EE_SIGNATURE,sizeof(EE_Prm.signature) );
 
 			EE_Prm.majorVersion = VERSION_MAJOR;
-			EE_Prm.minorVersion = VERSION_MINOR;
+			EE_Prm.minorVersion = VERSION_MINOR*10 + VERSION_PATCH;
 
 			EE_Prm.prmVersion = EE_PRMVER;
 			EE_Prm.size = sizeof(EEPROM_Prm_t);

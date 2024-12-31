@@ -289,7 +289,7 @@ enum BusDeviceSate {
 // The following structure start at the first address of the EEPROM
 ///////////////////////////////////////////////////////////////////////////////
 #define EE_SIGNATURE "UMK"
-#define EE_PRMVER 27
+#define EE_PRMVER 28
 
 typedef struct {
         uint8_t         signature[3];
@@ -297,7 +297,7 @@ typedef struct {
         uint8_t         majorVersion;
         uint8_t         minorVersion;
         uint8_t         prmVersion;
-        uint8_t         TimestampedVersion[14];
+        uint8_t         TimestampedVersion[17];
 
         // I2C device
         uint8_t         I2C_DeviceId;
