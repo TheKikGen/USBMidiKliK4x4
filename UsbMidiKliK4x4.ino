@@ -259,15 +259,19 @@ void LED_Update()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// FlashAllLeds . 0 = Alls. 1 = In. 2 = Out
+// FlashAllLeds . 0 = Alls. 
+//                1 = In
+//                2 = Out
+//                3 = (In1,Out1) and so on
 ///////////////////////////////////////////////////////////////////////////////
 void FlashAllLeds(uint8_t mode)
 {
   for ( uint8_t f=0 ; f!= 4 ; f++ ) {
 		#ifdef LED_MIDI_SIZE
 			for ( uint8_t i=0 ; i != LED_MIDI_SIZE ; i++ ) {
-					if ( mode == 0 || mode ==1 ) FLASH_LED_IN(i);
-					if ( mode == 0 || mode ==2 ) FLASH_LED_OUT(i);
+					if ( mode == 0 || mode ==1 || mode == 3 ) FLASH_LED_IN(i);
+					if ( mode == 0 || mode ==2 || mode == 3 ) FLASH_LED_OUT(i);
+          if ( mode == 3 ) delay(250);
 			}
 		#else
 			FLASH_LED_OUT(0);
@@ -903,11 +907,17 @@ void USBMidi_Init(uint8_t nbports)
   usb_midi_init_descriptor_config(nbports);
 	usb_midi_set_vid_pid(EE_Prm.vendorID,EE_Prm.productID);
 	usb_midi_set_product_string((char *) &EE_Prm.productString);
-
+  LED_TurnOff(&LED_ConnectTick);
+  
   MidiUSB.begin() ;
   
   // Note : Usually around 4 s to fully detect USB Midi on the host
-  while (! MidiUSB.isConnected() ) delay(500);
+  unsigned long USBIdleMillis = millis() + ithruUSBIdlelMillis ;
+  // Note : Usually around 4 s to fully detect USB Midi on the host
+  while (! MidiUSB.isConnected() ) { 
+      FlashAllLeds(3);
+      if ( millis() > USBIdleMillis ) break ;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
