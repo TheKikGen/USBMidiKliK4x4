@@ -8,7 +8,7 @@
 
 ## New release V2.5.3 : Correction of the blocking issue in standalone mode 
 The previous release introduced an issue blocking UMK firmware when it was used in standalone mode (with a power supply only).
-it is now corrected.  You can adjust the USB detection time with the option #7 in the configuration menu (USB idle time), or by sending the appropriate sysex (Intelligent thru mode settings).  Default is 30 seconds.
+it is now corrected.  You can adjust the USB detection time with the option #7 in the configuration menu (USB idle time), or by sending the appropriate sysex (Intelligent thru mode settings).  Default USB idle is 30 seconds: that means the standalone mode will be activated after 30 seconds.
 
 ## Limited number of the new UMK4x4 PCB v2.3 available at Tindie right now  !
 The inclination towards smaller hardware devices has made it increasingly difficult to make use of DIN connectors for MIDI In/Out in the past few years. Many manufacturers have chosen to use 3.5mm "TRS" connectors instead. It is why The KikGen Labs team released a new UM4x4 V2.3 board based on the STM32F103 Bluepill. This new board uses 3,5MM TRS jacks instead of midi DIN, with full MMA RP-054 type A compliance. Midi DIN is still possible obviously, under the form of a 4 mini 3.5mm jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
