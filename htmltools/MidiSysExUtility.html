@@ -1,0 +1,327 @@
+<html><head><base href="." />
+<title>MIDI SysEx Utility by The KikGen</title>
+<style>
+    body {
+        background-color: #1a1a1a;
+        color: #33ff33;
+        font-family: 'Courier New', monospace;
+        padding: 20px;
+    }
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #33ff33;
+        padding-bottom: 10px;
+    }
+    
+    .controls {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    select, input {
+        background: #000;
+        color: #33ff33;
+        border: 1px solid #33ff33;
+        padding: 8px;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .sysex-input {
+        grid-column: 1 / -1;
+    }
+    
+    button {
+        background: #000;
+        color: #33ff33;
+        border: 2px solid #33ff33;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin: 0 5px;
+        display: inline-block;
+    }
+    
+    button:hover {
+        background: #33ff33;
+        color: #000;
+    }
+
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .logs {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .log-window {
+        background: #001100;
+        border: 1px solid #33ff33;
+        height: 400px;
+        padding: 10px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        position: relative;
+    }
+    
+    .log-window::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.15) 0px,
+            rgba(0, 0, 0, 0.15) 1px,
+            transparent 1px,
+            transparent 2px
+        );
+        pointer-events: none;
+    }
+    
+    .log-title {
+        text-align: center;
+        margin-bottom: 5px;
+    }
+
+    .crt-effect {
+        text-shadow: 0 0 5px #33ff33;
+        animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker {
+        0% { opacity: 0.98; }
+        50% { opacity: 1; }
+        100% { opacity: 0.98; }
+    }
+
+    .all-buttons {
+        text-align: center;
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .sysex-message {
+        cursor: pointer;
+    }
+
+    .sysex-message:hover {
+        background-color: #002200;
+    }
+
+    #disconnectButton {
+        margin-left: auto;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1 class="crt-effect">MIDI SysEx Utility by The KikGen</h1>
+    </div>
+    
+    <div class="controls">
+        <div>
+            <label for="midiIn">MIDI Input Port:</label>
+            <select id="midiIn"></select>
+        </div>
+        <div>
+            <label for="midiOut">MIDI Output Port:</label>
+            <select id="midiOut"></select>
+        </div>
+        <div class="sysex-input">
+            <label for="sysexMessage">SysEx Message (hex bytes, space-separated):</label>
+            <input type="text" id="sysexMessage" placeholder="F0 00 01 02 F7">
+        </div>
+    </div>
+    
+    <div class="all-buttons">
+        <button id="sendButton">Send Message</button>
+        <button id="clearSentLog">Clear Sent Msg log</button>
+        <button id="clearReceivedLog">Clear Rec Msg log</button>
+        <button id="clearAllLogs">Clear All Logs</button>
+        <button id="disconnectButton" disabled>Disconnect</button>
+    </div>
+    
+    <div class="logs">
+        <div>
+            <div class="log-title">Messages Sent</div>
+            <div class="log-window" id="sentLog"></div>
+        </div>
+        <div>
+            <div class="log-title">Messages Received</div>
+            <div class="log-window" id="receivedLog"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let midiInput = null;
+let midiOutput = null;
+let midiAccess = null;
+
+function isValidSysEx(message) {
+    const bytes = message.split(' ').map(hex => parseInt(hex, 16));
+    return bytes.length >= 2 && 
+           bytes[0] === 0xF0 && 
+           bytes[bytes.length - 1] === 0xF7 &&
+           !bytes.some(isNaN);
+}
+
+function extractSysExFromLogEntry(text) {
+    const parts = text.split(' - ');
+    if (parts.length === 2) {
+        return parts[1].trim();
+    }
+    return null;
+}
+
+async function initializeMIDI() {
+    try {
+        midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+        
+        document.getElementById('midiIn').innerHTML = '';
+        document.getElementById('midiOut').innerHTML = '';
+        
+        midiAccess.inputs.forEach(input => {
+            const option = document.createElement('option');
+            option.text = input.name;
+            option.value = input.id;
+            document.getElementById('midiIn').appendChild(option);
+        });
+        
+        midiAccess.outputs.forEach(output => {
+            const option = document.createElement('option');
+            option.text = output.name;
+            option.value = output.id;
+            document.getElementById('midiOut').appendChild(option);
+        });
+        
+        document.getElementById('midiIn').addEventListener('change', (e) => {
+            if (midiInput) {
+                midiInput.onmidimessage = null;
+            }
+            midiInput = midiAccess.inputs.get(e.target.value);
+            if (midiInput) {
+                midiInput.onmidimessage = handleMIDIMessage;
+            }
+        });
+        
+        document.getElementById('midiOut').addEventListener('change', (e) => {
+            midiOutput = midiAccess.outputs.get(e.target.value);
+        });
+        
+        document.getElementById('disconnectButton').disabled = false;
+        
+    } catch (err) {
+        console.error('MIDI Access Failed:', err);
+        logMessage('Failed to initialize MIDI. Check browser compatibility.', 'receivedLog');
+    }
+}
+
+function disconnect() {
+    if (midiInput) {
+        midiInput.onmidimessage = null;
+        midiInput = null;
+    }
+    midiOutput = null;
+    
+    document.getElementById('midiIn').innerHTML = '';
+    document.getElementById('midiOut').innerHTML = '';
+    
+    document.getElementById('disconnectButton').disabled = true;
+    logMessage('MIDI connections disconnected', 'receivedLog');
+    
+    setTimeout(() => {
+        document.getElementById('disconnectButton').disabled = false;
+        initializeMIDI();
+    }, 1000);
+}
+
+function handleMIDIMessage(message) {
+    if (message.data[0] === 0xF0) {
+        const hexData = Array.from(message.data)
+            .map(byte => byte.toString(16).padStart(2, '0').toUpperCase())
+            .join(' ');
+        logMessage(`${hexData}`, 'receivedLog');
+    }
+}
+
+function logMessage(message, logId) {
+    const log = document.getElementById(logId);
+    const entry = document.createElement('div');
+    entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+    
+    if (isValidSysEx(message)) {
+        entry.classList.add('sysex-message');
+        entry.addEventListener('click', () => {
+            const sysex = extractSysExFromLogEntry(entry.textContent);
+            if (sysex) {
+                document.getElementById('sysexMessage').value = sysex;
+            }
+        });
+    }
+    
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function sendSysExMessage() {
+    if (!midiOutput) {
+        logMessage('No MIDI output selected!', 'sentLog');
+        return;
+    }
+    
+    const messageText = document.getElementById('sysexMessage').value.trim();
+    const bytes = messageText.split(' ').map(hex => parseInt(hex, 16));
+    
+    if (bytes.some(isNaN)) {
+        logMessage('Invalid hex format!', 'sentLog');
+        return;
+    }
+    
+    try {
+        midiOutput.send(bytes);
+        logMessage(`${messageText}`, 'sentLog');
+    } catch (err) {
+        logMessage(`Error sending message: ${err}`, 'sentLog');
+    }
+}
+
+function clearLog(logId) {
+    const log = document.getElementById(logId);
+    log.innerHTML = '';
+}
+
+function clearAllLogs() {
+    clearLog('sentLog');
+    clearLog('receivedLog');
+}
+
+document.getElementById('sendButton').addEventListener('click', sendSysExMessage);
+document.getElementById('disconnectButton').addEventListener('click', disconnect);
+document.getElementById('clearSentLog').addEventListener('click', () => clearLog('sentLog'));
+document.getElementById('clearReceivedLog').addEventListener('click', () => clearLog('receivedLog'));
+document.getElementById('clearAllLogs').addEventListener('click', clearAllLogs);
+
+document.addEventListener('DOMContentLoaded', initializeMIDI);
+</script>
+</body></html>

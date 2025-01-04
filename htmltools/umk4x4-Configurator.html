@@ -1,0 +1,844 @@
+<html><head><base href="https://umk4x4.com/"><title>UMK 4x4 Configurator</title><style>
+    body {
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f0f0f0;
+        color: #333;
+    }
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .status-bar {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        padding: 10px;
+        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .tab-container {
+        background-color: #fff;
+        border-radius: 5px;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .tab-buttons {
+        display: flex;
+        margin-bottom: 20px;
+    }
+    .tab-button {
+        background-color: #3498db;
+        border: none;
+        color: #fff;
+        padding: 10px 20px;
+        margin-right: 5px;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background-color 0.3s;
+    }
+    .tab-button:hover {
+        background-color: #2980b9;
+    }
+    .tab-button.active {
+        background-color: #2c3e50;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    select, button, input {
+        margin: 10px 0;
+        padding: 8px;
+        border: 1px solid #bdc3c7;
+        border-radius: 3px;
+        font-size: 14px;
+    }
+    .command-button {
+        background-color: #2ecc71;
+        border: none;
+        color: #fff;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background-color 0.3s;
+    }
+    .command-button:hover {
+        background-color: #27ae60;
+    }
+    .log-container {
+        background-color: #000;
+        color: #2ecc71;
+        padding: 10px;
+        font-family: 'Courier New', monospace;
+        height: 200px;
+        overflow-y: scroll;
+        margin-top: 20px;
+        border-radius: 3px;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 300px;
+        text-align: center;
+        border-radius: 5px;
+    }
+    h1, h2 {
+        color: #2c3e50;
+    }
+    .hourglass {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .input-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .input-group label {
+        flex: 0 0 120px;
+        text-align: right;
+        margin-right: 10px;
+    }
+    .input-group input {
+        flex: 1;
+    }
+    .logo {
+        width: 50px;
+        height: 50px;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+    .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    #routingMatrixContainer {
+        max-width: 600px;
+        overflow-x: auto;
+        position: relative;
+    }
+    .routing-matrix {
+        margin: 20px 0;
+        border-collapse: collapse;
+        border-spacing: 0;
+        background: white;
+        font-size: 10px;
+        max-height: 400px;
+        display: block;
+        overflow-y: auto;
+    }
+    .routing-matrix th:first-child {
+        position: sticky;
+        left: 0;
+        background: #e0e0e0;
+        z-index: 2;
+        border-right: 1px solid #ccc;
+    }
+    .routing-matrix th {
+        position: sticky;
+        top: 0;
+        background: #e0e0e0;
+        z-index: 1;
+        white-space: nowrap;
+        color: #222;
+        border: 1px solid #ccc;
+    }
+    .routing-matrix tbody tr th {
+        white-space: nowrap;
+        background: #e0e0e0;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        color: #222;
+    }
+    .routing-matrix th, .routing-matrix td {
+        padding: 1px;
+        border: 1px solid #ccc;
+    }
+    .routing-matrix td {
+        padding: 1px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        text-align: center;
+        vertical-align: middle;
+        width: 20px;
+        height: 20px;
+    }
+    .routing-matrix th[data-port-type="usb"],
+    .routing-matrix td[data-port-type="usb"] {
+        background-color: #e8f4f8;
+        border: 1px solid #ccc;
+    }
+    .route-point {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        background: #ddd;
+        cursor: pointer;
+        margin: 0 auto;
+        position: relative;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .route-point.active {
+        background: #e74c3c;
+    }
+
+    .clear-routes-btn {
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 3px;
+        cursor: pointer;
+        margin: 10px 0;
+    }
+
+    .clear-routes-btn:hover {
+        background-color: #c0392b;
+    }
+    .radio-group {
+        display: flex;
+        gap: 20px;
+    }
+
+    .radio-group label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .radio-group input[type="radio"] {
+        margin: 0;
+    }
+    .routing-matrix tr td.highlight {
+        background-color: #e8f4f8 !important;
+    }
+
+    .routing-matrix th.highlight {
+        background-color: #c8e4f8 !important;
+    }
+    .routing-matrix tr td.highlight-path {
+        background-color: #ffebeb !important;
+    }
+
+    .routing-matrix th.highlight-path {
+        background-color: #ffcaca !important;
+    }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&amp;display=swap" rel="stylesheet">
+</head><body>
+<div class="status-bar" id="statusBar">Not connected</div>
+<div class="container">
+    <div class="header">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBkPSJNNDgwIDI1NmMwIDEyMy43LTEwMC4zIDIyNC0yMjQgMjI0UzMyIDM3OS43IDMyIDI1NiAxMzIuMyAzMiAyNTYgMzJzMjI0IDEwMC4zIDIyNCAyMjR6TTggMjU2QzggMzkzLjQgMTE4LjYgNTA0IDI1NiA1MDRzMjQ4LTExMC42IDI0OC0yNDhTMzkzLjQgOCAyNTYgOCA4IDExOC42IDggMjU2em0yMjQtNDh2OTZjMCAxNy43IDE0LjMgMzIgMzIgMzJzMzItMTQuMyAzMi0zMlYyMDhjMC0xNy43LTE0LjMtMzItMzItMzJzLTMyIDE0LjMtMzIgMzJ6bTk2LTMyYy0xNy43IDAtMzIgMTQuMy0zMiAzMnY5NmMwIDE3LjcgMTQuMyAzMiAzMiAzMnMzMi0xNC4zIDMyLTMyVjIwOGMwLTE3LjctMTQuMy0zMi0zMi0zMnpNMjI0IDE2MGMtMTcuNyAwLTMyIDE0LjMtMzIgMzJ2OTZjMCAxNy43IDE0LjMgMzIgMzIgMzJzMzItMTQuMyAzMi0zMlYxOTJjMC0xNy43LTE0LjMtMzItMzItMzJ6bS05NiAzMmMtMTcuNyAwLTMyIDE0LjMtMzIgMzJ2OTZjMCAxNy43IDE0LjMgMzIgMzIgMzJzMzItMTQuMyAzMi0zMlYyMjRjMC0xNy43LTE0LjMtMzItMzItMzJ6IiBmaWxsPSIjMmMzZTUwIi8+PC9zdmc+" alt="MIDI Device Logo" class="logo">
+        <h1>UMK 4x4 Configurator</h1>
+    </div>
+    <p>Configure your USBMIDIKlik 4x4 USB MIDI interface by The KikGen Labs</p>
+    <div class="tab-buttons">
+        <button class="tab-button active" onclick="openTab(event, &apos;midiSettings&apos;)">MIDI Settings</button>
+        <button class="tab-button" onclick="openTab(event, &apos;globalFunctions&apos;)">Global UMK Functions</button>
+        <button class="tab-button" onclick="openTab(event, &apos;usbSettings&apos;)">USB Device Settings</button>
+        <button class="tab-button" onclick="openTab(event, &apos;midiRouting&apos;)">MIDI Routing</button>
+        <button class="tab-button" onclick="openTab(event, &apos;sendSysex&apos;)">Send Sysex</button>
+    </div>
+
+    <div id="midiSettings" class="tab-content active">
+        <h2>MIDI Settings</h2>
+        <div class="input-group">
+            <label for="midiInputs">MIDI Input:</label>
+            <select id="midiInputs">
+                <option value>Select MIDI input</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="midiOutputs">MIDI Output:</label>
+            <select id="midiOutputs">
+                <option value>Select MIDI output</option>
+            </select>
+        </div>
+        <button id="connectButton" onclick="toggleConnection()">Connect Device</button>
+    </div>
+
+    <div id="globalFunctions" class="tab-content">
+        <h2>Global UMK Functions</h2>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;00&apos;)">Hardware Reset</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;01&apos;)">Identity Request</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;02&apos;)">Sysex Acknowledgment Toggle</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;04&apos;)">Factory Settings</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;05&apos;)">Clear All</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;06&apos;)">Save Settings to Flash Memory</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;08&apos;)">Reboot in Configuration Mode</button>
+        <button class="command-button" onclick="sendCommand(&apos;06&apos;, &apos;09&apos;)">Reboot in Update Mode</button>
+    </div>
+
+    <div id="usbSettings" class="tab-content" style="display: block;">
+      <h2>USB Device Settings</h2>
+      <div class="input-group">
+          <label for="usbProductString">Product String:</label>
+          <input type="text" id="usbProductString" placeholder="Enter USB product string">
+      <button class="command-button" onclick="setUsbProductString()">Set USB Product String</button></div>
+      <div class="input-group">
+          <label for="usbProductId">Product ID and Vendor ID:</label>
+          <input type="text" id="usbVendorId" placeholder="Enter Vendor ID (nn nn nn nn)"><input type="text" id="usbProductId" placeholder="Enter Product ID (nn nn nn nn)">
+      <button class="command-button" onclick="setUsbIds()">Set USB VID and PID</button></div>    
+    </div>
+
+    <div id="midiRouting" class="tab-content">
+        <h2>MIDI Port Routing</h2>
+        <button class="clear-routes-btn" onclick="DefaultRoutes()">Reset routing to default</button>
+        <button class="command-button" onclick="refreshRoutes()">Refresh Routes</button>
+        <button class="command-button" onclick="sendAllRoutes()">Send Routes</button>
+        <div class="input-group">
+            <label>Matrix Size:</label>
+            <div class="radio-group">
+                <label>
+                    <input type="radio" name="matrixSize" value="4" checked>
+                    4x4
+                </label>
+                <label>
+                    <input type="radio" name="matrixSize" value="8">
+                    8x8
+                </label>
+                <label>
+                    <input type="radio" name="matrixSize" value="16">
+                    16x16
+                </label>
+            </div>
+        </div>
+        <div id="routingMatrixContainer"></div>
+    </div>
+
+    <div id="sendSysex" class="tab-content">
+        <h2>Send Sysex Messages</h2>
+        <div class="input-group">
+            <label for="sysexInput">Sysex Message:</label>
+            <input type="text" id="sysexInput" placeholder="Enter sysex message (hex bytes separated by spaces)">
+        </div>
+        <button class="command-button" onclick="sendCustomSysex()">Send Sysex</button>
+    </div>
+
+    <button class="command-button" onclick="clearLog()">Clear log</button>
+    <div class="log-container" id="midiLog"></div>
+</div>
+
+<div id="resetModal" class="modal">
+    <div class="modal-content">
+        <h3>Reset to factory settings</h3>
+        <p>Please wait while the device reboots...</p>
+        <div class="hourglass"></div>
+    </div>
+</div>
+
+<script>
+const VERSION="61";
+let currentMatrixSize = 4;
+const MIDI_PORTS_MAX = 16;
+const MIDI_PORTS = {
+  inputs: [...Array(16).fill().map((_, i) => `Jk In ${i + 1}`), ...Array(16).fill().map((_, i) => `Usb Out ${i + 1}`)],
+  outputs: [...Array(16).fill().map((_, i) => `Jk Out ${i + 1}`), ...Array(16).fill().map((_, i) => `Usb In ${i + 1}`)]
+};
+let routingMatrix = {};
+let dumpMode = 0;
+
+
+function initRoutingMatrix() {
+  const container = document.getElementById('routingMatrixContainer');
+  const table = document.createElement('table');
+  table.className = 'routing-matrix';
+  const headerRow = document.createElement('tr');
+  const cornerTh = document.createElement('th');
+  headerRow.appendChild(cornerTh);
+  const visibleOutputs = [...MIDI_PORTS.outputs.slice(0, currentMatrixSize), ...MIDI_PORTS.outputs.slice(16, 16 + currentMatrixSize)];
+  const visibleInputs = [...MIDI_PORTS.inputs.slice(0, currentMatrixSize), ...MIDI_PORTS.inputs.slice(16, 16 + currentMatrixSize)];
+  visibleOutputs.forEach((output, i) => {
+    const th = document.createElement('th');
+    th.textContent = output;
+    th.dataset.portType = i >= currentMatrixSize ? 'usb' : 'jack';
+    headerRow.appendChild(th);
+  });
+  table.appendChild(headerRow);
+  visibleInputs.forEach((input, rowIndex) => {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.textContent = input;
+    tr.appendChild(th);
+    visibleOutputs.forEach((output, colIndex) => {
+      const td = document.createElement('td');
+      td.dataset.portType = colIndex >= currentMatrixSize ? 'usb' : 'jack';
+      const point = document.createElement('div');
+      point.className = 'route-point';
+      point.dataset.input = input;
+      point.dataset.output = output;
+      td.onclick = () => toggleRoute(input, output);
+      td.appendChild(point);
+      td.onmouseover = () => highlightRoute(input, output);
+      td.onmouseout = clearHighlights;
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  container.innerHTML = '';
+  container.appendChild(table);
+  Object.entries(routingMatrix).forEach(([input, outputs]) => {
+    if (visibleInputs.includes(input)) {
+      Object.keys(outputs).forEach(output => {
+        if (visibleOutputs.includes(output)) {
+          const point = document.querySelector(`.route-point[data-input="${input}"][data-output="${output}"]`);
+          if (point) point.classList.add('active');
+        }
+      });
+    }
+  });
+}
+
+function toggleRoute(input, output) {
+  const point = document.querySelector(`td .route-point[data-input="${input}"][data-output="${output}"]`);
+  if (!routingMatrix[input]) {
+    routingMatrix[input] = {};
+  }
+  if (routingMatrix[input][output]) {
+    delete routingMatrix[input][output];
+    point.classList.remove('active');
+  } else {
+    routingMatrix[input][output] = true;
+    point.classList.add('active');
+  }
+}
+
+function DefaultRoutes() {
+  if (confirm('Are you sure you want to reset routing to default?')) {
+    routingMatrix = {};
+    document.querySelectorAll('td .route-point').forEach(point => {
+      point.classList.remove('active');
+    });
+    const midiLog = document.getElementById("midiLog");
+    midiLog.innerHTML = '';
+    sendSysex('F0 77 77 78 0F 00 F7');
+  }
+}
+
+let midiOutput = null;
+let midiInput = null;
+let deviceInfo = {
+  name: "",
+  vendorId: "",
+  productId: ""
+};
+function initWebMidi() {
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess({
+      sysex: true
+    }).then(onMIDISuccess, onMIDIFailure);
+    initRoutingMatrix();
+  } else {
+    alert("WebMIDI is not supported in this browser.");
+  }
+}
+function onMIDISuccess(midiAccess) {
+  const inputSelect = document.getElementById("midiInputs");
+  const outputSelect = document.getElementById("midiOutputs");
+  midiAccess.inputs.forEach(input => {
+    const option = document.createElement("option");
+    option.text = input.name;
+    option.value = input.id;
+    inputSelect.add(option);
+  });
+  midiAccess.outputs.forEach(output => {
+    const option = document.createElement("option");
+    option.text = output.name;
+    option.value = output.id;
+    outputSelect.add(option);
+  });
+}
+function onMIDIFailure() {
+  alert("Could not access your MIDI devices.");
+}
+function toggleConnection() {
+  const inputSelect = document.getElementById("midiInputs");
+  const outputSelect = document.getElementById("midiOutputs");
+  const connectButton = document.getElementById("connectButton");
+  const statusBar = document.getElementById("statusBar");
+  if (midiInput || midiOutput) {
+    if (midiInput) {
+      midiInput.onmidimessage = null;
+      midiInput = null;
+    }
+    midiOutput = null;
+    connectButton.textContent = "Connect Device";
+    statusBar.textContent = "Not connected";
+    deviceInfo = {
+      name: "",
+      vendorId: "",
+      productId: ""
+    };
+  } else {
+    const selectedInput = inputSelect.value;
+    const selectedOutput = outputSelect.value;
+    if (selectedInput || selectedOutput) {
+      navigator.requestMIDIAccess({
+        sysex: true
+      }).then(midiAccess => {
+        if (selectedInput) {
+          midiInput = midiAccess.inputs.get(selectedInput);
+          midiInput.onmidimessage = handleMIDIMessage;
+        }
+        if (selectedOutput) {
+          midiOutput = midiAccess.outputs.get(selectedOutput);
+        }
+        if (midiInput || midiOutput) {
+          connectButton.textContent = "Disconnect Device";
+          deviceInfo.name = midiInput ? midiInput.name : midiOutput.name;
+          updateStatusBar();
+          sendCommand('06', '01');
+        } else {
+          alert("Failed to connect to the selected MIDI device(s).");
+        }
+      });
+    } else {
+      alert("Please select at least one MIDI input or output device.");
+    }
+  }
+}
+function updateStatusBar() {
+  const statusBar = document.getElementById("statusBar");
+  if (deviceInfo.name) {
+    statusBar.textContent = `Connected to ${deviceInfo.name}`;
+    if (deviceInfo.vendorId && deviceInfo.productId) {
+      statusBar.textContent += ` (VID: ${deviceInfo.vendorId}, PID: ${deviceInfo.productId})`;
+    }
+  } else {
+    statusBar.textContent = "Not connected";
+  }
+}
+function handleMIDIMessage(event) {
+  const midiLog = document.getElementById("midiLog");
+  const message = Array.from(event.data).map(b => b.toString(16).padStart(2, '0')).join(' ');
+  const parts = message.split(' ');
+ 
+  // if (window.isRefreshing) {
+  //   if (message.startsWith('f0 77 77 78 0f 01')) {
+  //       // Ignore virtual ports
+  //       if (message.startsWith('f0 77 77 78 0f 01 02 01 02 f7')) return;
+  //     handleMIDIRoutingResponse(message);
+  //   }
+  // } 
+  // else {
+  //   midiLog.innerHTML += `(R): ${message}<br>`;
+  //   midiLog.scrollTop = midiLog.scrollHeight;
+  // }
+
+ 
+  if (dumpMode) {
+        if (message.startsWith('f0 77 77 78 0f 01')  ) {
+          if ( parts[6] == '02' || parts[8] == '02' || parts[9] == 'f7') return ;
+            midiLog.innerHTML += `d< ${message}<br>`;
+            handleMIDIRoutingResponse(message);
+        } 
+        else return;
+  }
+  else  {
+  
+    midiLog.innerHTML += `<< ${message}<br>`;
+
+    // Manage identity request
+    // f0 7e 7f 06 02 77 00 01 00 78 02 35 00 00 f7
+    if (message.startsWith('f0 7e 7f 06 02 77')) {
+      midiLog.innerHTML += '  --- Identity reply ---<br>';
+      midiLog.innerHTML += '  Hardware         : ' + ( parts[9] == '78' ? 'Bluepill' : "Miditech" ) + '<br>';
+      midiLog.innerHTML += '  Firmware version : ' + parseInt(parts[10],16) + '.' + parseInt(parts[11],16) + '<br>';
+      deviceInfo.vendorId = parts[5].padStart(4, '0');
+      deviceInfo.productId = (parts[6] + parts[7]).padStart(4, '0');
+      updateStatusBar();
+    }
+    
+  }
+
+  midiLog.scrollTop = midiLog.scrollHeight;
+}
+
+function sendSysex(message) {
+  
+  
+  if (!midiOutput) {
+    alert("Please connect to a MIDI output device first.");
+    return;
+  }
+  
+  
+  dumpMode = message.toLowerCase().startsWith("f0 77 77 78 05") ? 1:0;
+  
+  const midiLog = document.getElementById("midiLog");
+  const bytes = message.trim().split(' ').map(hex => parseInt(hex, 16));
+  
+  if (bytes.some(isNaN)) message += ' -- Invalid hex format!';
+  else {
+
+    try {
+        midiOutput.send(bytes);
+        
+    } catch (err) {
+        message += ' -- Error sending message !'
+    }
+
+  }
+  midiLog.innerHTML += `>> ${message}<br>`;
+  midiLog.scrollTop = midiLog.scrollHeight;
+
+}
+
+
+function sendCommand(groupId, commandId) {
+  const message = `F0 77 77 78 ${groupId} ${commandId} F7`;
+  switch (`${groupId}${commandId}`) {
+    case '0600':
+      if (confirm("Are you sure you want to reboot the device?")) {
+        sendSysex(message);
+      }
+      break;
+    case '0601':
+      sendSysex(message);
+      break;
+    case '0604':
+      if (confirm("Are you sure you want to reset to factory settings?")) {
+        sendSysex(message);
+        showResetWindow();
+      }
+      break;
+    case '0605':
+      if (confirm("Are you sure you want to clear all settings? The device will be rebooted.")) {
+        sendSysex(message);
+        showResetWindow();
+      }
+      break;
+    default:
+      sendSysex(message);
+  }
+}
+
+function showResetWindow() {
+  const resetModal = document.getElementById("resetModal");
+  resetModal.style.display = "block";
+  setTimeout(() => {
+    resetModal.style.display = "none";
+    reconnectDevice();
+  }, 5000);
+}
+
+function reconnectDevice() {
+  toggleConnection();
+  setTimeout(() => {
+    toggleConnection();
+    setTimeout(() => {
+      if (!midiInput && !midiOutput) {
+        toggleConnection();
+      }
+    }, 2000);
+  }, 1000);
+}
+
+function setUsbProductString() {
+  const productString = document.getElementById("usbProductString").value;
+  if (productString) {
+    const hexString = Array.from(productString).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+    const message = `F0 77 77 78 0B 00 ${hexString} F7`;
+    sendSysex(message);
+  }
+}
+
+function setUsbIds() {
+  const vendorId = document.getElementById("usbVendorId").value;
+  const productId = document.getElementById("usbProductId").value;
+  if (vendorId && productId) {
+    const message = `F0 77 77 78 0B 01 ${vendorId} ${productId} F7`;
+    sendSysex(message);
+  }
+}
+
+function openTab(evt, tabName) {
+  const tabContents = document.getElementsByClassName("tab-content");
+  for (let i = 0; i < tabContents.length; i++) {
+    tabContents[i].style.display = "none";
+  }
+  const tabButtons = document.getElementsByClassName("tab-button");
+  for (let i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+  }
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
+function refreshRoutes() {
+  document.querySelectorAll('td .route-point').forEach(point => {
+    point.classList.remove('active');
+  });
+  routingMatrix = {};
+  clearLog();
+  sendSysex('F0 77 77 78 05 7F 00 00 00 F7');
+}
+
+function handleMIDIRoutingResponse(message) {
+  
+  const parts = message.split(' ');
+  if (parts[0] === 'f0' && parts[1] === '77' && parts[2] === '77' && parts[3] === '78' && parts[4] === '0f' && parts[5] === '01') {
+    // Virtual ports not implemented yet
+    if (parts[6] === '02') return;
+    if (parts[8] === '02') return;
+    if (parts[9] === 'f7') return;
+    // f0 77 77 78 0f 01 02 00 02 00 f7
+    const inPortType = parseInt(parts[6], 16) === 0 ? 'Usb Out' : 'Jk In';
+    const inPortNum = parseInt(parts[7], 16) + 1;
+    const outPortType = parseInt(parts[8], 16) === 0 ? 'Usb In' : 'Jk Out';
+    const input = `${inPortType} ${inPortNum}`;
+
+    i = 9 ;
+    while (parts[i] != 'f7' ) {
+      const outPortNum = parseInt(parts[i], 16) + 1;
+      const output = `${outPortType} ${outPortNum}`;
+      const point = document.querySelector(`td .route-point[data-input="${input}"][data-output="${output}"]`);
+      if (point) {
+        //console.log( "Sysex " + message );
+        //console.log(  "Point =  input/ouput " + input + "/" + output + " - parts[i] " + parts[i] );
+        point.classList.add('active');
+        if (!routingMatrix[input]) routingMatrix[input] = {};
+      routingMatrix[input][output] = true;
+      }
+      i++;
+    }
+  }
+}
+
+function sendAllRoutes() {
+  const midiLog = document.getElementById("midiLog");
+  midiLog.innerHTML = '';
+
+  for (let inputIdx = 0; inputIdx < MIDI_PORTS.inputs.length; inputIdx++) {
+    const input = MIDI_PORTS.inputs[inputIdx];
+    const inPortType = input.includes('Usb Out') ? '00' : '01';
+    const inPortNum = (parseInt(input.match(/\d+/)[0]) - 1).toString(16).padStart(2, '0');
+    
+    let usbSysex   = `F0 77 77 78 0F 01 ${inPortType} ${inPortNum} 00 `;
+    let jackSysex  = `F0 77 77 78 0F 01 ${inPortType} ${inPortNum} 01 `;  
+
+    for (let outputIdx = 0; outputIdx < MIDI_PORTS.outputs.length; outputIdx++) {
+      const output = MIDI_PORTS.outputs[outputIdx];
+      const outPortType = output.includes('Usb') ? '00' : '01';
+      const outPortNum = (parseInt(output.match(/\d+/)[0]) - 1).toString(16).padStart(2, '0');
+      const isRouteEnabled = routingMatrix[input]?.hasOwnProperty(output);
+
+      if (isRouteEnabled) {
+        midiLog.innerHTML += input + '-' + output + ' => (X) <br>';
+        if ( outPortType == '00') usbSysex += outPortNum + ' ' ;
+        else if ( outPortType == '01') jackSysex += outPortNum + ' ' ;
+        else midiLog.innerHTML += ' TYPE ??? ' + outPortType + '<br>'; 
+      }
+      //else midiLog.innerHTML += input + '-' + output + ' => (.) <br>';
+    }
+    
+    usbSysex  = usbSysex  + 'F7';
+    jackSysex = jackSysex + 'F7';
+    
+    //console.log( usbSysex);
+    //console.log( jackSysex);
+
+    sendSysex(jackSysex);
+    sendSysex(usbSysex);
+  }
+}
+function clearLog() {
+  const midiLog = document.getElementById("midiLog");
+  midiLog.innerHTML = '';
+}
+function sendCustomSysex() {
+  const sysexInput = document.getElementById("sysexInput");
+  const message = sysexInput.value.trim();
+  if (!message) {
+    alert("Please enter a sysex message");
+    return;
+  }
+  if (!message.toLowerCase().startsWith("f0") || !message.toLowerCase().endsWith("f7")) {
+    alert("Invalid sysex message format. Must start with F0 and end with F7");
+    return;
+  }
+  sendSysex(message.toUpperCase());
+}
+
+
+function changeMatrixSize() {
+  const selectedSize = document.querySelector('input[name="matrixSize"]:checked').value;
+  currentMatrixSize = parseInt(selectedSize);
+  initRoutingMatrix();
+}
+
+function highlightRoute(input, output) {
+  document.querySelectorAll('.routing-matrix td, .routing-matrix th').forEach(cell => {
+    cell.classList.remove('highlight-path');
+  });
+  const rows = document.querySelectorAll('.routing-matrix tr');
+  const rowIndex = Array.from(rows).findIndex(row => row.querySelector('th').textContent === input);
+  const colIndex = Array.from(document.querySelector('.routing-matrix tr:first-child').children).findIndex(th => th.textContent === output);
+  if (rowIndex > 0 && colIndex > 0) {
+    const row = rows[rowIndex];
+    for (let i = 0; i <= colIndex; i++) {
+      row.children[i].classList.add('highlight-path');
+    }
+    for (let i = 0; i <= rowIndex; i++) {
+      rows[i].children[colIndex].classList.add('highlight-path');
+    }
+    rows[0].children[colIndex].classList.add('highlight-path');
+    rows[rowIndex].children[0].classList.add('highlight-path');
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.routing-matrix td, .routing-matrix th').forEach(cell => {
+    cell.classList.remove('highlight-path');
+  });
+}
+
+document.querySelectorAll('input[name="matrixSize"]').forEach(radio => {
+  radio.addEventListener('change', changeMatrixSize);
+});
+
+initRoutingMatrix();
+initWebMidi();
+
+</script>
+</body></html>

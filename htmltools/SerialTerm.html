@@ -1,0 +1,354 @@
+<html><head><base href="https://serialterm.web/%20put%20the%20status%20bar%20on%20top%20of%20terminal%20display%20area.%20Add%20the%20usb%20serial%20device%20name%20name%20to%20the%20status%20bar.%20It%20is%20possible%20to%20scroll%20within%20the%20terminal%20display%20area.%20reduce%20the%20terminal%20%20display%20area%20height%20by%2010%25"><title>SerialTerm.web - Advanced TTY Mode Terminal (Reduced Height)</title>
+<style>
+  body {
+    font-family: 'Fira Code', monospace;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  #top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  #button-container {
+    display: flex;
+    gap: 10px;
+  }
+  #terminal-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: calc(90vh - 150px); /* Reduced by 10% */
+  }
+  #status-bar {
+    background-color: #2d2d2d;
+    border: 1px solid #3a3a3a;
+    border-bottom: none;
+    border-radius: 5px 5px 0 0;
+    padding: 5px 10px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+  #terminal {
+    flex-grow: 1;
+    background-color: #000000;
+    border: 1px solid #3a3a3a;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    padding: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    position: relative;
+  }
+  #terminal-content {
+    outline: none;
+    caret-color: transparent;
+  }
+  #cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1em;
+    background-color: #d4d4d4;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+  }
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .btn {
+    border: none;
+    border-radius: 3px;
+    padding: 5px 15px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    color: white;
+  }
+  #connect-btn {
+    background-color: #6a9955;
+  }
+  #connect-btn:hover {
+    background-color: #8aba77;
+  }
+  #disconnect-btn {
+    background-color: #c53030;
+    display: none;
+  }
+  #disconnect-btn:hover {
+    background-color: #e53e3e;
+  }
+  .system-msg { color: #569cd6; }
+  .device-output { color: #b5cea8; }
+  #settings {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  select, input[type="number"] {
+    background-color: #2d2d2d;
+    color: #d4d4d4;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    padding: 5px;
+  }
+  label { margin-right: 5px; }
+</style>
+</head>
+<body>
+  <div id="top-bar">
+    <div id="settings">
+      <label for="baud-rate">Baud Rate:</label>
+      <select id="baud-rate">
+        <option value="9600">9600</option>
+        <option value="19200">19200</option>
+        <option value="38400">38400</option>
+        <option value="57600">57600</option>
+        <option value="115200" selected>115200</option>
+      </select>
+      <label for="data-bits">Data Bits:</label>
+      <select id="data-bits">
+        <option value="7">7</option>
+        <option value="8" selected>8</option>
+      </select>
+      <label for="parity">Parity:</label>
+      <select id="parity">
+        <option value="none" selected>None</option>
+        <option value="even">Even</option>
+        <option value="odd">Odd</option>
+      </select>
+      <label for="stop-bits">Stop Bits:</label>
+      <select id="stop-bits">
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+      </select>
+      <label for="flow-control">Flow Control:</label>
+      <select id="flow-control">
+        <option value="none" selected>None</option>
+        <option value="hardware">Hardware</option>
+      </select>
+      <label for="buffer-size">Buffer Size (chars):</label>
+      <input type="number" id="buffer-size" value="1000000" min="100000" max="10000000">
+    </div>
+    <div id="button-container">
+      <button id="connect-btn" class="btn">Connect</button>
+      <button id="disconnect-btn" class="btn">Disconnect</button>
+    </div>
+  </div>
+  <div id="terminal-container">
+    <div id="status-bar">
+      <span id="connection-status">Disconnected</span>
+      <span id="device-name">Device: N/A</span>
+      <span id="buffer-usage">Buffer: 0/1000000</span>
+    </div>
+    <div id="terminal">
+      <span id="terminal-content"></span><span id="cursor"></span>
+    </div>
+  </div>
+
+  <script>
+    let port;
+    let reader;
+    let inputDone;
+    let outputDone;
+    let inputStream;
+    let outputStream;
+    let autoScroll = true;
+
+    const terminal = document.getElementById('terminal');
+    const terminalContent = document.getElementById('terminal-content');
+    const cursor = document.getElementById('cursor');
+    const connectButton = document.getElementById('connect-btn');
+    const disconnectButton = document.getElementById('disconnect-btn');
+    const baudRateSelect = document.getElementById('baud-rate');
+    const dataBitsSelect = document.getElementById('data-bits');
+    const paritySelect = document.getElementById('parity');
+    const stopBitsSelect = document.getElementById('stop-bits');
+    const flowControlSelect = document.getElementById('flow-control');
+    const bufferSizeInput = document.getElementById('buffer-size');
+    const connectionStatus = document.getElementById('connection-status');
+    const deviceName = document.getElementById('device-name');
+    const bufferUsage = document.getElementById('buffer-usage');
+
+    connectButton.addEventListener('click', connectToSerialPort);
+    disconnectButton.addEventListener('click', disconnectFromSerialPort);
+    document.addEventListener('keydown', handleKeyDown);
+    terminal.addEventListener('scroll', handleScroll);
+
+    async function connectToSerialPort() {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({
+          baudRate: parseInt(baudRateSelect.value),
+          dataBits: parseInt(dataBitsSelect.value),
+          parity: paritySelect.value,
+          stopBits: parseInt(stopBitsSelect.value),
+          flowControl: flowControlSelect.value
+        });
+
+        const decoder = new TextDecoderStream();
+        inputDone = port.readable.pipeTo(decoder.writable);
+        inputStream = decoder.readable;
+
+        const encoder = new TextEncoderStream();
+        outputDone = encoder.readable.pipeTo(port.writable);
+        outputStream = encoder.writable;
+
+        reader = inputStream.getReader();
+        readLoop();
+
+        log('Connected to serial port', 'system-msg');
+        connectButton.style.display = 'none';
+        disconnectButton.style.display = 'inline-block';
+        connectionStatus.textContent = 'Connected';
+        updateDeviceName(port);
+        terminal.focus();
+      } catch (error) {
+        log(`Error: ${error}`, 'system-msg');
+      }
+    }
+
+    async function disconnectFromSerialPort() {
+      if (reader) {
+        await reader.cancel();
+        await inputDone.catch(() => {});
+        reader = null;
+        inputDone = null;
+      }
+      if (outputStream) {
+        await outputStream.getWriter().close();
+        await outputDone;
+        outputStream = null;
+        outputDone = null;
+      }
+      await port.close();
+      port = null;
+
+      log('Disconnected from serial port', 'system-msg');
+      connectButton.style.display = 'inline-block';
+      disconnectButton.style.display = 'none';
+      connectionStatus.textContent = 'Disconnected';
+      deviceName.textContent = 'Device: N/A';
+    }
+
+    async function readLoop() {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          reader.releaseLock();
+          break;
+        }
+        if (value) {
+          log(value, 'device-output');
+          if (autoScroll) {
+            scrollToBottom();
+          }
+        }
+      }
+    }
+
+    function handleKeyDown(e) {
+      if (!port) return;
+      
+      const char = e.key;
+      if (char.length === 1 || char === 'Enter') {
+        e.preventDefault();
+        sendData(char === 'Enter' ? '\r\n' : char);
+      }
+    }
+
+    function sendData(data) {
+      if (port && port.writable) {
+        const writer = outputStream.getWriter();
+        writer.write(data);
+        writer.releaseLock();
+      }
+    }
+
+    function log(message, className) {
+      const span = document.createElement('span');
+      span.textContent = message;
+      span.className = className;
+      terminalContent.appendChild(span);
+      
+      // Trim buffer if it exceeds the specified size
+      const maxChars = parseInt(bufferSizeInput.value);
+      while (terminalContent.textContent.length > maxChars) {
+        terminalContent.removeChild(terminalContent.firstChild);
+      }
+      
+      updateBufferUsage();
+    }
+
+    function updateBufferUsage() {
+      const maxChars = parseInt(bufferSizeInput.value);
+      const currentChars = terminalContent.textContent.length;
+      bufferUsage.textContent = `Buffer: ${currentChars}/${maxChars}`;
+    }
+
+    function scrollToBottom() {
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function handleScroll() {
+      const isScrolledToBottom = terminal.scrollHeight - terminal.clientHeight <= terminal.scrollTop + 1;
+      autoScroll = isScrolledToBottom;
+    }
+
+    async function updateDeviceName(port) {
+      const { usbVendorId, usbProductId } = port.getInfo();
+      if (usbVendorId && usbProductId) {
+        try {
+          const device = await navigator.usb.getDevices()
+            .then(devices => devices.find(d => d.vendorId === usbVendorId && d.productId === usbProductId));
+          if (device) {
+            deviceName.textContent = `Device: ${device.productName || 'Unknown USB Device'}`;
+          } else {
+            deviceName.textContent = `Device: USB VID:${usbVendorId.toString(16)} PID:${usbProductId.toString(16)}`;
+          }
+        } catch (error) {
+          deviceName.textContent = 'Device: USB (No Access)';
+        }
+      } else {
+        deviceName.textContent = 'Device: Serial Port';
+      }
+    }
+
+    // Prevent default browser shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (['c', 'v', 'x'].includes(e.key.toLowerCase())) {
+          // Allow copy, paste, and cut
+          return;
+        }
+        e.preventDefault();
+      }
+    });
+
+    // Custom handler for paste
+    document.addEventListener('paste', (e) => {
+      if (!port) return;
+      e.preventDefault();
+      const text = e.clipboardData.getData('text/plain');
+      sendData(text);
+    });
+
+    // Ensure terminal is focused when page loads
+    window.addEventListener('load', () => terminal.focus());
+
+    // Update buffer size when input changes
+    bufferSizeInput.addEventListener('change', () => {
+      updateBufferUsage();
+    });
+  </script>
+</body></html>
