@@ -59,7 +59,7 @@ FN Description / sub command
 SYSEX MESSAGES
 
 -------------------------------------------------------------------------------
-05 Configuration sysex dump
+05 Configuratin sysex dump
 F0 77 77 78 05 <dump address:nn nn nn nn> F7
 
 -------------------------------------------------------------
@@ -86,6 +86,9 @@ F0 77 77 78 06 00 F7
 
 06 01 Identity request
 F0 77 77 78 06 01 F7
+Answer can be (vv xx are major and minor version bytes): 
+"f0 7e 7f 06 02 77 00 01 00 78 vv xx 00 00 f7" for Bluepill firmware
+"f0 7e 7f 06 02 77 00 01 00 79 vv xx 00 00 f7" for Miditech firmware
 
 06 02 Sysex acknowledgment toggle (on/off)
 F0 77 77 78 06 02 F7
@@ -165,7 +168,8 @@ F0 77 77 78 0F 00 F7
 F0 77 77 78 0F 01 <in port type> <in port> <out port type>[out ports list: nn...nn] F7
 port type : cable = 0 |jack=1 | virtual=2   port : 0-F out ports list is optional
 A virtual port can't be routed to another virtual port.
-
+Previous output target ports are erased. 
+If no ports list provided, that will reset all routes previously defined.
 -------------------------------------------------------------------------------
 10 Bus mode
 

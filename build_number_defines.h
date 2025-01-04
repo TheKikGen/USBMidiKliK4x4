@@ -49,8 +49,8 @@ __ __| |           |  /_) |     ___|             |           |
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 5
-#define VERSION_PATCH 3
-
+#define VERSION_PATCH 4
+#define VERSION_MINOR_PATCH VERSION_MINOR*10 + VERSION_PATCH
 
 // Example of __DATE__ string: "Jul 27 2012"
 //                              01234567890
