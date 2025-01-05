@@ -9,7 +9,7 @@
 ## New release V2.5.4 : html tools introduction
 <img width="400" border="0" src="https://github.com/user-attachments/assets/f18b4d0b-cc56-470c-822b-85b62bdef3de"  />
 
-This release introduces new utility to configure your UMK4x4. These utilities work locally or online.
+[This release](https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.4) introduces new utility to configure your UMK4x4. These utilities work locally or online.
 - [UMK Configurator tool](https://thekikgen.github.io/umk4x4-Configurator.html) : a graphical user interface to set usb properties or midi routing.
 - [Midi Sysex utility](https://thekikgen.github.io/MidiSysExUtility.html) : a tool to play with sysex
 - [SerialTerm](https://thekikgen.github.io/SerialTerm.html) : A serial terminal to use when you need to access to the text configuration menu.
