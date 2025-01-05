@@ -6,6 +6,16 @@
 
 # NEWS
 
+## New release V2.5.4 : html tools introduction
+<img width="400" border="0" src="https://github.com/user-attachments/assets/f18b4d0b-cc56-470c-822b-85b62bdef3de"  />
+
+This release introduces new utility to configure your UMK4x4. These utilities work locally or online.
+- [UMK Configurator tool](https://thekikgen.github.io/umk4x4-Configurator.html) : a graphical user interface to set usb properties or midi routing.
+- [Midi Sysex utility](https://thekikgen.github.io/MidiSysExUtility.html) : a tool to play with sysex
+- [SerialTerm](https://thekikgen.github.io/SerialTerm.html) : A serial terminal to use when you need to access to the text configuration menu.
+
+Check the directory here : https://github.com/TheKikGen/USBMidiKliK4x4/tree/master/htmltools to download locally.
+
 ## New release V2.5.3 : Correction of the blocking issue in standalone mode 
 The previous release introduced an issue blocking UMK firmware when it was used in standalone mode (with a power supply only).
 it is now corrected.  You can adjust the USB detection time with the option #7 in the configuration menu (USB idle time), or by sending the appropriate sysex (Intelligent thru mode settings).  Default USB idle is 30 seconds: that means the standalone mode will be activated after 30 seconds.
