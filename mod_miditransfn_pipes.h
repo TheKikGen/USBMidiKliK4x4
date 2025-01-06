@@ -109,6 +109,9 @@ boolean MidiTransFn_VeloCurv2(uint8_t, midiPacket_t *, midiPacket_t *, transPipe
 boolean MidiTransFn_VeloCurv3_CheckParms(transPipe_t *);
 boolean MidiTransFn_VeloCurv3(uint8_t, midiPacket_t *, midiPacket_t *, transPipe_t *);
 
+boolean MidiTransFn_NoteToChord_CheckParms(transPipe_t *);
+boolean MidiTransFn_NoteToChord(uint8_t, midiPacket_t *, midiPacket_t *, transPipe_t *);
+
 ///////////////////////////////////////////////////////////////////////////////
 //  Midi transformation functions vector
 ///////////////////////////////////////////////////////////////////////////////
@@ -129,6 +132,7 @@ enum MidiTransPipeId {
   FN_TRANSPIPE_VELO_CURV1,
   FN_TRANSPIPE_VELO_CURV2,
   FN_TRANSPIPE_VELO_CURV3,
+  FN_TRANSPIPE_NOTE_TOCHORD,
   FN_TRANSPIPE_VECTOR_SIZE,
 } ;
 
@@ -156,6 +160,7 @@ const MidiTransFnVector_t MidiTransFnVector[FN_TRANSPIPE_VECTOR_SIZE] = {
    {"VLCURV1", &MidiTransFn_VeloCurv1,     &MidiTransFn_VeloCurv1_CheckParms},
    {"VLCURV2", &MidiTransFn_VeloCurv2,     &MidiTransFn_VeloCurv2_CheckParms},
    {"VLCURV3", &MidiTransFn_VeloCurv3,     &MidiTransFn_VeloCurv3_CheckParms},
+   {"N2CHORD", &MidiTransFn_NoteToChord,   &MidiTransFn_NoteToChord_CheckParms},   
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -670,7 +675,7 @@ int8_t MidiTransFn_VeloCurveLine(uint8_t veloIn, float a, float b, float c, floa
 boolean MidiTransFn_VeloCurv1_CheckParms(transPipe_t *pipe)
 { 
   return true;
-}
+} 
 
 boolean MidiTransFn_VeloCurv1(uint8_t portType, midiPacket_t *pkSource, midiPacket_t *pk, transPipe_t *pipe)
 {
@@ -693,13 +698,13 @@ boolean MidiTransFn_VeloCurv1(uint8_t portType, midiPacket_t *pkSource, midiPack
 
   int8_t veloOut = -1;
 
-  if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , 0.0,0.0,VLCURV1_X1,(float)pipe->par1) )                       >= 0 ) pk->packet[3] = veloOut;
-  if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X1,(float)pipe->par1,VLCURV1_X2,(float)pipe->par2) )  >= 0 ) pk->packet[3] = veloOut;
-  if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X2,(float)pipe->par2,VLCURV1_X3,(float)pipe->par3) )  >= 0 ) pk->packet[3] = veloOut;
-  if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X3,(float)pipe->par3,VLCURV1_X4,(float)pipe->par4) )  >= 0 ) pk->packet[3] = veloOut;
-  if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X4,(float)pipe->par4,127.,127.) )                     >= 0 ) pk->packet[3] = veloOut;
+  if (      ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , 0.0,0.0,VLCURV1_X1,(float)pipe->par1) )                       >= 0 ) pk->packet[3] = veloOut;
+  else if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X1,(float)pipe->par1,VLCURV1_X2,(float)pipe->par2) )  >= 0 ) pk->packet[3] = veloOut;
+  else if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X2,(float)pipe->par2,VLCURV1_X3,(float)pipe->par3) )  >= 0 ) pk->packet[3] = veloOut;
+  else if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X3,(float)pipe->par3,VLCURV1_X4,(float)pipe->par4) )  >= 0 ) pk->packet[3] = veloOut;
+  else if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] , VLCURV1_X4,(float)pipe->par4,127.,127.) )                     >= 0 ) pk->packet[3] = veloOut;
   
-  return false;
+  return true;
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -719,13 +724,19 @@ boolean MidiTransFn_VeloCurv2_CheckParms(transPipe_t *pipe)
 
 boolean MidiTransFn_VeloCurv2(uint8_t portType, midiPacket_t *pkSource, midiPacket_t *pk, transPipe_t *pipe)
 {
- 
-  int8_t veloOut = -1;
-
-  // PkSource is the unmodified midi packet.  VLCURV2 uses only the original packet velocity to apply changes rather than the current value,
+   // PkSource is the unmodified midi packet.  VLCURV2 uses only the original packet velocity to apply changes rather than the current value,
   // because of tranformation chaining that could be incoherent with what want to do with velocity.
   // It is often better that VLCURV2 be the first pipe in the chain for that reason.
 
+  int8_t veloOut = -1;
+  uint8_t midiStatus = pkSource->packet[1] & 0xF0;
+
+  // Only notes ON
+  if ( midiStatus != midiXparser::noteOnStatus) return true;
+
+  // Do not process null velocity (equivalent to note off)
+  if ( pkSource->packet[3] == 0 ) return true;
+  
   if ( ( veloOut = MidiTransFn_VeloCurveLine(pkSource->packet[3],(float) pipe->par1,(float) pipe->par2,(float) pipe->par3,(float) pipe->par4) ) >= 0 ) pk->packet[3] = veloOut;
 
   return true;
@@ -836,7 +847,30 @@ boolean MidiTransFn_VeloCurv3(uint8_t portType, midiPacket_t *pkSource, midiPack
       else if ( ( veloOut = MidiTransFn_VeloCurveLine(pk->packet[3] ,122.,121.,127.,127.) ) >= 0 )  pk->packet[3] =  veloOut ;
 
   }
-
-  return false ; // Error
+  
+  else return false ; // Error
+  
+  return true;
  
+}
+
+// -----------------------------------------------------------------------------------------------
+// | PipeID  |        par1        |        par2        |        par3        |         par4       |
+// |---------+--------------------+--------------------+--------------------+--------------------|
+// | N2CHORD |   note value       |  0: define chord   | semitones group 1  | semitones group 2  |
+// |   0D    |   c3 to b3         |                    | nibbles: (0-C)(0-C)| nibbles: (0-C)(0-C)|
+// |         |                    |  1: set chord      |                    |                    |
+// |         |                    |                    |                    |                    |
+// -----------------------------------------------------------------------------------------------
+boolean MidiTransFn_NoteToChord_CheckParms(transPipe_t *pipe)
+{ 
+
+  if (pipe->par1 < 1 || pipe->par1 > 6) return false;
+  return false;
+
+}
+
+boolean MidiTransFn_NoteToChord(uint8_t portType, midiPacket_t *pkSource, midiPacket_t *pk, transPipe_t *pipe)
+{
+  return false;
 }
