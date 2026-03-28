@@ -3,6 +3,26 @@
            |   __ \   _ \  ' /  | |  / |      _ \ __ \   |      _` | __ \   __|
            |   | | |  __/  . \  |   <  |   |  __/ |   |  |     (   | |   |\__ \
           _|  _| |_|\___| _|\_\_|_|\_\\____|\___|_|  _| _____|\__,_|_.__/ ____/
+# USBMidiKliK4x4
+A multi-port USB MIDI interface for the STM32DUINO platform.
+
+Download the last firmware here : https://github.com/TheKikGen/USBMidiKliK4x4/releases
+
+User manual is here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki/UMK4x4-V2.5-User-Manual
+
+Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
+
+The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
+Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
+I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
+
+The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, midi transformation, midi clock, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode".
+
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+
+If you are a regular user of USBMidiKlik, please consider making a donation to encourage our team, and to pay for the coffees swallowed during the long nights of coding ! 
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=thekikgen@gmail.com&lc=FR&item_name=Donation+to+TheKikGen+projects&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted)
 
 # NEWS
 
@@ -32,9 +52,7 @@ it is now corrected.  You can adjust the USB detection time with the option #7 i
 
 ## Limited number of the new UMK4x4 PCB v2.3 available at Tindie right now  !
 The inclination towards smaller hardware devices has made it increasingly difficult to make use of DIN connectors for MIDI In/Out in the past few years. Many manufacturers have chosen to use 3.5mm "TRS" connectors instead. It is why The KikGen Labs team released a new UM4x4 V2.3 board based on the STM32F103 Bluepill. This new board uses 3,5MM TRS jacks instead of midi DIN, with full MMA RP-054 type A compliance. Midi DIN is still possible obviously, under the form of a 4 mini 3.5mm jacks to DINs rail board, so you can "patch" midi in and out as you want.<br>
-<img width="200" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true)"  />[![The Kikgen Labs Tindie place](https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png)]( https://www.tindie.com/stores/thekikgenlabs/ ) 
-
-<img width="1370" height="912" alt="image" src="https://github.com/user-attachments/assets/869a94f1-e538-4cbb-9232-cb206032845a" />
+<img width="200" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/UMK4X4-board%20and%20components%20capture-2023-10-14.png?raw=true)"  />[![The Kikgen Labs Tindie place](https://d2ss6ovg47m0r5.cloudfront.net/images/tindie-logo@2x.png)]( https://www.tindie.com/stores/thekikgenlabs/ ) <img width="400" alt="image" src="https://github.com/user-attachments/assets/869a94f1-e538-4cbb-9232-cb206032845a" />
 
 ## New release V2.5.2 : Velocity curve transformation pipes
 <img width="300" border="0" src="https://raw.githubusercontent.com/TheKikGen/USBMidiKliK4x4/master/doc/um4x4-velocity-orignew-curves.png"/>
@@ -50,28 +68,7 @@ https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.2
 This v2.5.1 release includes a bug correction in parameters validation of the MSGFLTR pipe that was blocking the function #2.
 https://github.com/TheKikGen/USBMidiKliK4x4/releases/tag/v2.5.1
 
-# USBMidiKliK4x4
-A multi-port USB MIDI interface for the STM32DUINO platform.
-
-Download the last firmware here : https://github.com/TheKikGen/USBMidiKliK4x4/releases
-
-User manual is here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki/UMK4x4-V2.5-User-Manual
-
-Check also the wiki here : https://github.com/TheKikGen/USBMidiKliK4x4/wiki
-
-The story of this project starts with a hack of the MIDIPLUS/MIDITECH 4x4 USB to MIDI interface.
-Needing more midi jacks, I bought a second Miditech interface, but I discovered it was not possible to use 2 Miditech / Midiplus MIDI USB 4X4 on the same computer to get 8x8, and according to the Miditech support, as that usb midi interface was not updateable at all !
-I was stucked....That was motivating me enough to write a totally new and better firmware : the UsbMidiKlik4x4 project was born.
-
-The current version V2.5 supports full USB midi until 16xIN , 16XOUT plus routing features, enabling configurables standalone mode, merge mode, thru mode, split mode, midi transformation, midi clock, etc., huge sysex flow, configuration menu from serial USB, and is very fast and stable thanks to the STM32F103.  More of that, you can aggregate until 5 3x3 boards seen as one by activating the "Bus mode".
-
-<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
-
-If you are a regular user of USBMidiKlik, please consider making a donation to encourage our team, and to pay for the coffees swallowed during the long nights of coding ! 
-
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=thekikgen@gmail.com&lc=FR&item_name=Donation+to+TheKikGen+projects&no_note=0&cn=&currency_code=EUR&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted)
-
-## USBMidiKliK4x4 features
+## USBMidiKliK4x4 detailed features
 + STM32F103C8 / STM32F103CB / STM32F103RB / STM32F103RC uC support
 + Bluepill and Miditech 4x4 board support
 + 16 MIDI USB IN/OUT
@@ -125,19 +122,6 @@ NB: The UMK4x4 supports only 3 physical IN and 3 physical OUT.
 
 <img width="300" border="0" src="https://github.com/TheKikGen/USBMidiKliK4x4/blob/master/doc/20191215_173355.jpg?raw=true"  />
 The first protoype of the bus mode I use every day !
-
-## MKPI : UMK4x4 graphical frontend
-
-Orzdk has developped a graphical UI for manipulating and configuring the USBMidiKliK settings in sysex mode, from a web browser.
-It also allows to show visual representation of the routes and transformations that are currently applied in your USBMidiKlik.
-
-https://github.com/orzdk/mkpi
-
-<img width="650" border="0" src="https://github.com/orzdk/mkpi/raw/master/doc/screenshot.png" />  
-
-
-
-
 
 # USBMidiKliK4x4 - Configuration overview
 
