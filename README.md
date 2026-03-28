@@ -11,7 +11,7 @@
 If you are using the recommended [TKG-HID-BOOTLOADER](https://github.com/TheKikGen/stm32-tkg-hid-bootloader/blob/master/README.md) 
 you can now update your firmware easyly with that web utility : 
 
-<img width="920" height="511" alt="image" src="https://github.com/user-attachments/assets/e8034086-d6f7-4c01-b520-119b45cc09f0" />
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/e8034086-d6f7-4c01-b520-119b45cc09f0" />
 
 You can use it locally or on-line here : https://thekikgen.github.io/tkg-hid-webcli.html
 
